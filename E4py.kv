@@ -1,0 +1,387 @@
+#:kivy 1.1.0
+#:set BUTTON_BACKGROUND (0, .69, 255/255, 1)
+#:set BUTTON_COLOR (0, 0, 0, 1)
+#:set MENU_COLOR [0, 0, 0]
+#:set SUBMENU_COLOR [255, 255, 255]
+#:set WINDOW_COLOR (0, 0, 0, 1)
+#:set DATAGRID_ODD [224.0/255, 224.0/255, 224.0/255, 1]
+#:set DATAGRID_EVEN [189.0/255, 189.0/255, 189.0/255, 1]
+
+ScreenManager:
+    id: screen_manager
+    #transition: FadeTransition()
+    MainScreen:
+        id: main_screen
+        name: 'MainScreen'
+        manager: 'screen_manager'
+    StatusScreen:
+        id: status_screen
+        name: 'StatusScreen'
+        manager: 'screen_manager'
+    LogScreen:
+        id: log_screen
+        name: 'LogScreen'
+        manager: 'screen_manager'
+    DebugScreen:
+        id: debug_screen
+        name: 'DebugScreen'
+        manager: 'screen_manager'
+    AboutScreen:
+        id: about_screen
+        name: 'AboutScreen'
+        manager: 'screen_manager'
+    EditPointScreen:
+        id: editpoint_screen
+        name: 'EditPointScreen'
+        manager: 'screen_manager'
+    EditPointsScreen:
+        id: editpoints_screen
+        name: 'EditPointsScreen'
+        manager: 'screen_manager'
+    EditDatumsScreen:
+        id: editdatums_screen
+        name: 'EditDatumsScreen'
+        manager: 'screen_manager'
+    EditUnitsScreen:
+        id: editunits_screen
+        name: 'EditUnitsScreen'
+        manager: 'screen_manager'
+    EditPrismsScreen:
+        id: editprisms_screen
+        name: 'EditPrismsScreen'
+        manager: 'screen_manager'
+
+
+<MainScreen>:
+    BoxLayout:
+        id: mainbox
+        orientation: 'vertical'
+        BoxLayout:
+            ActionView:
+                size_hint_y : .1
+                use_separator: True
+                pos_hint: {'top':1}
+                ActionPrevious:
+                    title: 'pyEDM'
+                    with_previous: False
+                ActionOverflow:
+                ActionGroup:
+                    text: 'Help'
+                    color: (MENU_COLOR[0]/255, MENU_COLOR[1]/255, MENU_COLOR[2]/255,1)
+                    ActionButton:
+                        text: 'Status'
+                        on_press: app.root.current = 'StatusScreen'
+                        color: SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255, 1
+                    ActionButton:
+                        text: 'Log'
+                        on_press: app.root.current = 'LogScreen'
+                        color: SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255, 1
+                    ActionButton:
+                        text: 'Debug'
+                        on_press: app.root.current = 'DebugScreen'
+                        color: SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255, 1
+                    ActionButton:
+                        text: 'About'
+                        on_press: app.root.current = 'AboutScreen'
+                        color: SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255, 1
+                ActionGroup:
+                    text: 'Edit'
+                    color: (MENU_COLOR[0]/255, MENU_COLOR[1]/255, MENU_COLOR[2]/255,1)
+                    ActionButton:
+                        text: 'The last point'
+                        color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
+                    ActionButton:
+                        text: 'Points'
+                        on_press: app.root.current = 'EditPointsScreen'
+                        color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
+                    ActionButton:
+                        text: 'Datums'
+                        on_press: app.root.current = 'EditDatumsScreen'
+                        color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
+                    ActionButton:
+                        text: 'Units'
+                        on_press: app.root.current = 'EditUnitsScreen'
+                        color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
+                    ActionButton:
+                        text: 'Prims'
+                        on_press: app.root.current = 'EditPrismsScreen'
+                        color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
+                ActionGroup:
+                    text: 'File'
+                    color: (MENU_COLOR[0]/255, MENU_COLOR[1]/255, MENU_COLOR[2]/255,1)
+                    ActionButton:
+                        text: 'Open CFG'
+                        on_release: root.show_load_cfg()
+                        color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
+                    ActionButton:
+                        text: 'Save CFG as'
+                        on_release: root.show_save()
+                        color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
+                    ActionButton:
+                        text: 'Exit'
+                        on_release: app.stop()
+                        color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
+
+
+<StatusScreen>:
+
+<LogScreen>:
+
+<AboutScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        Label:
+            text: 'E4py by Shannon P. McPherron\n\nVersion 1.0 Alpha\nApple Pie\n\nAn OldStoneAge.Com Production\n\nJanuary, 2019'
+            size_hint_y: .8
+            valign: 'middle'
+            halign: 'center'
+            font_size: 20
+            color: WINDOW_COLOR
+        Button:
+            text: 'Back'
+            on_press: app.root.current = 'MainScreen'
+            size_hint_y: .2
+            color: BUTTON_COLOR
+            background_color: BUTTON_BACKGROUND
+            background_normal: ''
+
+
+
+
+<MessageBox>:
+    title: 'Popup Message Box'
+    size_hint: None, None
+    size: 400, 400
+
+    BoxLayout:
+        orientation: 'vertical'
+        Label:
+            text: app.root.rv_layout.selected_value
+        Button:
+            size_hint: 1, 0.2
+            text: 'OK'
+            on_press:
+                root.dismiss()
+
+
+<SelectableButton>:
+    # Draw a background to indicate selection
+    canvas.before:
+        Color:
+            rgba: (0.0, 0.9, 0.1, 0.3)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+
+<RV>:
+    rv_layout: layout
+    viewclass: 'SelectableButton'
+    SelectableRecycleBoxLayout:
+        id: layout
+        default_size: None, dp(56)
+        default_size_hint: 0.1, None
+        size_hint_y: None
+        height: self.minimum_height
+        orientation: "vertical"
+
+
+<DatumLister>:
+    BoxLayout:
+        orientation: "vertical"
+        size_hint_y: None
+        height: 30
+        Label:
+            text: 'Select a datum or define a new one.'
+        Button:
+            text: "New"
+        Button:
+            text: "Cancel"
+
+
+
+<EditPointsScreen>:
+<EditPointScreen>:
+
+
+<LoadDialog>:
+    BoxLayout:
+        size: root.size
+        pos: root.pos
+        orientation: "vertical"
+        FileChooserListView:
+            id: filechooser
+            filters: ['*.cfg','*.CFG']
+            path: root.start_path
+        BoxLayout:
+            size_hint_y: None
+            height: 30
+            spacing: 5
+            Button:
+                text: "Next"
+                on_release: root.load(filechooser.path, filechooser.selection)
+                color: BUTTON_COLOR
+                background_color: BUTTON_BACKGROUND
+                background_normal: ''
+            Button:
+                text: "Back"
+                on_release: root.cancel()
+                color: BUTTON_COLOR
+                background_color: BUTTON_BACKGROUND
+                background_normal: ''
+
+<SaveDialog>:
+    text_input: text_input
+    BoxLayout:
+        size: root.size
+        pos: root.pos
+        orientation: "vertical"
+        FileChooserListView:
+            id: filechooser
+            on_selection: text_input.text = self.selection and self.selection[0] or ''
+
+        TextInput:
+            id: text_input
+            size_hint_y: None
+            height: 30
+            multiline: False
+
+        BoxLayout:
+            size_hint_y: None
+            height: 30
+            Button:
+                text: "Cancel"
+                on_release: root.cancel()
+
+            Button:
+                text: "Save"
+                on_release: root.save(filechooser.path, text_input.text)
+
+
+
+
+## code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py
+
+<HeaderCell>:
+    size_hint: (None, None)
+    text_size: self.size
+    halign: "center"
+    valign: "middle"
+    height: '30dp'
+    background_disabled_normal: '' 
+    disabled_color: (1, 1, 1, 1)
+    color: (1, 1, 1, 1)
+    canvas.before:
+        Color:
+            rgba: 0.165, 0.165, 0.165, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    on_release: root.parent.parent.parent.parent._generate_table(self.text)
+
+<TableHeader>:
+    header: header
+    bar_width: 0
+    do_scroll: False
+    size_hint: (1, None)
+    effect_cls: "ScrollEffect"
+    height: '30dp'
+    GridLayout:
+        id: header
+        rows: 1
+        size_hint: (None, None)
+        width: self.minimum_width
+        height: self.minimum_height
+
+<ScrollCell>:
+    canvas.before:
+        Color:
+            rgba: DATAGRID_ODD if root.is_even else DATAGRID_EVEN
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    text: root.text
+    id: root.id
+    on_press: root.callback(root.key, root.field, root.db)
+    background_color: DATAGRID_ODD if root.is_even else DATAGRID_EVEN
+    font_size: "12dp"
+    halign: "center"
+    valign: "middle"
+    text_size: self.size
+    size_hint: 1, 1
+    height: 60
+    width: 400
+
+<TableData>:
+    rgrid: rgrid
+    scroll_type: ['bars', 'content']
+    bar_color: [0.2, 0.7, 0.9, 1]
+    bar_inactive_color: [0.2, 0.7, 0.9, .5]
+    do_scroll_x: True
+    do_scroll_y: True
+    effect_cls: "ScrollEffect"
+    viewclass: "ScrollCell"
+    RecycleGridLayout:
+        id: rgrid
+        rows: root.nrows
+        cols: root.ncols
+        size_hint: (None, None)
+        width: self.minimum_width
+        height: self.minimum_height
+
+
+
+<DfguiWidget>:
+    panel1: data_frame_panel
+    panel4: add_new_panel
+    do_default_tab: False
+    TabbedPanelItem:
+        text: 'Data Frame'
+        on_release: root.open_panel1()
+        color: BUTTON_COLOR
+        background_color: BUTTON_BACKGROUND
+        background_normal: ''
+        DataframePanel:
+            id: data_frame_panel
+    TabbedPanelItem:
+        text: 'Add New'
+        color: BUTTON_COLOR
+        background_color: BUTTON_BACKGROUND
+        background_normal: ''
+        AddNewPanel:
+            id: add_new_panel
+    TabbedPanelItem:
+        text: 'Close'
+        on_release: app.root.current = 'MainScreen'
+        color: BUTTON_COLOR
+        background_color: BUTTON_BACKGROUND
+        background_normal: ''
+
+<DataframePanel>:
+    orientation: 'vertical'
+
+<AddNewPanel>:
+    addnew_list: addnew_list
+    orientation: 'vertical'
+    ScrollView:
+        do_scroll_x: False
+        do_scroll_y: True
+        size_hint: 1, 1
+        scroll_timeout: 150
+        GridLayout:
+            id: addnew_list
+            padding: "10sp"
+            spacing: "5sp"
+            cols:1
+            row_default_height: '55dp'
+            row_force_default: True
+            size_hint_y: None
+
+## end code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py
+
+<YesNoCancel>:
+    cols:1
+
+<Test>:
+    Button:
+        text: "Save"
