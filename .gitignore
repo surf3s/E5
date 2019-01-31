@@ -112,3 +112,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
+# My stuff
+*.cfg
+CFGs/
+*.json
+

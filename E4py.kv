@@ -38,19 +38,6 @@ ScreenManager:
         id: editpoints_screen
         name: 'EditPointsScreen'
         manager: 'screen_manager'
-    EditDatumsScreen:
-        id: editdatums_screen
-        name: 'EditDatumsScreen'
-        manager: 'screen_manager'
-    EditUnitsScreen:
-        id: editunits_screen
-        name: 'EditUnitsScreen'
-        manager: 'screen_manager'
-    EditPrismsScreen:
-        id: editprisms_screen
-        name: 'EditPrismsScreen'
-        manager: 'screen_manager'
-
 
 <MainScreen>:
     BoxLayout:
@@ -93,18 +80,6 @@ ScreenManager:
                     ActionButton:
                         text: 'Points'
                         on_press: app.root.current = 'EditPointsScreen'
-                        color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
-                    ActionButton:
-                        text: 'Datums'
-                        on_press: app.root.current = 'EditDatumsScreen'
-                        color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
-                    ActionButton:
-                        text: 'Units'
-                        on_press: app.root.current = 'EditUnitsScreen'
-                        color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
-                    ActionButton:
-                        text: 'Prims'
-                        on_press: app.root.current = 'EditPrismsScreen'
                         color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
                 ActionGroup:
                     text: 'File'
@@ -202,7 +177,6 @@ ScreenManager:
 
 <EditPointsScreen>:
 <EditPointScreen>:
-
 
 <LoadDialog>:
     BoxLayout:

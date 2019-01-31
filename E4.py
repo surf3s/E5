@@ -1,3 +1,7 @@
+# First screen should be first field is the CFG is current
+# Otherwise a blank screen
+
+
 __version__ = '1.0.0'
 
 from kivy.app import App
@@ -56,7 +60,7 @@ class points(dbs):
 
     def __init__(self, filename):
         if filename=='':
-            filename = 'EDM_points.json'
+            filename = 'e4_data.json'
         self.filename = filename
         self.db = TinyDB(self.filename)
 
@@ -84,8 +88,8 @@ class points(dbs):
         return(name_list)
 
     def fields(self):
-        global edm_cfg 
-        return(edm_cfg.fields())
+        global e4_cfg 
+        return(e4_cfg.fields())
 
     def delete_all(self):
         self.db.purge()
@@ -106,21 +110,13 @@ class ini(blockdata):
 
     def __init__(self, filename):
         if filename=='':
-            filename = 'EDMpy.ini'
+            filename = 'E4.ini'
         self.filename = filename
         self.blocks = self.read_blocks()
 
     def update(self):
-        global edm_station
-        global edm_cfg
-        self.update_value('STATION','TotalStation', edm_station.make)
-        self.update_value('STATION','Communication', edm_station.communication)
-        self.update_value('STATION','COMPort', edm_station.comport)
-        self.update_value('STATION','BAUD', edm_station.baudrate)
-        self.update_value('STATION','Parity', edm_station.parity)
-        self.update_value('STATION','DataBits', edm_station.databits)
-        self.update_value('STATION','StopBits', edm_station.stopbits)
-        self.update_value('EDM','CFG', edm_cfg.filename)
+        global e4_cfg
+        self.update_value('E4','CFG', e4_cfg.filename)
         self.save()
 
     def save(self):
@@ -147,7 +143,7 @@ class cfg(blockdata):
 
     def __init__(self, filename):
         if filename=='':
-            filename = 'EDMpy.cfg'
+            filename = 'E4.cfg'
         self.load(filename)
         self.validate()
     
@@ -268,123 +264,27 @@ class record_button(Button):
         self.background_color = BUTTON_BACKGROUND
         self.background_normal = ''
 
+class LoadDialog(FloatLayout):
+    start_path =  ObjectProperty(None)
+    load = ObjectProperty(None)
+    cancel = ObjectProperty(None)
+
+class SaveDialog(FloatLayout):
+    save = ObjectProperty(None)
+    text_input = ObjectProperty(None)
+    cancel = ObjectProperty(None)
+
 class MainScreen(Screen):
 
-    global edm_prisms
-    global edm_station
-
-    popup = ObjectProperty(None)
+    _popup = ObjectProperty(None)
 
     def __init__(self,**kwargs):
         super(MainScreen, self).__init__(**kwargs)
 
-        global edm_cfg
+        global e4_cfg
 
         layout = GridLayout(cols = 3, spacing = 10, size_hint_y = .8)
         button_count = 0
-
-        if edm_cfg.get_value('BUTTON1','TITLE'):
-            button1 = record_button(text = edm_cfg.get_value('BUTTON1','TITLE'), id = 'button1')
-            layout.add_widget(button1)
-            button1.bind(on_press = self.take_shot)
-            button_count += 1
-
-        if edm_cfg.get_value('BUTTON2','TITLE'):
-            button2  = record_button(text = edm_cfg.get_value('BUTTON2','TITLE'), id = 'button2')
-            layout.add_widget(button2)
-            button2.bind(on_press = self.take_shot)
-            button_count += 1
-
-        if edm_cfg.get_value('BUTTON3','TITLE'):
-            button3  = record_button(text = edm_cfg.get_value('BUTTON3','TITLE'), id = 'button3')
-            layout.add_widget(button3)
-            button3.bind(on_press = self.take_shot)
-            button_count += 1
-
-        if edm_cfg.get_value('BUTTON4','TITLE'):
-            button4  = record_button(text = edm_cfg.get_value('BUTTON4','TITLE'), id = 'button4')
-            layout.add_widget(button4)
-            button4.bind(on_press = self.take_shot)
-            button_count += 1
-
-        if edm_cfg.get_value('BUTTON5','TITLE'):
-            button5  = record_button(text = edm_cfg.get_value('BUTTON5','TITLE'), id = 'button5')
-            layout.add_widget(button5)
-            button5.bind(on_press = self.take_shot)
-            button_count += 1
-
-        if edm_cfg.get_value('BUTTON6','TITLE'):
-            button6  = record_button(text = edm_cfg.get_value('BUTTON6','TITLE'), id = 'button6')
-            layout.add_widget(button6)
-            button6.bind(on_press = self.take_shot)
-            button_count += 1
-
-        if button_count % 3 !=0:
-            button_empty = Button(text = '', size_hint_y = None, id = '',
-                            color = WINDOW_BACKGROUND,
-                            background_color = WINDOW_BACKGROUND,
-                            background_normal = '')
-            layout.add_widget(button_empty)
-
-        if button_count % 3 == 2:
-            layout.add_widget(button_empty)
-            
-        button_rec = Button(text = 'Record', size_hint_y = None, id = 'record',
-                        color = BUTTON_COLOR,
-                        background_color = BUTTON_BACKGROUND,
-                        background_normal = '')
-        layout.add_widget(button_rec)
-        button_rec.bind(on_press = self.take_shot)
-
-        button_continue = Button(text = 'Continue', size_hint_y = None, id = 'continue',
-                        color = BUTTON_COLOR,
-                        background_color = BUTTON_BACKGROUND,
-                        background_normal = '')
-        layout.add_widget(button_continue)
-        button_continue.bind(on_press = self.take_shot)
-
-        button_measure = Button(text = 'Measure', size_hint_y = None, id = 'measure',
-                        color = BUTTON_COLOR,
-                        background_color = BUTTON_BACKGROUND,
-                        background_normal = '')
-        layout.add_widget(button_measure)
-        button_measure.bind(on_press = self.take_shot)
-
-        self.add_widget(layout)
-
-    def take_shot(self, value):
-        
-        edm_station.take_shot()
-
-        layout_popup = GridLayout(cols = 1, spacing = 10, size_hint_y = None)
-        layout_popup.bind(minimum_height=layout_popup.setter('height'))
-        for prism in edm_prisms.names():
-            button1 = Button(text = prism, size_hint_y = None, id = prism,
-                        color = OPTIONBUTTON_COLOR,
-                        background_color = OPTIONBUTTON_BACKGROUND,
-                        background_normal = '')
-            layout_popup.add_widget(button1)
-            button1.bind(on_press = self.show_edit_screen)
-        button2 = Button(text = 'Back', size_hint_y = None,
-                        color = BUTTON_COLOR,
-                        background_color = BUTTON_BACKGROUND,
-                        background_normal = '')
-        layout_popup.add_widget(button2)
-        root = ScrollView(size_hint=(1, None), size=(Window.width, Window.height/1.9))
-        root.add_widget(layout_popup)
-        self.popup = Popup(title = 'Prism Height',
-                    content = root,
-                    size_hint = (None, None),
-                    size = (400, 400),
-                    #pos_hint = {None, None},
-                    auto_dismiss = False)
-        button2.bind(on_press = self.popup.dismiss)
-        self.popup.open()
-
-    def show_edit_screen(self, value):
-        self.popup.dismiss()
-        edm_station.prism = edm_prisms.get(value.text).height 
-        self.parent.current = 'EditPointScreen'
 
     def show_load_cfg(self):
         content = LoadDialog(load = self.load, 
@@ -395,13 +295,13 @@ class MainScreen(Screen):
         self._popup.open()
 
     def load(self, path, filename):
-        global edm_cfg, edm_ini
-        edm_cfg.load(os.path.join(path, filename[0]))
-        edm_ini.update()
+        global e4_cfg, e4_ini
+        e4_cfg.load(os.path.join(path, filename[0]))
+        e4_ini.update()
         self.dismiss_popup()
 
     def dismiss_popup(self):
-        self.popup.dismiss()
+        self._popup.dismiss()
         self.parent.current = 'MainScreen'
 
 class InitializeOnePointHeader(Label):
@@ -583,10 +483,10 @@ class YesNo(Popup):
 
 class EditPointScreen(Screen):
 
-    global edm_cfg
+    global e4_cfg
     global edm_station
     global edm_prisms
-    global edm_points
+    global e4_data
 
     popup = ObjectProperty(None)
 
@@ -595,8 +495,8 @@ class EditPointScreen(Screen):
         self.clear_widgets()
         layout = GridLayout(cols = 2, spacing = 10, size_hint_y = None, id = 'fields')
         layout.bind(minimum_height=layout.setter('height'))
-        for field_name in edm_cfg.fields():
-            f = edm_cfg.get(field_name)
+        for field_name in e4_cfg.fields():
+            f = e4_cfg.get(field_name)
             layout.add_widget(Label(text = field_name,
                                 size_hint_y = None, color = BUTTON_COLOR))
             if field_name in ['SUFFIX','X','Y','Z','PRISM','DATE','VANGLE','HANGLE','SLOPED']:
@@ -662,7 +562,7 @@ class EditPointScreen(Screen):
 
     def show_menu(self, value):
         if value.id!='PRISM':  
-            self.popup = MenuList(value.id, edm_cfg.get(value.id).menu, self.menu_selection)
+            self.popup = MenuList(value.id, e4_cfg.get(value.id).menu, self.menu_selection)
         else:
             self.popup = MenuList(value.id, edm_prisms.names(), self.prism_change)
         self.popup.open()
@@ -685,8 +585,8 @@ class EditPointScreen(Screen):
                     for widget in self.popup.walk():
                         if widget.id == 'new_item':
                             child.text = widget.text
-                            edm_cfg.update_value(value.id,'MENU',
-                                                edm_cfg.get_value(value.id,'MENU') + "," + widget.text) 
+                            e4_cfg.update_value(value.id,'MENU',
+                                                e4_cfg.get_value(value.id,'MENU') + "," + widget.text) 
                 else:
                     child.text = value.text
         self.popup.dismiss()
@@ -694,12 +594,12 @@ class EditPointScreen(Screen):
     def save(self, value):
         new_record = {}
         for widget in self.walk():
-            for f in edm_points.fields():
+            for f in e4_data.fields():
                 if widget.id == f:
                     new_record[f] = widget.text
-        valid = edm_cfg.valid_datarecord(new_record)
+        valid = e4_cfg.valid_datarecord(new_record)
         if valid:
-            edm_points.db.insert(new_record)
+            e4_data.db.insert(new_record)
             edm_units.update_defaults(new_record)
             self.parent.current = 'MainScreen'
         else:
@@ -709,31 +609,8 @@ class EditPointScreen(Screen):
 class EditPointsScreen(Screen):
     def __init__(self,**kwargs):
         super(EditPointsScreen, self).__init__(**kwargs)
-        global edm_points
-        self.add_widget(DfguiWidget(edm_points))
-
-class EditPrismsScreen(Screen):
-    def __init__(self,**kwargs):
-        super(EditPrismsScreen, self).__init__(**kwargs)
-        global edm_prisms
-        self.add_widget(DfguiWidget(edm_prisms))
-
-class EditUnitsScreen(Screen):
-    def __init__(self,**kwargs):
-        super(EditUnitsScreen, self).__init__(**kwargs)
-        global edm_units
-        self.add_widget(DfguiWidget(edm_units))
-
-class EditDatumsScreen(Screen):
-    def __init__(self,**kwargs):
-        super(EditDatumsScreen, self).__init__(**kwargs)
-        global edm_datums
-        self.add_widget(DfguiWidget(edm_datums))
-
-class datumlist(RecycleView, Screen):
-    def __init__(self, **kwargs):
-        super(datumlist, self).__init__(**kwargs)
-        self.data = [{'text': str(x)} for x in range(100)]
+        global e4_data
+        self.add_widget(DfguiWidget(e4_data))
 
 class SelectableRecycleBoxLayout(FocusBehavior, LayoutSelectionBehavior, RecycleBoxLayout):
     """ Adds selection and focus behaviour to the view. """
@@ -896,13 +773,11 @@ class StatusScreen(Screen):
     def __init__(self,**kwargs):
         super(StatusScreen, self).__init__(**kwargs)
 
-        global edm_station, edm_datums, edm_units, edm_prisms
-        global edm_cfg
+        global e4_cfg
 
         layout = GridLayout(cols = 1, size_hint_y = None)
         layout.bind(minimum_height=layout.setter('height'))
-        txt = edm_station.status() + edm_datums.status() + edm_prisms.status()
-        txt += edm_units.status()
+        txt = "status"
         label = Label(text = txt, size_hint_y = None,
                      color = (0,0,0,1), id = 'content',
                      halign = 'left',
@@ -921,12 +796,10 @@ class StatusScreen(Screen):
         button.bind(on_press = self.go_back)
 
     def on_pre_enter(self):
-        global edm_station, edm_datums, edm_units, edm_prisms
-        global edm_cfg
+        global e4_cfg
         for widget in self.walk():
             if widget.id=='content':
-                txt = edm_station.status() + edm_datums.status() + edm_prisms.status()
-                txt += edm_units.status() + edm_cfg.status()
+                txt = "status"
                 widget.text = txt
 
     def go_back(self, value):
@@ -993,10 +866,10 @@ class TableData(RecycleView):
         self.field = field
         self.db = db
         if db == 'points':
-            cfg_field = edm_cfg.get(field)
+            cfg_field = e4_cfg.get(field)
             self.inputtype = cfg_field.inputtype
             if cfg_field.inputtype == 'MENU':
-                self.popup = MenuList(field, edm_cfg.get(field).menu, self.menu_selection)
+                self.popup = MenuList(field, e4_cfg.get(field).menu, self.menu_selection)
                 self.popup.open()
             if cfg_field.inputtype in ['TEXT','NUMERIC']:
                 self.popup = TextNumericInput(field, self.menu_selection)
@@ -1018,7 +891,7 @@ class TableData(RecycleView):
                     if widget.id == 'new_item':
                         new_data[self.field] = widget.text
             field_record = Query()
-            edm_points.db.update(new_data, (field_record.UNIT == unit) & (field_record.ID == id))
+            e4_data.db.update(new_data, (field_record.UNIT == unit) & (field_record.ID == id))
             for widget in self.walk():
                 if widget.id=='datacell':
                     if widget.key == self.key and widget.field == self.field:
@@ -1222,14 +1095,14 @@ class E4py(App):
         #print(test)
         #return(DfguiWidget(EDMpy.edm_datums.datums, "datums"))
     
-Factory.register('EDMpy', cls=EDMpy)
+Factory.register('E4py', cls=E4py)
 
 if __name__ == '__main__':
     logging.basicConfig(filename='E4.log', filemode='w', level=logging.DEBUG)
     database = 'E4'
     e4_ini = ini('E4.ini')
-    e4_cfg = cfg(edm_ini.get_value("E4", "CFG"))
-    e4_points = points(database + '_points.json')
+    e4_cfg = cfg(e4_ini.get_value("E4", "CFG"))
+    e4_data = points(database + '_data.json')
     if not e4_cfg.filename:
         e4_cfg.filename = 'EDMpy.cfg'
     e4_cfg.save()
