@@ -22,10 +22,6 @@ ScreenManager:
         id: log_screen
         name: 'LogScreen'
         manager: 'screen_manager'
-    DebugScreen:
-        id: debug_screen
-        name: 'DebugScreen'
-        manager: 'screen_manager'
     AboutScreen:
         id: about_screen
         name: 'AboutScreen'
@@ -64,10 +60,6 @@ ScreenManager:
                         on_press: app.root.current = 'LogScreen'
                         color: SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255, 1
                     ActionButton:
-                        text: 'Debug'
-                        on_press: app.root.current = 'DebugScreen'
-                        color: SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255, 1
-                    ActionButton:
                         text: 'About'
                         on_press: app.root.current = 'AboutScreen'
                         color: SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255, 1
@@ -97,31 +89,11 @@ ScreenManager:
                         on_release: app.stop()
                         color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
 
-
 <StatusScreen>:
 
 <LogScreen>:
 
 <AboutScreen>:
-    BoxLayout:
-        orientation: 'vertical'
-        Label:
-            text: 'E4py by Shannon P. McPherron\n\nVersion 1.0 Alpha\nApple Pie\n\nAn OldStoneAge.Com Production\n\nJanuary, 2019'
-            size_hint_y: .8
-            valign: 'middle'
-            halign: 'center'
-            font_size: 20
-            color: WINDOW_COLOR
-        Button:
-            text: 'Back'
-            on_press: app.root.current = 'MainScreen'
-            size_hint_y: .2
-            color: BUTTON_COLOR
-            background_color: BUTTON_BACKGROUND
-            background_normal: ''
-
-
-
 
 <MessageBox>:
     title: 'Popup Message Box'
