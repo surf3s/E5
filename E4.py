@@ -43,6 +43,7 @@ from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.tabbedpanel import TabbedPanel
 from kivy.core.window import Window
+from kivy.graphics import Color, Rectangle
 
 import os 
 import random
@@ -353,7 +354,6 @@ class MainTextNumericInput(ScrollView):
         __content.add_widget(TextInput(size_hint_y = None, multiline = False, id = 'new_item'))
         self.add_widget(__content)
 
-
 class MainScreen(Screen):
 
     _popup = ObjectProperty(None)
@@ -364,28 +364,34 @@ class MainScreen(Screen):
 
         self._field = e4_cfg.start()
 
-        mainscreen = BoxLayout(orientation = 'vertical', size_hint_y = None, id = 'inputbox')
+        mainscreen = BoxLayout(orientation = 'vertical',
+            size_hint_y = .9, id = 'inputbox')
         #inputbox.bind(minimum_height = inputbox.setter('height'))
 
-        label = Label(text = self._field.prompt, size_hint_y = None, height = .2,
+        label = Label(text = self._field.prompt,
+                     size_hint = (.9, .1),
                      color = (0,0,0,1), id = 'field_prompt',
-                     halign = 'left',
+                     halign = 'center',
                      font_size = TEXT_FONT_SIZE)
+
         mainscreen.add_widget(label)
         label.bind(texture_size = label.setter('size'))
         label.bind(size_hint_min_x = label.setter('width'))
         
-        mainscreen.add_widget(TextInput(size_hint_y = None,
+        mainscreen.add_widget(TextInput(size_hint = (.9, .1),
+                                         #size = (Window.width * .5, 35),
                                          multiline = False,
                                          id = 'field_data',
+                                         #halign = 'center',
                                          font_size = TEXT_FONT_SIZE))
         #self.add_widget(inputbox)
 
-        scroll_content = BoxLayout(orientation = 'horizontal', size_hint_y = None, id = 'scroll_content')
+        scroll_content = BoxLayout(orientation = 'horizontal',
+                                     size_hint = (.9, None), id = 'scroll_content')
         self.add_scroll_content(scroll_content)
         mainscreen.add_widget(scroll_content)
 
-        buttons = GridLayout(cols = 2, size_hint_y = None)
+        buttons = GridLayout(cols = 2, size_hint = (.9,None), spacing = 20)
         back_button = Button(text = 'Back', size_hint_y = None,
                         color = BUTTON_COLOR,
                         font_size = BUTTON_FONT_SIZE,
@@ -412,6 +418,7 @@ class MainScreen(Screen):
 
             if self._field.menu:
                 scrollbox = GridLayout(cols = 1, size_hint_y = None, id = 'inputbox')
+                scrollbox.bind(minimum_height=scrollbox.setter('height'))
                 for menu_item in self._field.menu:
                     scrollbox.add_widget(Label(text = menu_item, size_hint_y = None,
                                 color = (0,0,0,1), id = 'info',
@@ -424,10 +431,14 @@ class MainScreen(Screen):
 
             if self._field.info:
                 scrollbox = GridLayout(cols = 1, size_hint_y = None, id = 'inputbox')
+                scrollbox.bind(minimum_height=scrollbox.setter('height'))
                 info = Label(text = self._field.info, size_hint_y = None,
                             color = (0,0,0,1), id = 'info',
-                            halign = 'left',
+                            #halign = 'left',
+                            text_size = (self.width, None),
+                            #height = self.texture_size[1],
                             font_size = TEXT_FONT_SIZE)
+                info.bind(texture_size=lambda *x: info.setter('height')(info, info.texture_size[1]))
                 scrollbox.add_widget(info)    
                 #root2 = ScrollView(size_hint=(1, None), size=(Window.width, scroll_content.height))
                 root2 = ScrollView(size_hint=(1, None))
