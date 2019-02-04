@@ -1,16 +1,13 @@
 # First screen should be first field is the CFG is current
 # Otherwise a blank screen
 
-# Make the menulist and info boxes actually scroll
-# When a menulist, when an item is selected, insert into text box and then trigger next button
-# When doing a next, load data from current data if it exists.
-# When doing a back, load data from current data if it exists.
+# Fix problem with sizing label for info box
+# Figure out a way to shift focus and scroll through menu choices with the keyboard
 # Write condition evaluation
 # Write data save
 # Then work on data grid and editing records
 # If a new menu item is entered instead of selected, offer to add it to the menu
 # Add a CFG option to sort menus
-# Filter input on a numeric box to numbers only
 # Better support for keyboard input (i.e. pressing keys moves to menu item and enter selects)
 
 # Long term
@@ -51,6 +48,7 @@ import datetime
 import logging
 import logging.handlers as handlers
 import time
+import ntpath
 
 logger = logging.getLogger('E4')
 logger.setLevel(logging.INFO)
@@ -158,29 +156,30 @@ class ini(blockdata):
         txt = 'The INI file is %s.\n' % self.filename
         return(txt)
 
+class field:
+    def __init__(self, name):
+        self.name = name
+        self.inputtype = ''
+        self.prompt = ''
+        self.length = 0
+        self.menu = ''
+        self.conditions = []
+        self.increment = False
+        self.carry = False 
+        self.unique = False
+        self.info = ''
+        self.infofile = ''
+        self.data = {}
+
 class cfg(blockdata):
 
     blocks = []
     filename = ""
+    path = ""
     current_field = ""
     BOF = True
     EOF = False
     current_record = {}
-
-    class field:
-        name = ''
-        inputtype = ''
-        prompt = ''
-        length = 0
-        menu = ''
-        conditions = []
-        increment = False
-        carry = False 
-        unique = False
-        info = ''
-        data = {}
-        def __init__(self, name):
-            self.name = name
 
     def __init__(self, filename):
         if filename=='':
@@ -202,7 +201,7 @@ class cfg(blockdata):
         if not field_name:
             return('')
         else:
-            f = self.field(field_name)
+            f = field(field_name)
             f.name = field_name
             f.inputtype = self.get_value(field_name, 'TYPE')
             f.prompt = self.get_value(field_name, 'PROMPT')
@@ -213,7 +212,8 @@ class cfg(blockdata):
             else:
                 f.menu = ''
             f.info = self.get_value(field_name, 'INFO')
-            for condition_no in range(0, 6):
+            f.infofile = self.get_value(field_name, 'INFO FILE')
+            for condition_no in range(1, 6):
                 if self.get_value(field_name, "CONDITION%s" % condition_no):
                     f.conditions.append(self.get_value(field_name, "CONDITION%s" % condition_no))
             return(f)
@@ -248,6 +248,7 @@ class cfg(blockdata):
 
     def load(self, filename):
         self.filename = filename 
+        self.path = ntpath.split(filename)[0]
         self.blocks = self.read_blocks()
         if self.blocks==[]:
             self.build_default()
@@ -263,7 +264,7 @@ class cfg(blockdata):
         txt += 'and contains %s fields.' % len(self.blocks)
         return(txt)
 
-    def next(self):
+    def next(self, data_record):
         if self.EOF:
             self.current_field = ''
         else:
@@ -273,21 +274,25 @@ class cfg(blockdata):
                 self.current_field = self.fields()[0]
             else:
                 field_index = self.fields().index(self.current_field)
-                field_index += 1
-                if field_index > len(self.blocks):
-                    self.EOF = True
-                    self.current_field = ""
-                else:
-                    self.EOF = False
-                    self.BOF = False
-                    self.current_field = self.fields()[field_index]
+                while True:
+                    field_index += 1
+                    if field_index > (len(self.fields()) - 1):
+                        self.EOF = True
+                        self.current_field = ""
+                        break
+                    else:
+                        self.current_field = self.fields()[field_index]
+                        if self.condition_test(data_record):
+                            self.EOF = False
+                            self.BOF = False
+                            break
         return(self.get(self.current_field))
 
         # This routine needs to get the current field and then advance it by one
         # checking conditionals as it goes
         # If advancing passed the end, then set currentfield to empty and set EOF
 
-    def previous(self):
+    def previous(self, data_record):
         # need to implement conditions
         if self.BOF:
             self.current_field = ''
@@ -318,10 +323,32 @@ class cfg(blockdata):
         #   save in dictionary key field type arrangement
         #   check EDM for how I did it there
 
-    def _conditional(self):
-        return(True)
-        # evaluate whether the current field should be entered
-        # return a true or a false
+    def condition_test(self, data_record):
+        field = self.get(self.current_field)
+        if len(field.conditions) == 0:
+            return(True)
+        condition_value = True
+        for condition in field.conditions:
+            condition = condition.split(" ")
+            condition_field = condition[0]
+            if len(condition) == 2:
+                condition_matches = condition[1].upper().split(',')
+                condition_not = False
+            else:
+                condition_matches = condition[2].upper().split(',')
+                condition_not = True
+            if condition_field in data_record.keys():
+                if not data_record[condition_field].upper() in condition_matches:
+                    if not condition_not:
+                        condition_value = False 
+                else:
+                    condition_value = False
+            else:
+                if not condition_not:
+                    condition_value = False
+            if not condition_value:
+                break
+        return(condition_value)
 
 class record_button(Button):
     def __init__(self,id,text,**kwargs):
@@ -354,18 +381,36 @@ class MainTextNumericInput(ScrollView):
         __content.add_widget(TextInput(size_hint_y = None, multiline = False, id = 'new_item'))
         self.add_widget(__content)
 
+class KeyboardInput(TextInput):
+    def insert_text(self, substring, from_undo=False):
+        if self.parent.parent._field.inputtype == 'NUMERIC':
+            if not substring in "0123456789,.-+":
+                s = ''
+            else:
+                s = substring
+        else:
+            s = substring 
+        return super(KeyboardInput, self).insert_text(s, from_undo = from_undo)
+
 class MainScreen(Screen):
 
-    _popup = ObjectProperty(None)
+    __popup = ObjectProperty(None)
     _field = None
 
     def __init__(self,**kwargs):
         super(MainScreen, self).__init__(**kwargs)
 
+        Window.minimum_width = 450
+        Window.minimum_height = 450
+        
         self._field = e4_cfg.start()
 
         mainscreen = BoxLayout(orientation = 'vertical',
-            size_hint_y = .9, id = 'inputbox')
+                                size_hint_y = .9,
+                                pos_hint={'center_x': .54},
+                                id = 'inputbox',
+                                padding = 20,
+                                spacing = 20)
         #inputbox.bind(minimum_height = inputbox.setter('height'))
 
         label = Label(text = self._field.prompt,
@@ -377,22 +422,26 @@ class MainScreen(Screen):
         mainscreen.add_widget(label)
         label.bind(texture_size = label.setter('size'))
         label.bind(size_hint_min_x = label.setter('width'))
-        
-        mainscreen.add_widget(TextInput(size_hint = (.9, .1),
+
+        b = KeyboardInput(size_hint = (.9, .1),
                                          #size = (Window.width * .5, 35),
                                          multiline = False,
                                          id = 'field_data',
                                          #halign = 'center',
-                                         font_size = TEXT_FONT_SIZE))
+                                         font_size = TEXT_FONT_SIZE)        
+        mainscreen.add_widget(b)
         #self.add_widget(inputbox)
 
+        #scroll_content = GridLayout(cols = 2, size_hint = (.9, .6), spacing = 20,  id = 'scroll_content')
         scroll_content = BoxLayout(orientation = 'horizontal',
-                                     size_hint = (.9, None), id = 'scroll_content')
-        self.add_scroll_content(scroll_content)
+                                     size_hint = (.9, .6),
+                                     id = 'scroll_content',
+                                     spacing = 20)
+        self.add_scroll_content(scroll_content, self.menu_selection)
         mainscreen.add_widget(scroll_content)
 
-        buttons = GridLayout(cols = 2, size_hint = (.9,None), spacing = 20)
-        back_button = Button(text = 'Back', size_hint_y = None,
+        buttons = GridLayout(cols = 2, size_hint = (.9, .2), spacing = 20)
+        back_button = Button(text = 'Back', size_hint_y = None, id = 'back',
                         color = BUTTON_COLOR,
                         font_size = BUTTON_FONT_SIZE,
                         background_color = BUTTON_BACKGROUND,
@@ -400,7 +449,7 @@ class MainScreen(Screen):
         buttons.add_widget(back_button)
         back_button.bind(on_press = self.go_back)
 
-        next_button = Button(text = 'Next', size_hint_y = None,
+        next_button = Button(text = 'Next', size_hint_y = None, id = 'next',
                         color = BUTTON_COLOR,
                         font_size = BUTTON_FONT_SIZE,
                         background_color = BUTTON_BACKGROUND,
@@ -410,54 +459,91 @@ class MainScreen(Screen):
         mainscreen.add_widget(buttons)
         self.add_widget(mainscreen)
 
-    def add_scroll_content(self, content_area):
+        Window.bind(on_key_down  =self._on_keyboard_down)
+
+    def _keyboard_closed(self):
+        self._keyboard.unbind(on_key_down = self._on_keyboard_down)
+        self._keyboard = None
+
+    def _on_keyboard_down(self, *args):
+        ascii_code = args[1]
+        text_str = args[3]
+        print('INFO: The key %s has been pressed %s' % (ascii_code, text_str))
+        if ascii_code == 27:
+            self.go_back(None)
+        if ascii_code == 13:
+            self.go_next(None)
+        if ascii_code == 51:
+            return True 
+        return True # return True to accept the key. Otherwise, it will be used by the system.
+
+    def add_scroll_content(self, content_area, call_back):
     
         content_area.clear_widgets()
 
-        if self._field.menu or self._field.info:
+        if self._field.menu or self._field.info or self._field.infofile:
 
             if self._field.menu:
-                scrollbox = GridLayout(cols = 1, size_hint_y = None, id = 'inputbox')
+                scrollbox = GridLayout(cols = 1, size_hint_y = None, id = 'menubox', spacing = 5)
                 scrollbox.bind(minimum_height=scrollbox.setter('height'))
                 for menu_item in self._field.menu:
-                    scrollbox.add_widget(Label(text = menu_item, size_hint_y = None,
-                                color = (0,0,0,1), id = 'info',
-                                halign = 'left',
-                                font_size = TEXT_FONT_SIZE))
-                #root1 = ScrollView(size_hint=(1, None), size=(Window.width, Window.height/2))
-                root1 = ScrollView(size_hint=(1, None))
+                    #scrollbox.add_widget(Label(text = menu_item, size_hint_y = None,
+                    #            color = (0,0,0,1), id = 'info',
+                    #            halign = 'left',
+                    #            font_size = TEXT_FONT_SIZE))
+                    __button = Button(text = menu_item, size_hint_y = None, id = self._field.name,
+                                            color = OPTIONBUTTON_COLOR,
+                                            background_color = OPTIONBUTTON_BACKGROUND,
+                                            background_normal = '')                #root1 = ScrollView(size_hint=(1, None), size=(Window.width, Window.height/2))
+                    scrollbox.add_widget(__button)
+                    __button.bind(on_press = call_back)
+                root1 = ScrollView(size_hint=(1, 1))
                 root1.add_widget(scrollbox)
                 content_area.add_widget(root1)
 
-            if self._field.info:
-                scrollbox = GridLayout(cols = 1, size_hint_y = None, id = 'inputbox')
+            if self._field.info or self._field.infofile:
+                scrollbox = GridLayout(cols = 1, size_hint_y = None, id = 'infobox')
                 scrollbox.bind(minimum_height=scrollbox.setter('height'))
-                info = Label(text = self._field.info, size_hint_y = None,
+                if self._field.infofile:
+                    fname = os.path.join(e4_cfg.path, self._field.infofile)
+                    if os.path.exists(fname):
+                        try:
+                            with open(fname, 'r') as f:
+                                the_info = f.read()
+                        except:
+                            the_info = 'Could not open file %s.' % fname
+                    else:
+                        the_info = 'The file %s does not exist.' % fname
+                else:
+                    the_info = self._field.info            
+                info = Label(text = the_info, size_hint_y = None,
                             color = (0,0,0,1), id = 'info',
                             #halign = 'left',
-                            text_size = (self.width, None),
+                            text_size = (self.width * .9, None),
                             #height = self.texture_size[1],
                             font_size = TEXT_FONT_SIZE)
+                #info.bind(texture_size=lambda *y: scrollbox.setter('width')(scrollbox, scrollbox.width))
                 info.bind(texture_size=lambda *x: info.setter('height')(info, info.texture_size[1]))
                 scrollbox.add_widget(info)    
                 #root2 = ScrollView(size_hint=(1, None), size=(Window.width, scroll_content.height))
-                root2 = ScrollView(size_hint=(1, None))
+                root2 = ScrollView(size_hint=(1, 1))
                 root2.add_widget(scrollbox)
                 content_area.add_widget(root2)
 
     def on_pre_enter(self):
         for widget in self.walk():
-            if widget.id=='content':
-                pass
+            if widget.id=='field_data':
+                widget.focus = True
+                break
                 # insert content here based on current cfg field
                 
     def show_load_cfg(self):
         content = LoadDialog(load = self.load, 
                             cancel = self.dismiss_popup,
                             start_path = os.path.dirname(os.path.abspath( __file__ )))
-        self._popup = Popup(title = "Load CFG file", content = content,
+        self.__popup = Popup(title = "Load CFG file", content = content,
                             size_hint = (0.9, 0.9))
-        self._popup.open()
+        self.__popup.open()
 
     def load(self, path, filename):
         global e4_cfg, e4_ini
@@ -466,15 +552,20 @@ class MainScreen(Screen):
         self.dismiss_popup()
 
     def dismiss_popup(self):
-        self._popup.dismiss()
+        self.__popup.dismiss()
         self.parent.current = 'MainScreen'
 
     def update_mainscreen(self):
         for widget in self.walk():
             if widget.id=='field_prompt':
                 widget.text = e4_cfg.current_field
+            if widget.id == 'field_data':
+                if self._field.name in self._field.data:
+                    widget.text = self._field.data[self._field.name]
+                else:
+                    widget.text = ''
             if widget.id=='scroll_content':
-                self.add_scroll_content(widget)
+                self.add_scroll_content(widget, self.menu_selection)
                 break
 
     def save_field(self):
@@ -486,19 +577,33 @@ class MainScreen(Screen):
 
     def go_back(self, value):
         self.save_field()
-        self._field = e4_cfg.previous()
+        self._field = e4_cfg.previous(self._field.data)
         self.update_mainscreen()
 
     def go_next(self, value):
         self.save_field()
-        self._field = e4_cfg.next()
+        self._field = e4_cfg.next(self._field.data)
         if e4_cfg.EOF:
             self.save_record()
             self._field = e4_cfg.start()
         self.update_mainscreen()
 
+    def menu_selection(self, value):
+        for child in self.walk():
+            if child.id == value.id:
+                for child2 in self.walk():
+                    if child2.id == 'field_data':
+                        child2.text = value.text
+                        break
+        self.go_next(value)
+
     def save_record(self):
-        pass
+        valid = e4_cfg.valid_datarecord(self._field.data)
+        if valid:
+            e4_data.db.insert(self._field.data)
+        else:
+            self.__popup = MessageBox('Save Error', valid)
+            self.__popup.open()
 
 class InitializeOnePointHeader(Label):
     pass
