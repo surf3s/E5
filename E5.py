@@ -1,11 +1,21 @@
 # First screen should be first field is the CFG is current
 # Otherwise a blank screen
 
-# Fix problem with sizing label for info box
+# Bug in edit 
+#   Need to establish a unique key for each record
+#   Otherwise, need to see about getting the json record number or setting it as the key and use a hash
+
+# Work on CFG validate right away
+#   return a pop_up with a list of errors and warnings
+#   could return a list [] where first two numbers are number of errors and warnings
+#   and the rest is the individual errors and warnings
+#   return an empty list if there are none (or perhaps just None)
+
+# Need a method to validate an individual entry
+# If not valid, then an error message comes up and the next and previous don't happen
+
+# Bug - when you back track on first field (maybe ask if they want to delete the current record?)
 # Figure out a way to shift focus and scroll through menu choices with the keyboard
-# Write condition evaluation
-# Write data save
-# Then work on data grid and editing records
 # If a new menu item is entered instead of selected, offer to add it to the menu
 # Add a CFG option to sort menus
 # Better support for keyboard input (i.e. pressing keys moves to menu item and enter selects)
@@ -19,6 +29,7 @@ __version__ = '1.0.0'
 
 from kivy.app import App
 from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.switch import Switch
 from kivy.factory import Factory
 from kivy.properties import ObjectProperty
 from kivy.uix.popup import Popup
@@ -41,6 +52,7 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.tabbedpanel import TabbedPanel
 from kivy.core.window import Window
 from kivy.graphics import Color, Rectangle
+from kivy.config import Config
 
 import os 
 import random
@@ -50,7 +62,7 @@ import logging.handlers as handlers
 import time
 import ntpath
 
-logger = logging.getLogger('E4')
+logger = logging.getLogger('E5')
 logger.setLevel(logging.INFO)
 
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -78,6 +90,7 @@ WINDOW_BACKGROUND = (255/255, 255/255, 255/255, 1) #FFFFFF
 WINDOW_COLOR = (0, 0, 0, 1)
 
 TEXT_FONT_SIZE = "15sp"
+TEXT_COLOR = (0, 0, 0, 1)
 BUTTON_FONT_SIZE = "15sp"
 
 DATAGRID_ODD = (224.0/255, 224.0/255, 224.0/255, 1)
@@ -111,12 +124,14 @@ class db(dbs):
         else:
             return(None)
 
+    # Can likely delete this or use a DB key or the first unique field
     def names(self):
         name_list = []
         for row in self.db:
             name_list.append(row['unit'] + '-' + row['id'])
         return(name_list)
 
+    # Really these should be read from the DB itself.  If the DB is empty, return None
     def fields(self):
         global e4_cfg 
         return(e4_cfg.fields())
@@ -146,7 +161,7 @@ class ini(blockdata):
 
     def update(self):
         global e4_cfg
-        self.update_value('E4','CFG', e4_cfg.filename)
+        self.update_value('E5','CFG', e4_cfg.filename)
         self.save()
 
     def save(self):
@@ -169,32 +184,33 @@ class field:
         self.unique = False
         self.info = ''
         self.infofile = ''
-        self.data = {}
+        self.data = ''
+        self.key = False
+        self.required = False
 
 class cfg(blockdata):
-
-    blocks = []
-    filename = ""
-    path = ""
-    current_field = ""
-    BOF = True
-    EOF = False
-    current_record = {}
 
     def __init__(self, filename):
         if filename=='':
             filename = 'E4.cfg'
+        self.blocks = []
+        self.filename = ""
+        self.path = ""
+        self.current_field = None
+        self.current_record = {}
+        self.BOF = True
+        self.EOF = False
         self.load(filename)
         self.validate()
-    
-    def valid_datarecord(self, data_record):
-        for field in data_record:
-            f = self.get(field)
-            value = data_record[field]
-            if f.required and not value:
-                return('Required field %s is empty.  Please provide a value.' % field)
-            if f.length!=0 and len(value) > f.length:
-                return('Maximum length for %s is set to %s.  Please shorten your response.  Field lengths can be set in the CFG file.  A value of 0 means no length limit.')
+        self.key_field = None
+
+    def empty_record(self):
+        if self.current_record:
+            for key in self.current_record:
+                if not self.get(key).carry:
+                    self.current_record[key] = ''
+
+    def validate_current_record(self):
         return(True)
 
     def get(self, field_name):
@@ -206,7 +222,9 @@ class cfg(blockdata):
             f.inputtype = self.get_value(field_name, 'TYPE')
             f.prompt = self.get_value(field_name, 'PROMPT')
             f.length = self.get_value(field_name, 'LENGTH')
-            f.unique = self.get_value(field_name,"UNIQUE")
+            f.unique = self.get_value(field_name,"UNIQUE") == True
+            f.increment = self.get_value(field_name,"INCREMENT") == True
+            f.carry = self.get_value(field_name,"INCREMENT") == True
             if self.get_value(field_name, 'MENU'):
                 f.menu = self.get_value(field_name, 'MENU').split(",")
             else:
@@ -226,7 +244,7 @@ class cfg(blockdata):
 
     def fields(self):
         field_names = self.names()
-        del_fields = ['E4']
+        del_fields = ['E5']
         for del_field in del_fields:
             if del_field in field_names:
                 field_names.remove(del_field)
@@ -236,6 +254,14 @@ class cfg(blockdata):
         pass
 
     def validate(self):
+        # Check to see that conditions are numbered 
+        # Check to see that condition field exists
+        # Check to see that condition matches are provided
+        # Check to make sure length is a valid number
+        # Check to make that type menu has a menu
+        # Make sure the type of a field is an acceptable option
+        # Make sure that Unique is True/False or Yes/No and Change appropriately
+        # Same with carry
         for field_name in self.fields():
             f = self.get(field_name)
             if f.prompt == '':
@@ -257,78 +283,80 @@ class cfg(blockdata):
             self.EOF = False
         else:
             self.EOF = True
-        self.current_field = ""
+        self.current_field = None
 
     def status(self):
         txt = 'CFG file is %s\n' % self.filename
         txt += 'and contains %s fields.' % len(self.blocks)
         return(txt)
 
-    def next(self, data_record):
+    def next(self):
         if self.EOF:
-            self.current_field = ''
+            self.current_field = None
         else:
             if self.BOF:
                 self.BOF = False
                 self.EOF = False
-                self.current_field = self.fields()[0]
+                self.current_field = self.get(self.fields()[0])
             else:
-                field_index = self.fields().index(self.current_field)
+                field_index = self.fields().index(self.current_field.name)
                 while True:
                     field_index += 1
                     if field_index > (len(self.fields()) - 1):
                         self.EOF = True
-                        self.current_field = ""
+                        self.current_field = None
                         break
                     else:
-                        self.current_field = self.fields()[field_index]
-                        if self.condition_test(data_record):
+                        self.current_field = self.get(self.fields()[field_index])
+                        if self.condition_test():
                             self.EOF = False
                             self.BOF = False
                             break
-        return(self.get(self.current_field))
+        return(self.current_field)
 
-        # This routine needs to get the current field and then advance it by one
-        # checking conditionals as it goes
-        # If advancing passed the end, then set currentfield to empty and set EOF
-
-    def previous(self, data_record):
+    def previous(self):
         # need to implement conditions
         if self.BOF:
-            self.current_field = ''
+            self.current_field = None
         else:
             if self.EOF:
                 self.BOF = False
                 self.EOF = False
-                self.current_field = self.fields()[-1]
+                self.current_field = self.get(self.fields()[-1])
             else:
-                field_index = self.fields().index(self.current_field)
-                field_index -= 1
-                if field_index < 0:
-                    self.BOF = True
-                    self.current_field = ""
-                else:
-                    self.EOF = False
-                    self.BOF = False
-                    self.current_field = self.fields()[field_index]
-        return(self.get(self.current_field))
+                field_index = self.fields().index(self.current_field.name)
+                while True:
+                    field_index -= 1
+                    if field_index < 0:
+                        self.BOF = True
+                        self.current_field = None
+                        break
+                    else:
+                        self.current_field = self.get(self.fields()[field_index])
+                        if self.condition_test():
+                            self.EOF = False
+                            self.BOF = False
+                            break
+        return(self.current_field)
 
     def start(self):
-        self.BOF = False
-        self.EOF = False
-        self.current_field = self.fields()[0]
-        return(self.get(self.current_field))
-        # build current_record 
-        #   in doing so do not clear carry fields
-        #   save in dictionary key field type arrangement
-        #   check EDM for how I did it there
+        if len(self.fields())>0:
+            self.BOF = False
+            self.EOF = False
+            self.current_field = self.get(self.fields()[0])
+            self.empty_record()
+        else:
+            self.BOF = True
+            self.EOF = True
+            self.current_field = None
+            self.current_record = {}
+        return(self.current_field)
 
-    def condition_test(self, data_record):
-        field = self.get(self.current_field)
-        if len(field.conditions) == 0:
+    def condition_test(self):
+        if len(self.current_field.conditions) == 0:
             return(True)
         condition_value = True
-        for condition in field.conditions:
+        for condition in self.current_field.conditions:
             condition = condition.split(" ")
             condition_field = condition[0]
             if len(condition) == 2:
@@ -337,8 +365,8 @@ class cfg(blockdata):
             else:
                 condition_matches = condition[2].upper().split(',')
                 condition_not = True
-            if condition_field in data_record.keys():
-                if not data_record[condition_field].upper() in condition_matches:
+            if condition_field in self.current_record.keys():
+                if not self.current_record[condition_field].upper() in condition_matches:
                     if not condition_not:
                         condition_value = False 
                 else:
@@ -383,7 +411,7 @@ class MainTextNumericInput(ScrollView):
 
 class KeyboardInput(TextInput):
     def insert_text(self, substring, from_undo=False):
-        if self.parent.parent._field.inputtype == 'NUMERIC':
+        if e4_cfg.current_field.inputtype == 'NUMERIC':
             if not substring in "0123456789,.-+":
                 s = ''
             else:
@@ -395,16 +423,18 @@ class KeyboardInput(TextInput):
 class MainScreen(Screen):
 
     __popup = ObjectProperty(None)
-    _field = None
 
     def __init__(self,**kwargs):
         super(MainScreen, self).__init__(**kwargs)
 
-        Window.minimum_width = 450
-        Window.minimum_height = 450
-        
-        self._field = e4_cfg.start()
+        e4_cfg.start()
 
+        if not e4_cfg.EOF or not e4_cfg.BOF:
+            self.build_mainscreen()
+
+        Window.bind(on_key_down  =self._on_keyboard_down)
+
+    def build_mainscreen(self):
         mainscreen = BoxLayout(orientation = 'vertical',
                                 size_hint_y = .9,
                                 pos_hint={'center_x': .54},
@@ -413,30 +443,30 @@ class MainScreen(Screen):
                                 spacing = 20)
         #inputbox.bind(minimum_height = inputbox.setter('height'))
 
-        label = Label(text = self._field.prompt,
-                     size_hint = (.9, .1),
-                     color = (0,0,0,1), id = 'field_prompt',
-                     halign = 'center',
-                     font_size = TEXT_FONT_SIZE)
+        label = Label(text = e4_cfg.current_field.prompt,
+                    size_hint = (.9, .1),
+                    color = (0,0,0,1), id = 'field_prompt',
+                    halign = 'center',
+                    font_size = TEXT_FONT_SIZE)
 
         mainscreen.add_widget(label)
         label.bind(texture_size = label.setter('size'))
         label.bind(size_hint_min_x = label.setter('width'))
 
-        b = KeyboardInput(size_hint = (.9, .1),
-                                         #size = (Window.width * .5, 35),
-                                         multiline = False,
-                                         id = 'field_data',
-                                         #halign = 'center',
-                                         font_size = TEXT_FONT_SIZE)        
-        mainscreen.add_widget(b)
+        mainscreen.add_widget(KeyboardInput(size_hint = (.9, .1),
+                                        #size = (Window.width * .5, 35),
+                                        multiline = False,
+                                        id = 'field_data',
+                                        #halign = 'center',
+                                        font_size = TEXT_FONT_SIZE))
+        
         #self.add_widget(inputbox)
 
         #scroll_content = GridLayout(cols = 2, size_hint = (.9, .6), spacing = 20,  id = 'scroll_content')
         scroll_content = BoxLayout(orientation = 'horizontal',
-                                     size_hint = (.9, .6),
-                                     id = 'scroll_content',
-                                     spacing = 20)
+                                    size_hint = (.9, .6),
+                                    id = 'scroll_content',
+                                    spacing = 20)
         self.add_scroll_content(scroll_content, self.menu_selection)
         mainscreen.add_widget(scroll_content)
 
@@ -459,8 +489,6 @@ class MainScreen(Screen):
         mainscreen.add_widget(buttons)
         self.add_widget(mainscreen)
 
-        Window.bind(on_key_down  =self._on_keyboard_down)
-
     def _keyboard_closed(self):
         self._keyboard.unbind(on_key_down = self._on_keyboard_down)
         self._keyboard = None
@@ -481,31 +509,42 @@ class MainScreen(Screen):
     
         content_area.clear_widgets()
 
-        if self._field.menu or self._field.info or self._field.infofile:
+        info_exists = e4_cfg.current_field.info or e4_cfg.current_field.infofile
 
-            if self._field.menu:
-                scrollbox = GridLayout(cols = 1, size_hint_y = None, id = 'menubox', spacing = 5)
-                scrollbox.bind(minimum_height=scrollbox.setter('height'))
-                for menu_item in self._field.menu:
-                    #scrollbox.add_widget(Label(text = menu_item, size_hint_y = None,
-                    #            color = (0,0,0,1), id = 'info',
-                    #            halign = 'left',
-                    #            font_size = TEXT_FONT_SIZE))
-                    __button = Button(text = menu_item, size_hint_y = None, id = self._field.name,
-                                            color = OPTIONBUTTON_COLOR,
-                                            background_color = OPTIONBUTTON_BACKGROUND,
-                                            background_normal = '')                #root1 = ScrollView(size_hint=(1, None), size=(Window.width, Window.height/2))
+        if e4_cfg.current_field.menu or info_exists:
+
+            if e4_cfg.current_field.menu:
+                if info_exists:
+                    no_cols = int(content_area.width/2/150)
+                else:
+                    no_cols = int(content_area.width/150)
+                if no_cols < 1:
+                    no_cols = 1
+                scrollbox = GridLayout(cols = no_cols,
+                                        size_hint_y = None,
+                                        id = 'menubox',
+                                        spacing = 5)
+                scrollbox.bind(minimum_height = scrollbox.setter('height'))
+                for menu_item in e4_cfg.current_field.menu:
+                    __button = Button(text = menu_item,
+                                        size_hint_y = None,
+                                        id = e4_cfg.current_field.name,
+                                        color = OPTIONBUTTON_COLOR,
+                                        background_color = OPTIONBUTTON_BACKGROUND,
+                                        background_normal = '')                
                     scrollbox.add_widget(__button)
                     __button.bind(on_press = call_back)
                 root1 = ScrollView(size_hint=(1, 1))
                 root1.add_widget(scrollbox)
                 content_area.add_widget(root1)
 
-            if self._field.info or self._field.infofile:
-                scrollbox = GridLayout(cols = 1, size_hint_y = None, id = 'infobox')
-                scrollbox.bind(minimum_height=scrollbox.setter('height'))
-                if self._field.infofile:
-                    fname = os.path.join(e4_cfg.path, self._field.infofile)
+            if info_exists:
+                scrollbox = GridLayout(cols = 1,
+                                        size_hint_y = None,
+                                        id = 'infobox')
+                scrollbox.bind(minimum_height = scrollbox.setter('height'))
+                if e4_cfg.current_field.infofile:
+                    fname = os.path.join(e4_cfg.path, e4_cfg.current_field.infofile)
                     if os.path.exists(fname):
                         try:
                             with open(fname, 'r') as f:
@@ -515,28 +554,41 @@ class MainScreen(Screen):
                     else:
                         the_info = 'The file %s does not exist.' % fname
                 else:
-                    the_info = self._field.info            
-                info = Label(text = the_info, size_hint_y = None,
+                    the_info = e4_cfg.current_field.info      
+                print(scrollbox.width)      
+                info = Label(text = the_info,
+                            size_hint_y = None,
+                            #size_hint_x = scrollbox.width,
                             color = (0,0,0,1), id = 'info',
                             #halign = 'left',
-                            text_size = (self.width * .9, None),
+                            text_size = (scrollbox.width * 2.8, None),
                             #height = self.texture_size[1],
                             font_size = TEXT_FONT_SIZE)
                 #info.bind(texture_size=lambda *y: scrollbox.setter('width')(scrollbox, scrollbox.width))
                 info.bind(texture_size=lambda *x: info.setter('height')(info, info.texture_size[1]))
-                scrollbox.add_widget(info)    
-                #root2 = ScrollView(size_hint=(1, None), size=(Window.width, scroll_content.height))
+                #scrollbox.add_widget(info)    
                 root2 = ScrollView(size_hint=(1, 1))
-                root2.add_widget(scrollbox)
+                root2.add_widget(info)
                 content_area.add_widget(root2)
+        self.focus_on_textbox()
 
-    def on_pre_enter(self):
+    def focus_on_textbox(self):
         for widget in self.walk():
             if widget.id=='field_data':
                 widget.focus = True
                 break
-                # insert content here based on current cfg field
-                
+
+    def on_pre_enter(self):
+        self.focus_on_textbox()
+
+    def exit_program(self):
+        e4_ini.update_value('E5','TOP', Window.top)
+        e4_ini.update_value('E5','LEFT', Window.left)
+        e4_ini.update_value('E5','WIDTH', Window.width)
+        e4_ini.update_value('E5','HEIGHT', Window.height)
+        e4_ini.save()
+        App.get_running_app().stop()
+
     def show_load_cfg(self):
         content = LoadDialog(load = self.load, 
                             cancel = self.dismiss_popup,
@@ -558,10 +610,10 @@ class MainScreen(Screen):
     def update_mainscreen(self):
         for widget in self.walk():
             if widget.id=='field_prompt':
-                widget.text = e4_cfg.current_field
+                widget.text = e4_cfg.current_field.name
             if widget.id == 'field_data':
-                if self._field.name in self._field.data:
-                    widget.text = self._field.data[self._field.name]
+                if e4_cfg.current_field.name in e4_cfg.current_record.keys():
+                    widget.text = e4_cfg.current_record[e4_cfg.current_field.name]
                 else:
                     widget.text = ''
             if widget.id=='scroll_content':
@@ -571,21 +623,21 @@ class MainScreen(Screen):
     def save_field(self):
         for widget in self.walk():
             if widget.id=='field_data':
-                self._field.data[self._field.name] = widget.text 
+                e4_cfg.current_record[e4_cfg.current_field.name] = widget.text 
                 widget.text = ''
                 break
 
     def go_back(self, value):
         self.save_field()
-        self._field = e4_cfg.previous(self._field.data)
+        e4_cfg.previous()
         self.update_mainscreen()
 
     def go_next(self, value):
         self.save_field()
-        self._field = e4_cfg.next(self._field.data)
+        e4_cfg.next()
         if e4_cfg.EOF:
             self.save_record()
-            self._field = e4_cfg.start()
+            e4_cfg.start()
         self.update_mainscreen()
 
     def menu_selection(self, value):
@@ -598,9 +650,9 @@ class MainScreen(Screen):
         self.go_next(value)
 
     def save_record(self):
-        valid = e4_cfg.valid_datarecord(self._field.data)
+        valid = e4_cfg.validate_current_record()
         if valid:
-            e4_data.db.insert(self._field.data)
+            e4_data.db.insert(e4_cfg.current_record)
         else:
             self.__popup = MessageBox('Save Error', valid)
             self.__popup.open()
@@ -675,35 +727,40 @@ class InitializeThreePointScreen(Screen):
 class MenuList(Popup):
     def __init__(self, title, menu_list, call_back, **kwargs):
         super(MenuList, self).__init__(**kwargs)
-        __content = GridLayout(cols = 1, spacing = 5, size_hint_y = None)
-        __content.bind(minimum_height=__content.setter('height'))
+        
+        pop_content = GridLayout(cols = 1, size_hint_y = 1, padding = 5)
+
+        scroll_content = GridLayout(cols = 1, spacing = 5, size_hint_y = None)
+        scroll_content.bind(minimum_height=scroll_content.setter('height'))
         for menu_item in menu_list:
-            __button = Button(text = menu_item, size_hint_y = None, id = title,
+            button = Button(text = menu_item, size_hint_y = None, id = title,
                         color = OPTIONBUTTON_COLOR,
                         background_color = OPTIONBUTTON_BACKGROUND,
                         background_normal = '')
-            __content.add_widget(__button)
-            __button.bind(on_press = call_back)
-        if title!='PRISM':
-            __new_item = GridLayout(cols = 2, spacing = 5, size_hint_y = None)
-            __new_item.add_widget(TextInput(size_hint_y = None, id = 'new_item'))
-            __add_button = Button(text = 'Add', size_hint_y = None,
-                                    color = BUTTON_COLOR,
-                                    background_color = BUTTON_BACKGROUND,
-                                    background_normal = '', id = title)
-            __new_item.add_widget(__add_button)
-            __add_button.bind(on_press = call_back)
-            __content.add_widget(__new_item)
-        __button1 = Button(text = 'Back', size_hint_y = None,
+            scroll_content.add_widget(button)
+            button.bind(on_press = call_back)
+        new_item = GridLayout(cols = 2, spacing = 5, size_hint_y = None)
+        new_item.add_widget(TextInput(size_hint_y = None, id = 'new_item'))
+        add_button = Button(text = 'Add', size_hint_y = None,
+                                color = BUTTON_COLOR,
+                                background_color = BUTTON_BACKGROUND,
+                                background_normal = '', id = title)
+        new_item.add_widget(add_button)
+        add_button.bind(on_press = call_back)
+        scroll_content.add_widget(new_item)
+        root = ScrollView(size_hint = (1, .8))
+        root.add_widget(scroll_content)
+        pop_content.add_widget(root)
+        button1 = Button(text = 'Back', size_hint_y = .2,
                                 color = BUTTON_COLOR,
                                 background_color = BUTTON_BACKGROUND,
                                 background_normal = '')
-        __content.add_widget(__button1)
-        __button1.bind(on_press = self.dismiss)
-        __root = ScrollView(size_hint=(1, None), size=(Window.width, Window.height/1.9))
-        __root.add_widget(__content)
+        pop_content.add_widget(button1)
+        button1.bind(on_press = self.dismiss)
+
+        self.content = pop_content
+        
         self.title = title
-        self.content = __root
         self.size_hint = (None, None)
         self.size = (400, 400)
         self.auto_dismiss = True
@@ -781,6 +838,103 @@ class YesNo(Popup):
         self.size_hint = (.8, .8)
         self.size=(400, 400)
         self.auto_dismiss = True
+
+class TextLabel(Label):
+    def __init__(self, text, **kwargs):
+        super(TextLabel, self).__init__(**kwargs)
+        self.text = text
+        self.color = TEXT_COLOR
+        self.font_size = TEXT_FONT_SIZE
+        self.size_hint_y = None
+        
+class EditCFGScreen(Screen):
+
+    def on_pre_enter(self):
+        #super(Screen, self).__init__(**kwargs)
+        self.clear_widgets()
+
+        layout = GridLayout(cols = 1,
+                            size_hint_y = None, id = 'fields')
+        layout.bind(minimum_height=layout.setter('height'))
+
+        for field_name in e4_cfg.fields():
+            f = e4_cfg.get(field_name)
+            bx = GridLayout(cols = 1, size_hint_y = None)
+            bx.add_widget(TextLabel("[" + f.name + "]"))
+            layout.add_widget(bx)
+
+            bx = GridLayout(cols = 2, size_hint_y = None)
+            bx.add_widget(TextLabel("Prompt"))
+            bx.add_widget(TextInput(text = f.prompt,
+                                        multiline = False, size_hint_y = None))
+            layout.add_widget(bx)
+
+            bx = GridLayout(cols = 2, size_hint_y = None)
+            bx.add_widget(TextLabel("Type"))
+            bx.add_widget(Spinner(text="Text", values=("Text", "Numeric", "Menu"),
+                                        #id = 'station',
+                                        size_hint=(None, None),
+                                        pos_hint={'center_x': .5, 'center_y': .5},
+                                        color = OPTIONBUTTON_COLOR,
+                                        background_color = OPTIONBUTTON_BACKGROUND,
+                                        background_normal = ''))
+            #self.StationMenu.size_hint  = (0.3, 0.2)
+            layout.add_widget(bx)
+
+            bx = GridLayout(cols = 6, size_hint_y = None)
+            
+            bx.add_widget(TextLabel("Carry"))
+            bx.add_widget(Switch(active = f.carry))
+
+            bx.add_widget(TextLabel("Unique"))
+            bx.add_widget(Switch(active = f.unique))
+
+            bx.add_widget(TextLabel("Increment"))
+            bx.add_widget(Switch(active = f.increment))
+
+            layout.add_widget(bx)
+            
+            if f.inputtype == 'MENU':
+                bx = GridLayout(cols = 1, size_hint_y = None)
+                button1 = Button(text = 'Edit Menu', size_hint_y = None,
+                                color = OPTIONBUTTON_COLOR,
+                                background_color = OPTIONBUTTON_BACKGROUND,
+                                background_normal = '',
+                                id = f.name)
+                bx.add_widget(button1)
+                button1.bind(on_press = self.show_menu)
+                layout.add_widget(bx)
+
+        root = ScrollView(size_hint=(1, .8))
+        root.add_widget(layout)
+        self.add_widget(root)
+
+        buttons = GridLayout(cols = 2, spacing = 10, size_hint_y = None)
+
+        button2 = Button(text = 'Back', size_hint_y = None,
+                        color = BUTTON_COLOR,
+                        background_color = BUTTON_BACKGROUND,
+                        background_normal = '')
+        buttons.add_widget(button2)
+        button2.bind(on_press = self.go_back)
+
+        button3 = Button(text = 'Save Changes', size_hint_y = None,
+                        color = BUTTON_COLOR,
+                        background_color = BUTTON_BACKGROUND,
+                        background_normal = '')
+        buttons.add_widget(button3)
+        button3.bind(on_press = self.save)
+
+        self.add_widget(buttons)
+
+    def go_back(self, value):
+        self.parent.current = 'MainScreen'
+
+    def save(self, value):
+        self.parent.current = 'MainScreen'
+
+    def show_menu(self):
+        pass
 
 class EditPointScreen(Screen):
 
@@ -908,8 +1062,7 @@ class EditPointScreen(Screen):
 class EditPointsScreen(Screen):
     def __init__(self,**kwargs):
         super(EditPointsScreen, self).__init__(**kwargs)
-        global e4_data
-        self.add_widget(DfguiWidget(e4_data))
+        self.add_widget(DfguiWidget(e4_data, e4_cfg.fields()))
 
 class SelectableRecycleBoxLayout(FocusBehavior, LayoutSelectionBehavior, RecycleBoxLayout):
     """ Adds selection and focus behaviour to the view. """
@@ -1066,7 +1219,7 @@ class InfoScreen(Screen):
         layout = GridLayout(cols = 1, size_hint_y = None)
         layout.bind(minimum_height=layout.setter('height'))
         label = Label(text = "", size_hint_y = None,
-                     color = (0,0,0,1), id = 'content',
+                     color = TEXT_COLOR, id = 'content',
                      halign = 'left',
                      font_size = TEXT_FONT_SIZE)
         layout.add_widget(label)
@@ -1151,18 +1304,12 @@ class TableData(RecycleView):
         self.data = []
         for i, ord_dict in enumerate(list_dicts):
             is_even = i % 2 == 0
-            #row_vals = ord_dict.values()
-            k = -1
-            if df_name=='points':
-                key = list(ord_dict)[0] + '-' + list(ord_dict)[1]
-            else:
-                key = list(ord_dict)[0]
-            for text in ord_dict:
-                k += 1
-                self.data.append({'text': str(text), 'is_even': is_even,
-                                    'callback': self.editcell,
-                                    'key': key, 'field': column_names[k],
-                                    'db': df_name, 'id': 'datacell' })
+            for text, value in ord_dict.items():
+                if not text=='doc_id':
+                    self.data.append({'text': value, 'is_even': is_even,
+                                        'callback': self.editcell,
+                                        'key': ord_dict['doc_id'], 'field': text,
+                                        'db': df_name, 'id': 'datacell' })
 
     def sort_data(self):
         #TODO: Use this to sort table, rather than clearing widget each time.
@@ -1172,37 +1319,31 @@ class TableData(RecycleView):
         self.key = key
         self.field = field
         self.db = db
-        if db == 'points':
-            cfg_field = e4_cfg.get(field)
-            self.inputtype = cfg_field.inputtype
-            if cfg_field.inputtype == 'MENU':
-                self.popup = MenuList(field, e4_cfg.get(field).menu, self.menu_selection)
-                self.popup.open()
-            if cfg_field.inputtype in ['TEXT','NUMERIC']:
-                self.popup = TextNumericInput(field, self.menu_selection)
-                self.popup.open()
-        else:
+        cfg_field = e4_cfg.get(field)
+        self.inputtype = cfg_field.inputtype
+        if cfg_field.inputtype == 'MENU':
+            self.popup = MenuList(field, cfg_field.menu, self.menu_selection)
+            self.popup.open()
+        if cfg_field.inputtype in ['TEXT','NUMERIC']:
             self.popup = TextNumericInput(field, self.menu_selection)
             self.popup.open()
 
     def menu_selection(self, value):
         ### need some data validation
-        if self.db == 'points':
-            print(value.id)
-            unit, id = self.key.split('-')
-            new_data = {}
-            if self.inputtype=='MENU':
-                new_data[self.field] = value.text
-            else:
-                for widget in self.popup.walk():
-                    if widget.id == 'new_item':
-                        new_data[self.field] = widget.text
-            field_record = Query()
-            e4_data.db.update(new_data, (field_record.UNIT == unit) & (field_record.ID == id))
-            for widget in self.walk():
-                if widget.id=='datacell':
-                    if widget.key == self.key and widget.field == self.field:
-                        widget.text = new_data[self.field]
+        print(value.id)
+        new_data = {}
+        if self.inputtype=='MENU':
+            new_data[self.field] = value.text
+        else:
+            for widget in self.popup.walk():
+                if widget.id == 'new_item':
+                    new_data[self.field] = widget.text
+        field_record = Query()
+        e4_data.db.update(new_data, field_record.doc_id == self.key)
+        for widget in self.walk():
+            if widget.id=='datacell':
+                if widget.key == self.key and widget.field == self.field:
+                    widget.text = new_data[self.field]
         self.popup.dismiss()
 
 class Table(BoxLayout):
@@ -1228,24 +1369,32 @@ class DataframePanel(BoxLayout):
     Panel providing the main data frame table view.
     """
 
-    def populate_data(self, df):
+    def populate_data(self, df, df_fields):
         self.df_orig = df
         self.sort_key = None
         self.column_names = self.df_orig.fields()
-        self.df_name = df.db_name 
+        self.df_name = df.db_name
+        self.df_fields = df_fields
         self._generate_table()
 
     def _generate_table(self, sort_key=None, disabled=None):
         self.clear_widgets()
         data = []
-        for row in self.df_orig.db:
-            data.append(row.values())
+        for db_row in self.df_orig.db:
+            reformatted_row = {}
+            for field in self.df_fields:
+                if field in db_row:
+                    reformatted_row[field] = db_row[field]
+                else:
+                    reformatted_row[field] = ''
+                reformatted_row['doc_id'] = db_row.doc_id
+            data.append(reformatted_row)
         #data = sorted(data, key=lambda k: k[self.sort_key]) 
         self.add_widget(Table(list_dicts = data, column_names = self.column_names, df_name = self.df_name))
 
 class AddNewPanel(BoxLayout):
     
-    def populate(self, df):
+    def populate(self, df, df_fields):
         self.df_name = df.db_name            
         self.addnew_list.bind(minimum_height=self.addnew_list.setter('height'))
         for col in df.fields():
@@ -1344,12 +1493,13 @@ class AddNew(BoxLayout):
 
 class DfguiWidget(TabbedPanel):
 
-    def __init__(self, df, **kwargs):
+    def __init__(self, df, df_fields, **kwargs):
         super(DfguiWidget, self).__init__(**kwargs)
         self.df = df
         self.df_name = df.db_name
-        self.panel1.populate_data(df)
-        self.panel4.populate(df)
+        self.df_fields = df_fields
+        self.panel1.populate_data(df, df_fields)
+        self.panel4.populate(df, df_fields)
         self.color = BUTTON_COLOR
         self.background_color = WINDOW_BACKGROUND
         self.background_image = ''
@@ -1389,31 +1539,48 @@ class YesNoCancel(Popup):
     def cancel(self, instance):
         return('Cancel')
 
-class E4py(App):
+class E5py(App):
 
     def build(self):
         Window.clearcolor = WINDOW_BACKGROUND
-        self.title = "E4py " + __version__
-
-        #sm.current = 'main'
-        #df = create_dummy_data(0)
-        #df = edm_datums.datums 
-        #test = YesNoCancel("This is a test of a yes no popup box", cancel=False)
-        #print(test)
-        #return(DfguiWidget(EDMpy.edm_datums.datums, "datums"))
-    
-Factory.register('E4py', cls=E4py)
+        Window.minimum_width = 450
+        Window.minimum_height = 450
+        if not e4_ini.get_value("E5","TOP") == '':
+            temp = int(e4_ini.get_value("E5","TOP"))
+            if temp < 0 : 
+                temp = 0
+            Window.top = temp
+        if not e4_ini.get_value("E5","LEFT") == '':
+            temp = int(e4_ini.get_value("E5","LEFT"))
+            if temp < 0 : 
+                temp = 0
+            Window.left = temp
+        window_width = None
+        window_height = None
+        if not e4_ini.get_value("E5","WIDTH") == '':
+            window_width = int(e4_ini.get_value("E5","WIDTH"))
+            if window_width < 450:
+                window_width = 450
+        if not e4_ini.get_value("E5","HEIGHT") == '':
+            window_height = int(e4_ini.get_value("E5","HEIGHT"))
+            if window_height < 450:
+                window_height = 450
+        if window_width and window_height:
+            Window.size = (window_width, window_height)
+        self.title = "E5 " + __version__
+   
+Factory.register('E5', cls=E5py)
 
 if __name__ == '__main__':
-    logger.info('E4 started.')
-    database = 'E4'
-    e4_ini = ini('E4.ini')
-    e4_cfg = cfg(e4_ini.get_value("E4", "CFG"))
+    logger.info('E5 started.')
+    database = 'E5'
+    e4_ini = ini('E5.ini')
+    e4_cfg = cfg(e4_ini.get_value("E5", "CFG"))
     e4_data = db(database + '_data.json')
     if not e4_cfg.filename:
-        e4_cfg.filename = 'EDMpy.cfg'
+        e4_cfg.filename = 'E5.cfg'
     e4_cfg.save()
     e4_ini.update()
     e4_ini.save()
     
-    E4py().run()
+    E5py().run()

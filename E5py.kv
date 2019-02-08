@@ -34,6 +34,10 @@ ScreenManager:
         id: editpoints_screen
         name: 'EditPointsScreen'
         manager: 'screen_manager'
+    EditCFGScreen:
+        id: editcfg_screen
+        name: 'EditCFGScreen'
+        manager: 'screen_manager'
 
 <MainScreen>:
     BoxLayout:
@@ -73,6 +77,10 @@ ScreenManager:
                         text: 'Points'
                         on_press: app.root.current = 'EditPointsScreen'
                         color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
+                    ActionButton:
+                        text: 'CFG'
+                        on_press: app.root.current = 'EditCFGScreen'
+                        color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
                 ActionGroup:
                     text: 'File'
                     color: (MENU_COLOR[0]/255, MENU_COLOR[1]/255, MENU_COLOR[2]/255,1)
@@ -86,7 +94,7 @@ ScreenManager:
                         color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
                     ActionButton:
                         text: 'Exit'
-                        on_release: app.stop()
+                        on_release: root.exit_program()
                         color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
 
 <StatusScreen>:
@@ -149,6 +157,8 @@ ScreenManager:
 
 <EditPointsScreen>:
 <EditPointScreen>:
+<EditCFGScreen>:
+
 
 <LoadDialog>:
     BoxLayout:
