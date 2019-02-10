@@ -1,18 +1,10 @@
 # First screen should be first field is the CFG is current
 # Otherwise a blank screen
 
-# Bug in edit 
 #   Need to establish a unique key for each record
-#   Otherwise, need to see about getting the json record number or setting it as the key and use a hash
+#   Finish valid data bit - need to show a popup when not valid in go_next()
 
-# Work on CFG validate right away
-#   return a pop_up with a list of errors and warnings
-#   could return a list [] where first two numbers are number of errors and warnings
-#   and the rest is the individual errors and warnings
-#   return an empty list if there are none (or perhaps just None)
-
-# Need a method to validate an individual entry
-# If not valid, then an error message comes up and the next and previous don't happen
+# E4 conditions seem to accept OR at the end - check other options and implement
 
 # Bug - when you back track on first field (maybe ask if they want to delete the current record?)
 # Figure out a way to shift focus and scroll through menu choices with the keyboard
@@ -27,6 +19,7 @@
 
 __version__ = '1.0.0'
 
+from kivy.clock import Clock
 from kivy.app import App
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.switch import Switch
@@ -84,17 +77,40 @@ from collections import OrderedDict
 
 OPTIONBUTTON_BACKGROUND = (128/255, 216/255, 255/255, 1) #80D8FF (lighter blue)
 OPTIONBUTTON_COLOR = (0, 0, 0, 1) # black
+OPTIONBUTTON_FONT_SIZE = "15sp"
+
 BUTTON_BACKGROUND = (0, .69, 255/255, 1) #00B0FF (deep blue)
 BUTTON_COLOR =  (0, 0, 0, 1) # black
+BUTTON_FONT_SIZE = "15sp"
+
 WINDOW_BACKGROUND = (255/255, 255/255, 255/255, 1) #FFFFFF
 WINDOW_COLOR = (0, 0, 0, 1)
 
+POPUP_BACKGROUND = (0, 0, 0, 1)
+POPUP_TEXT_COLOR = (1, 1, 1, 1)
+
 TEXT_FONT_SIZE = "15sp"
 TEXT_COLOR = (0, 0, 0, 1)
-BUTTON_FONT_SIZE = "15sp"
 
 DATAGRID_ODD = (224.0/255, 224.0/255, 224.0/255, 1)
 DATAGRID_EVEN = (189.0/255, 189.0/255, 189.0/255, 1)
+
+SPLASH_HELP = "[b]E5[/b]\n\nE5 is a generalized data entry program intended "
+SPLASH_HELP += "for archaeologists but likely useful for others as well.  It works with a "
+SPLASH_HELP += "configuration file where the data entry fields are defined.  Importantly, E5 "
+SPLASH_HELP += "makes it simple to make entry in one field conditional on values previously "
+SPLASH_HELP += "entered for other fields.  The goal is to make data entry fast, efficient "
+SPLASH_HELP += "and error free.\n\n"
+SPLASH_HELP += "E5 is a complete, from scratch re-write of E4.  It is backwards compatible "
+SPLASH_HELP += "with E4 configuration files, but it supports a great many new features. "
+SPLASH_HELP += "For one, it is now built on Python to be cross-platform compatible, and the "
+SPLASH_HELP += "source code is available at GitHub.  E5 will run on Windows, Mac OS, Linux "
+SPLASH_HELP += "and Android tablets and phones.  For this reason and others, E5 now uses an "
+SPLASH_HELP += "open database format.  All data are stored in human readable, ASCII formatted "
+SPLASH_HELP += "JSON files.  Data can also be exported to CSV files for easy import into any "
+SPLASH_HELP += "database, statistics or spreadsheet software.\n\n"
+SPLASH_HELP += "To start using this program, you will need to open CFG file.  Example CFG files "
+SPLASH_HELP += "and documentation on writing your own CFG file can be found at the E5 GitHub site."
 
 class db(dbs):
     MAX_FIELDS = 300
@@ -191,8 +207,6 @@ class field:
 class cfg(blockdata):
 
     def __init__(self, filename):
-        if filename=='':
-            filename = 'E4.cfg'
         self.blocks = []
         self.filename = ""
         self.path = ""
@@ -200,15 +214,20 @@ class cfg(blockdata):
         self.current_record = {}
         self.BOF = True
         self.EOF = False
-        self.load(filename)
-        self.validate()
-        self.key_field = None
+        self.has_errors = False
+        self.has_warnings = False
+        self.key_field = None  # not implimented yet
+        if not filename=='':
+            self.load(filename)
+            self.is_valid()
 
     def empty_record(self):
         if self.current_record:
             for key in self.current_record:
                 if not self.get(key).carry:
                     self.current_record[key] = ''
+                if self.get(key).inputtype == 'DATETIME':
+                    self.current_record[key] = datetime.datetime.now()
 
     def validate_current_record(self):
         return(True)
@@ -222,9 +241,10 @@ class cfg(blockdata):
             f.inputtype = self.get_value(field_name, 'TYPE')
             f.prompt = self.get_value(field_name, 'PROMPT')
             f.length = self.get_value(field_name, 'LENGTH')
-            f.unique = self.get_value(field_name,"UNIQUE") == True
-            f.increment = self.get_value(field_name,"INCREMENT") == True
-            f.carry = self.get_value(field_name,"INCREMENT") == True
+            f.unique = self.get_value(field_name,"UNIQUE") == 'TRUE'
+            f.increment = self.get_value(field_name,"INCREMENT") == 'TRUE'
+            f.carry = self.get_value(field_name,"CARRY") == 'TRUE'
+            f.required = self.get_value(field_name,"REQUIRED") == 'TRUE'
             if self.get_value(field_name, 'MENU'):
                 f.menu = self.get_value(field_name, 'MENU').split(",")
             else:
@@ -253,22 +273,95 @@ class cfg(blockdata):
     def build_default(self):
         pass
 
-    def validate(self):
+    def data_is_valid(self):
+        if self.current_field.required and self.current_record[self.current_field.name]=='':
+            return('Error: This field is marked as required.  Please provide a response.')
+        if self.current_field.unique:
+            if self.current_record[self.current_field.name]=='':
+                return('Error: This field is marked as unique.  Empty entries are not allowed in unique fields.')
+            for data_row in e4_data.db:
+                if self.current_field.name in data_row:
+                    if data_row[self.current_field.name] == data_row[self.current_field.name]:
+                        return('Error: This field is marked as unique and you are trying to add a duplicate entry.')
+        if self.current_field.inputtype == 'NUMERIC':
+            try:
+                val = int(userInput)
+            except ValueError:
+                return('Error: This field is marked as numeric but a non-numeric value was provided.')
+        return(True)
+
+    def is_valid(self):
         # Check to see that conditions are numbered 
-        # Check to see that condition field exists
-        # Check to see that condition matches are provided
-        # Check to make sure length is a valid number
-        # Check to make that type menu has a menu
-        # Make sure the type of a field is an acceptable option
-        # Make sure that Unique is True/False or Yes/No and Change appropriately
-        # Same with carry
-        for field_name in self.fields():
-            f = self.get(field_name)
-            if f.prompt == '':
-                f.prompt = field_name
-            f.inputtype = f.inputtype.upper()
-            self.put(field_name, f)
-        
+        self.has_errors = False
+        self.has_warnings = False
+        self.errors = []
+        if len(self.fields())==0:
+            self.errors.append('Error: No fields defined in the CFG file.')
+            self.errors.has_errors = True
+        else:
+            prior_fieldnames = []
+            for field_name in self.fields():
+
+                for field_option in ['UNIQUE','CARRY','INCREMENT','REQUIRED']:
+                    if self.get_value(field_name, field_option):
+                        if self.get_value(field_name, field_option).upper() == 'YES':
+                            self.update_value(field_name, field_option, 'TRUE')
+
+                f = self.get(field_name)
+
+                test = False
+                try:
+                    test = int(f.length) > 0 and int(f.length) < 256
+                except:
+                    pass
+                if not test:
+                    self.errors.append('Error: The length specified for field %s must be between 1 and 255.' % field_name)
+                    self.has_errors = True
+
+                if f.prompt == '':
+                    f.prompt = field_name
+
+                f.inputtype = f.inputtype.upper()
+                if not f.inputtype in ['TEXT','NUMERIC','MENU','DATETIME','BOOLEAN','CAMERA','GPS','INSTRUMENT']:
+                    self.errors.append('Error: The value %s for the field %s is not a valid input type.  Valid input types include Text, Numeric, Instrument, Menu, Datetime, Boolean, Camera and GPS.' % (f.inputtype, field_name))
+                    self.has_errors = True
+
+                if f.inputtype == 'MENU' and len(f.menu)==0:
+                    self.errors.append('Error: The field %s is listed a menu, but no menu list was provided with a MENU option.' % field_name)
+                    self.has_errors = True
+
+                if any((c in set(' !@#$%^&*()?/\{}<.,.|+=_-~`')) for c in field_name):
+                    self.errors.append('Warning: The field %s has non-standard characters in it.  E5 will attempt to work with it, but it is highly recommended that you rename it as it will likely cause problems elsewhere.' % field_name)
+                    self.has_warnings = True
+
+                if len(f.conditions)>0:
+                    n = 0
+                    for condition in f.conditions:
+                        n += 1
+                        condition_parsed = condition.split(' ')
+                        if len(condition_parsed)<2 or len(condition_parsed)>3:
+                            self.errors.append('Error: Condition number %s for the field %s is not correctly formatted.  A condition requires a target field and a matching value.' % (n, field_name))
+                            self.has_errors = True
+                        else:
+                            condition_fieldname = condition_parsed[0]
+                            if not condition_fieldname in prior_fieldnames:
+                                self.errors.append('Error: Condition number %s for the field %s references field %s which has not been defined prior to this.' % (n, field_name, condition_fieldname))
+                                self.has_errors = True
+                            else:
+                                condition_field = self.get(condition_fieldname)
+                                if condition_field.inputtype == 'MENU':
+                                    if condition_parsed[1] == 'NOT':
+                                        condition_matches = condition_parsed[2].split(',')
+                                    else:
+                                        condition_matches = condition_parsed[1].split(',')
+                                    for condition_match in condition_matches:
+                                        if condition_match not in condition_field.menu:
+                                            self.errors.append('Warning: Condition number %s for the field %s tries to match the value "%s" to the menulist in field %s, but field %s does not contain this value.' % (n, field_name, condition_match, condition_fieldname, condition_fieldname))
+                                            self.has_warnings = True
+                self.put(field_name, f)
+                prior_fieldnames.append(field_name)
+        return(self.has_errors)
+
     def save(self):
         self.write_blocks()
 
@@ -340,7 +433,7 @@ class cfg(blockdata):
         return(self.current_field)
 
     def start(self):
-        if len(self.fields())>0:
+        if len(self.fields())>0 and not self.has_errors:
             self.BOF = False
             self.EOF = False
             self.current_field = self.get(self.fields()[0])
@@ -420,9 +513,40 @@ class KeyboardInput(TextInput):
             s = substring 
         return super(KeyboardInput, self).insert_text(s, from_undo = from_undo)
 
+class MessageBox(Popup):
+    def __init__(self, title, message, **kwargs):
+        super(MessageBox, self).__init__(**kwargs)
+        popup_contents = GridLayout(cols = 1, spacing = 5)
+        info = Label(text = message,
+                    size_hint_y = None,
+                    #size_hint_x = scrollbox.width,
+                    color = POPUP_TEXT_COLOR, id = 'info',
+                    #halign = 'left',
+                    text_size = (self.width * 2.8, None),
+                    #height = self.texture_size[1],
+                    font_size = TEXT_FONT_SIZE)
+        #info.bind(texture_size=lambda *y: scrollbox.setter('width')(scrollbox, scrollbox.width))
+        info.bind(texture_size=lambda *x: info.setter('height')(info, info.texture_size[1]))
+        #scrollbox.add_widget(info)    
+        sv = ScrollView(size_hint = (1, 1))
+        sv.add_widget(info)
+        popup_contents.add_widget(sv)
+        button1 = Button(text = 'Back', size_hint_y = .2,
+                            color = BUTTON_COLOR,
+                            background_color = BUTTON_BACKGROUND,
+                            background_normal = '')
+        popup_contents.add_widget(button1)
+        button1.bind(on_press = self.dismiss)
+        self.title = title
+        self.content = popup_contents
+        self.size_hint = (.8, .8)
+        self.size = (400, 400)
+        self.auto_dismiss = False
+
 class MainScreen(Screen):
 
-    __popup = ObjectProperty(None)
+    popup = ObjectProperty(None)
+    event = ObjectProperty(None)
 
     def __init__(self,**kwargs):
         super(MainScreen, self).__init__(**kwargs)
@@ -430,11 +554,52 @@ class MainScreen(Screen):
         e4_cfg.start()
 
         if not e4_cfg.EOF or not e4_cfg.BOF:
-            self.build_mainscreen()
+            self.data_entry()
+
+        if e4_cfg.has_errors:
+            message_text = 'The following errors in the configuration file %s must be fixed before data entry can begin.\n\n' % e4_cfg.filename
+            for error_message in e4_cfg.errors:
+                message_text += error_message + "\n\n"
+            self.message(message_text)
+
+        if e4_cfg.has_warnings and not e4_cfg.has_errors:
+            self.event = Clock.schedule_once(self.show_warnings, 1)
+
+        if not e4_cfg.has_errors and not e4_cfg.has_warnings:
+            message_text = SPLASH_HELP
+            self.message(message_text)
 
         Window.bind(on_key_down  =self._on_keyboard_down)
 
-    def build_mainscreen(self):
+    def show_warnings(self, dt):
+        self.event.cancel()
+        e4_cfg.has_warnings = False
+        message_text = 'Though data entry can start, there are the following warnings in the configuration file %s.\n\n' % e4_cfg.filename
+        for error_message in e4_cfg.errors:
+            message_text += error_message + "\n\n"
+        self.popup = MessageBox('Warnings', message_text)
+        self.popup.open()
+
+    def message(self, message_text):
+        scrollbox = GridLayout(cols = 1,
+                                size_hint_y = None,
+                                id = 'messagebox')
+        scrollbox.bind(minimum_height = scrollbox.setter('height'))
+        info = Label(text = message_text, markup = True,
+                    size_hint_y = None,
+                    #size_hint_x = scrollbox.width,
+                    color = (0,0,0,1), id = 'info',
+                    text_size = (Window.width / 2, None),
+                    font_size = TEXT_FONT_SIZE)
+        #info.bind(texture_size=lambda *x: scrollbox.setter('width')(scrollbox, scrollbox.width))
+        info.bind(texture_size=lambda *x: info.setter('height')(info, info.texture_size[1]))
+        root = ScrollView(size_hint=(1, None),
+                            size=(Window.width, Window.height * .9),
+                            bar_width = 5)
+        root.add_widget(info)
+        self.add_widget(root)
+
+    def data_entry(self):
         mainscreen = BoxLayout(orientation = 'vertical',
                                 size_hint_y = .9,
                                 pos_hint={'center_x': .54},
@@ -496,7 +661,7 @@ class MainScreen(Screen):
     def _on_keyboard_down(self, *args):
         ascii_code = args[1]
         text_str = args[3]
-        print('INFO: The key %s has been pressed %s' % (ascii_code, text_str))
+        #print('INFO: The key %s has been pressed %s' % (ascii_code, text_str))
         if ascii_code == 27:
             self.go_back(None)
         if ascii_code == 13:
@@ -510,10 +675,11 @@ class MainScreen(Screen):
         content_area.clear_widgets()
 
         info_exists = e4_cfg.current_field.info or e4_cfg.current_field.infofile
+        menu_exists = e4_cfg.current_field.inputtype == 'BOOLEAN' or e4_cfg.current_field.menu
 
-        if e4_cfg.current_field.menu or info_exists:
+        if menu_exists or info_exists:
 
-            if e4_cfg.current_field.menu:
+            if menu_exists:
                 if info_exists:
                     no_cols = int(content_area.width/2/150)
                 else:
@@ -525,7 +691,11 @@ class MainScreen(Screen):
                                         id = 'menubox',
                                         spacing = 5)
                 scrollbox.bind(minimum_height = scrollbox.setter('height'))
-                for menu_item in e4_cfg.current_field.menu:
+                if e4_cfg.current_field.inputtype == 'BOOLEAN':
+                    menulist = ['True','False']
+                else:
+                    menulist = e4_cfg.current_field.menu
+                for menu_item in menulist:
                     __button = Button(text = menu_item,
                                         size_hint_y = None,
                                         id = e4_cfg.current_field.name,
@@ -578,6 +748,9 @@ class MainScreen(Screen):
                 widget.focus = True
                 break
 
+    def on_enter(self):
+        pass
+
     def on_pre_enter(self):
         self.focus_on_textbox()
 
@@ -593,9 +766,9 @@ class MainScreen(Screen):
         content = LoadDialog(load = self.load, 
                             cancel = self.dismiss_popup,
                             start_path = os.path.dirname(os.path.abspath( __file__ )))
-        self.__popup = Popup(title = "Load CFG file", content = content,
+        self.popup = Popup(title = "Load CFG file", content = content,
                             size_hint = (0.9, 0.9))
-        self.__popup.open()
+        self.popup.open()
 
     def load(self, path, filename):
         global e4_cfg, e4_ini
@@ -604,7 +777,7 @@ class MainScreen(Screen):
         self.dismiss_popup()
 
     def dismiss_popup(self):
-        self.__popup.dismiss()
+        self.popup.dismiss()
         self.parent.current = 'MainScreen'
 
     def update_mainscreen(self):
@@ -634,11 +807,21 @@ class MainScreen(Screen):
 
     def go_next(self, value):
         self.save_field()
-        e4_cfg.next()
-        if e4_cfg.EOF:
-            self.save_record()
-            e4_cfg.start()
-        self.update_mainscreen()
+        valid_data = e4_cfg.data_is_valid()
+        if valid_data == True:
+            e4_cfg.next()
+            if e4_cfg.EOF:
+                self.save_record()
+                e4_cfg.start()
+            self.update_mainscreen()
+        else:
+            for widget in self.walk():
+                if widget.id=='field_data':
+                    widget.text = e4_cfg.current_record[e4_cfg.current_field.name] 
+                    widget.focus = True
+                    break
+            self.popup = MessageBox(e4_cfg.current_field.name, valid_data)
+            self.popup.open()
 
     def menu_selection(self, value):
         for child in self.walk():
@@ -654,8 +837,8 @@ class MainScreen(Screen):
         if valid:
             e4_data.db.insert(e4_cfg.current_record)
         else:
-            self.__popup = MessageBox('Save Error', valid)
-            self.__popup.open()
+            self.popup = MessageBox('Save Error', valid)
+            self.popup.open()
 
 class InitializeOnePointHeader(Label):
     pass
@@ -791,26 +974,6 @@ class TextNumericInput(Popup):
         self.size = (400, 400)
         self.auto_dismiss = True
 
-class MessageBox(Popup):
-    def __init__(self, title, message, **kwargs):
-        super(MessageBox, self).__init__(**kwargs)
-        __content = BoxLayout(orientation = 'vertical')
-        __label = Label(text = message, size_hint=(1, 1), valign='middle', halign='center')
-        __label.bind(
-            width=lambda *x: __label.setter('text_size')(__label, (__label.width, None)),
-            texture_size=lambda *x: __label.setter('height')(__label, __label.texture_size[1]))
-        __content.add_widget(__label)
-        __button1 = Button(text = 'Back', size_hint_y = .2,
-                            color = BUTTON_COLOR,
-                            background_color = BUTTON_BACKGROUND,
-                            background_normal = '')
-        __content.add_widget(__button1)
-        __button1.bind(on_press = self.dismiss)
-        self.title = title
-        self.content = __content
-        self.size_hint = (.8, .8)
-        self.size=(400, 400)
-        self.auto_dismiss = True
 
 class YesNo(Popup):
     def __init__(self, title, message, yes_callback, no_callback, **kwargs):
@@ -1062,7 +1225,8 @@ class EditPointScreen(Screen):
 class EditPointsScreen(Screen):
     def __init__(self,**kwargs):
         super(EditPointsScreen, self).__init__(**kwargs)
-        self.add_widget(DfguiWidget(e4_data, e4_cfg.fields()))
+        if e4_data:
+            self.add_widget(DfguiWidget(e4_data, e4_cfg.fields()))
 
 class SelectableRecycleBoxLayout(FocusBehavior, LayoutSelectionBehavior, RecycleBoxLayout):
     """ Adds selection and focus behaviour to the view. """
@@ -1573,14 +1737,19 @@ Factory.register('E5', cls=E5py)
 
 if __name__ == '__main__':
     logger.info('E5 started.')
-    database = 'E5'
     e4_ini = ini('E5.ini')
-    e4_cfg = cfg(e4_ini.get_value("E5", "CFG"))
-    e4_data = db(database + '_data.json')
-    if not e4_cfg.filename:
-        e4_cfg.filename = 'E5.cfg'
-    e4_cfg.save()
-    e4_ini.update()
-    e4_ini.save()
-    
+    if e4_ini.get_value("E5", "CFG"):
+        e4_cfg = cfg(e4_ini.get_value("E5", "CFG"))
+        database = e4_ini.get_value("E5", "TABLE")
+        if not database:
+            database = ntpath.split(e4_cfg.filename)[1]
+        if "." in database:
+            database = database.split('.')[0]
+        e4_data = db(database + '.json')
+        e4_cfg.save()
+        e4_ini.update()
+        e4_ini.save()
+    else:
+        e4_cfg = cfg('')
+        e4_data = None    
     E5py().run()

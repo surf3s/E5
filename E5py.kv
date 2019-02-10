@@ -103,21 +103,6 @@ ScreenManager:
 
 <AboutScreen>:
 
-<MessageBox>:
-    title: 'Popup Message Box'
-    size_hint: None, None
-    size: 400, 400
-
-    BoxLayout:
-        orientation: 'vertical'
-        Label:
-            text: app.root.rv_layout.selected_value
-        Button:
-            size_hint: 1, 0.2
-            text: 'OK'
-            on_press:
-                root.dismiss()
-
 
 <SelectableButton>:
     # Draw a background to indicate selection
