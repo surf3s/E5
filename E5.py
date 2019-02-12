@@ -21,6 +21,7 @@ __version__ = '1.0.0'
 
 from kivy.clock import Clock
 from kivy.app import App
+from kivy.uix.camera import Camera
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.switch import Switch
 from kivy.factory import Factory
@@ -54,6 +55,7 @@ import logging
 import logging.handlers as handlers
 import time
 import ntpath
+from string import ascii_uppercase
 
 logger = logging.getLogger('E5')
 logger.setLevel(logging.INFO)
@@ -74,6 +76,8 @@ from dbs import dbs
 from tinydb import TinyDB, Query, where
 
 from collections import OrderedDict
+
+SCROLLBAR_WIDTH = 5
 
 OPTIONBUTTON_BACKGROUND = (128/255, 216/255, 255/255, 1) #80D8FF (lighter blue)
 OPTIONBUTTON_COLOR = (0, 0, 0, 1) # black
@@ -241,10 +245,10 @@ class cfg(blockdata):
             f.inputtype = self.get_value(field_name, 'TYPE')
             f.prompt = self.get_value(field_name, 'PROMPT')
             f.length = self.get_value(field_name, 'LENGTH')
-            f.unique = self.get_value(field_name,"UNIQUE") == 'TRUE'
-            f.increment = self.get_value(field_name,"INCREMENT") == 'TRUE'
-            f.carry = self.get_value(field_name,"CARRY") == 'TRUE'
-            f.required = self.get_value(field_name,"REQUIRED") == 'TRUE'
+            f.unique = self.get_value(field_name,"UNIQUE").upper() == 'TRUE'
+            f.increment = self.get_value(field_name,"INCREMENT").upper() == 'TRUE'
+            f.carry = self.get_value(field_name,"CARRY").upper() == 'TRUE'
+            f.required = self.get_value(field_name,"REQUIRED").upper() == 'TRUE'
             if self.get_value(field_name, 'MENU'):
                 f.menu = self.get_value(field_name, 'MENU').split(",")
             else:
@@ -275,19 +279,19 @@ class cfg(blockdata):
 
     def data_is_valid(self):
         if self.current_field.required and self.current_record[self.current_field.name]=='':
-            return('Error: This field is marked as required.  Please provide a response.')
+            return('\nError: This field is marked as required.  Please provide a response.')
         if self.current_field.unique:
             if self.current_record[self.current_field.name]=='':
-                return('Error: This field is marked as unique.  Empty entries are not allowed in unique fields.')
+                return('\nError: This field is marked as unique.  Empty entries are not allowed in unique fields.')
             for data_row in e4_data.db:
                 if self.current_field.name in data_row:
-                    if data_row[self.current_field.name] == data_row[self.current_field.name]:
-                        return('Error: This field is marked as unique and you are trying to add a duplicate entry.')
+                    if data_row[self.current_field.name] == self.current_record[self.current_field.name]:
+                        return('\nError: This field is marked as unique and you are trying to add a duplicate entry.')
         if self.current_field.inputtype == 'NUMERIC':
             try:
-                val = int(userInput)
+                val = int(self.current_record[self.current_field.name])
             except ValueError:
-                return('Error: This field is marked as numeric but a non-numeric value was provided.')
+                return('\nError: This field is marked as numeric but a non-numeric value was provided.')
         return(True)
 
     def is_valid(self):
@@ -309,14 +313,15 @@ class cfg(blockdata):
 
                 f = self.get(field_name)
 
-                test = False
-                try:
-                    test = int(f.length) > 0 and int(f.length) < 256
-                except:
-                    pass
-                if not test:
-                    self.errors.append('Error: The length specified for field %s must be between 1 and 255.' % field_name)
-                    self.has_errors = True
+                if self.get_value(field_name, "LENGTH"):
+                    test = False
+                    try:
+                        test = int(f.length) > 0 and int(f.length) < 256
+                    except:
+                        pass
+                    if not test:
+                        self.errors.append('Error: The length specified for field %s must be between 1 and 255.' % field_name)
+                        self.has_errors = True
 
                 if f.prompt == '':
                     f.prompt = field_name
@@ -355,7 +360,7 @@ class cfg(blockdata):
                                     else:
                                         condition_matches = condition_parsed[1].split(',')
                                     for condition_match in condition_matches:
-                                        if condition_match not in condition_field.menu:
+                                        if condition_match.upper() not in [x.upper() for x in condition_field.menu]:
                                             self.errors.append('Warning: Condition number %s for the field %s tries to match the value "%s" to the menulist in field %s, but field %s does not contain this value.' % (n, field_name, condition_match, condition_fieldname, condition_fieldname))
                                             self.has_warnings = True
                 self.put(field_name, f)
@@ -408,7 +413,6 @@ class cfg(blockdata):
         return(self.current_field)
 
     def previous(self):
-        # need to implement conditions
         if self.BOF:
             self.current_field = None
         else:
@@ -497,24 +501,43 @@ class MainTextNumericInput(ScrollView):
         super(MainTextNumericInput, self).__init__(**kwargs)
         self.size_hint = (1, None)
         self.size = (Window.width, Window.height/1.9)
-        __content = GridLayout(cols = 1, spacing = 5, size_hint_y = None)
-        __content.bind(minimum_height=__content.setter('height'))
-        __content.add_widget(TextInput(size_hint_y = None, multiline = False, id = 'new_item'))
-        self.add_widget(__content)
+        content = GridLayout(cols = 1, spacing = 5, size_hint_y = None)
+        content.bind(minimum_height=content.setter('height'))
+        content.add_widget(TextInput(size_hint_y = None, multiline = False, id = 'new_item'))
+        self.add_widget(content)
 
-class KeyboardInput(TextInput):
-    def insert_text(self, substring, from_undo=False):
-        if e4_cfg.current_field.inputtype == 'NUMERIC':
-            if not substring in "0123456789,.-+":
-                s = ''
-            else:
-                s = substring
-        else:
-            s = substring 
-        return super(KeyboardInput, self).insert_text(s, from_undo = from_undo)
+class YesNo(Popup):
+    def __init__(self, title, message, yes_callback, no_callback, **kwargs):
+        super(YesNo, self).__init__(**kwargs)
+        content = BoxLayout(orientation = 'vertical')
+        label = Label(text = message,
+                        size_hint=(1, 1),
+                        valign='middle',
+                        halign='center')
+        label.bind(
+            width=lambda *x: label.setter('text_size')(label, (label.width, None)),
+            texture_size=lambda *x: label.setter('height')(label, label.texture_size[1]))
+        content.add_widget(label)
+        button1 = Button(text = 'Yes', size_hint_y = .2,
+                            color = BUTTON_COLOR,
+                            background_color = BUTTON_BACKGROUND,
+                            background_normal = '')
+        content.add_widget(button1)
+        button1.bind(on_press = yes_callback)
+        button2 = Button(text = 'No', size_hint_y = .2,
+                            color = BUTTON_COLOR,
+                            background_color = BUTTON_BACKGROUND,
+                            background_normal = '')
+        content.add_widget(button2)
+        button2.bind(on_press = no_callback)
+        self.title = title
+        self.content = content
+        self.size_hint = (.8, .8)
+        self.size=(400, 400)
+        self.auto_dismiss = False
 
 class MessageBox(Popup):
-    def __init__(self, title, message, **kwargs):
+    def __init__(self, title, message, call_back = None, button_text = 'OK', **kwargs):
         super(MessageBox, self).__init__(**kwargs)
         popup_contents = GridLayout(cols = 1, spacing = 5)
         info = Label(text = message,
@@ -528,25 +551,32 @@ class MessageBox(Popup):
         #info.bind(texture_size=lambda *y: scrollbox.setter('width')(scrollbox, scrollbox.width))
         info.bind(texture_size=lambda *x: info.setter('height')(info, info.texture_size[1]))
         #scrollbox.add_widget(info)    
-        sv = ScrollView(size_hint = (1, 1))
+        sv = ScrollView(size_hint = (1, 1), bar_width = SCROLLBAR_WIDTH)
         sv.add_widget(info)
         popup_contents.add_widget(sv)
-        button1 = Button(text = 'Back', size_hint_y = .2,
+        button1 = Button(text = button_text, size_hint_y = .2,
                             color = BUTTON_COLOR,
                             background_color = BUTTON_BACKGROUND,
                             background_normal = '')
         popup_contents.add_widget(button1)
-        button1.bind(on_press = self.dismiss)
+        if call_back:
+            button1.bind(on_press = call_back)
+        else:
+            button1.bind(on_press = self.dismiss)
         self.title = title
         self.content = popup_contents
         self.size_hint = (.8, .8)
         self.size = (400, 400)
         self.auto_dismiss = False
+        button1.focus = True
 
 class MainScreen(Screen):
 
     popup = ObjectProperty(None)
+    popup_open = False
     event = ObjectProperty(None)
+    input_item_with_focus = ObjectProperty(None)
+    menu_item_with_focus = ObjectProperty(None)
 
     def __init__(self,**kwargs):
         super(MainScreen, self).__init__(**kwargs)
@@ -557,7 +587,7 @@ class MainScreen(Screen):
             self.data_entry()
 
         if e4_cfg.has_errors:
-            message_text = 'The following errors in the configuration file %s must be fixed before data entry can begin.\n\n' % e4_cfg.filename
+            message_text = '\nThe following errors in the configuration file %s must be fixed before data entry can begin.\n\n' % e4_cfg.filename
             for error_message in e4_cfg.errors:
                 message_text += error_message + "\n\n"
             self.message(message_text)
@@ -565,7 +595,7 @@ class MainScreen(Screen):
         if e4_cfg.has_warnings and not e4_cfg.has_errors:
             self.event = Clock.schedule_once(self.show_warnings, 1)
 
-        if not e4_cfg.has_errors and not e4_cfg.has_warnings:
+        if not e4_cfg.has_errors and not e4_cfg.has_warnings and e4_cfg.EOF and e4_cfg.BOF:
             message_text = SPLASH_HELP
             self.message(message_text)
 
@@ -574,11 +604,12 @@ class MainScreen(Screen):
     def show_warnings(self, dt):
         self.event.cancel()
         e4_cfg.has_warnings = False
-        message_text = 'Though data entry can start, there are the following warnings in the configuration file %s.\n\n' % e4_cfg.filename
+        message_text = '\nThough data entry can start, there are the following warnings in the configuration file %s.\n\n' % e4_cfg.filename
         for error_message in e4_cfg.errors:
             message_text += error_message + "\n\n"
-        self.popup = MessageBox('Warnings', message_text)
+        self.popup = MessageBox('Warnings', message_text, call_back = self.close_popup)
         self.popup.open()
+        self.popup_open = True
 
     def message(self, message_text):
         scrollbox = GridLayout(cols = 1,
@@ -595,7 +626,7 @@ class MainScreen(Screen):
         info.bind(texture_size=lambda *x: info.setter('height')(info, info.texture_size[1]))
         root = ScrollView(size_hint=(1, None),
                             size=(Window.width, Window.height * .9),
-                            bar_width = 5)
+                            bar_width = SCROLLBAR_WIDTH)
         root.add_widget(info)
         self.add_widget(root)
 
@@ -613,21 +644,20 @@ class MainScreen(Screen):
                     color = (0,0,0,1), id = 'field_prompt',
                     halign = 'center',
                     font_size = TEXT_FONT_SIZE)
-
         mainscreen.add_widget(label)
         label.bind(texture_size = label.setter('size'))
         label.bind(size_hint_min_x = label.setter('width'))
 
-        mainscreen.add_widget(KeyboardInput(size_hint = (.9, .1),
-                                        #size = (Window.width * .5, 35),
-                                        multiline = False,
-                                        id = 'field_data',
-                                        #halign = 'center',
-                                        font_size = TEXT_FONT_SIZE))
-        
-        #self.add_widget(inputbox)
 
-        #scroll_content = GridLayout(cols = 2, size_hint = (.9, .6), spacing = 20,  id = 'scroll_content')
+        kb = TextInput(size_hint = (.9, .07),
+                            multiline = False,
+                            write_tab = False,
+                            id = 'field_data',
+                            font_size = TEXT_FONT_SIZE)
+        mainscreen.add_widget(kb)
+        self.input_item_with_focus = kb
+        kb.focus = True
+
         scroll_content = BoxLayout(orientation = 'horizontal',
                                     size_hint = (.9, .6),
                                     id = 'scroll_content',
@@ -636,6 +666,7 @@ class MainScreen(Screen):
         mainscreen.add_widget(scroll_content)
 
         buttons = GridLayout(cols = 2, size_hint = (.9, .2), spacing = 20)
+        
         back_button = Button(text = 'Back', size_hint_y = None, id = 'back',
                         color = BUTTON_COLOR,
                         font_size = BUTTON_FONT_SIZE,
@@ -651,23 +682,110 @@ class MainScreen(Screen):
                         background_normal = '')
         buttons.add_widget(next_button)
         next_button.bind(on_press = self.go_next)
+        
         mainscreen.add_widget(buttons)
+        
         self.add_widget(mainscreen)
 
     def _keyboard_closed(self):
         self._keyboard.unbind(on_key_down = self._on_keyboard_down)
         self._keyboard = None
 
+    def make_menu_item_visible(self):
+        self.get_widget_by_id('menuscroll').scroll_to(self.menu_item_with_focus)
+
+    def move_menu_item(self, ascii_code):
+        if self.menu_item_with_focus:
+            index_no = e4_cfg.current_field.menu.index(self.menu_item_with_focus.text)
+            new_index = -1
+            if ascii_code == 279:
+                new_index = len(e4_cfg.current_field.menu) - 1
+            elif ascii_code == 278:
+                new_index = 0
+            elif ascii_code in [273, 276] and index_no > 0:
+                new_index = index_no - 1
+            elif ascii_code in [274, 275] and index_no < (len(e4_cfg.current_field.menu) - 1):
+                new_index = index_no + 1
+            if new_index >= 0:
+                self.menu_item_with_focus.background_color = OPTIONBUTTON_BACKGROUND
+                for widget in self.walk():
+                    if widget.id == e4_cfg.current_field.name:
+                        if widget.text == e4_cfg.current_field.menu[new_index]:
+                            self.menu_item_with_focus = widget
+                            widget.background_color = BUTTON_BACKGROUND
+                            self.make_menu_item_visible()
+                            self.get_widget_by_id('field_data').text =  widget.text 
+                            break
+
+    def menu_item_match(self, match_str):
+        if self.menu_item_with_focus:
+            index_no = e4_cfg.current_field.menu.index(self.menu_item_with_focus.text)
+            self.menu_item_with_focus.background_color = OPTIONBUTTON_BACKGROUND
+            matching_cases = []
+            for menu_item in e4_cfg.current_field.menu:
+                if menu_item.upper()[0] == match_str.upper():
+                    matching_cases.append(e4_cfg.current_field.menu.index(menu_item))
+            if len(matching_cases) == 1:
+                index_no = matching_cases[0]
+            if len(matching_cases) > 1:
+                new_index_no = None
+                for match in matching_cases:
+                    if match > index_no:
+                        new_index_no = match
+                        break
+                if not new_index_no:
+                    index_no = matching_cases[0]
+                else:  
+                    index_no = new_index_no
+            for widget in self.walk():
+                if widget.id==e4_cfg.current_field.name:
+                    if widget.text == e4_cfg.current_field.menu[index_no]:
+                        self.menu_item_with_focus = widget
+                        widget.background_color = BUTTON_BACKGROUND
+                        self.make_menu_item_visible()
+                        if len(matching_cases) == 1:
+                            self.menu_selection(widget)
+                        break
+
+    def get_widget_by_id(self, id):
+        for widget in self.walk():
+            if widget.id == id:
+                return(widget)
+        return(None)
+
     def _on_keyboard_down(self, *args):
         ascii_code = args[1]
-        text_str = args[3]
-        #print('INFO: The key %s has been pressed %s' % (ascii_code, text_str))
-        if ascii_code == 27:
-            self.go_back(None)
-        if ascii_code == 13:
-            self.go_next(None)
-        if ascii_code == 51:
-            return True 
+        text_str = args[3]  
+        print('INFO: The key %s has been pressed %s' % (ascii_code, text_str))
+        if not self.popup_open:
+            if ascii_code == 9 or ascii_code == 8:
+                if self.input_item_with_focus.id == 'scroll_content':
+                    self.input_item_with_focus = self.get_widget_by_id('field_data')
+                    self.input_item_with_focus.focus = True
+                elif self.input_item_with_focus.id == 'field_data' and e4_cfg.current_field.inputtype in ['MENU','BOOLEAN']:
+                    self.input_item_with_focus.focus = False
+                    self.input_item_with_focus = self.get_widget_by_id('scroll_content')
+                return False
+            if ascii_code == 27:
+                self.go_back(None)
+            if ascii_code == 13:
+                if e4_cfg.current_field.inputtype in ['MENU','BOOLEAN'] and self.get_widget_by_id('field_data').text =='':
+                    self.get_widget_by_id('field_data').text = self.menu_item_with_focus.text 
+                self.go_next(None)
+            if ascii_code == 51:
+                return True 
+            if ascii_code in [273, 274, 275, 276, 278, 279] and e4_cfg.current_field.inputtype in ['MENU','BOOLEAN']:
+                self.move_menu_item(ascii_code)
+            if text_str:
+                if text_str.upper() in ascii_uppercase and e4_cfg.current_field.inputtype in ['MENU','BOOLEAN']:
+                    if self.input_item_with_focus.id == 'scroll_content':
+                        self.menu_item_match(text_str)
+                        return False
+        else:
+            if ascii_code == 13:
+                self.close_popup(None)
+                self.get_widget_by_id('field_data').focus = True
+                return False
         return True # return True to accept the key. Otherwise, it will be used by the system.
 
     def add_scroll_content(self, content_area, call_back):
@@ -676,8 +794,22 @@ class MainScreen(Screen):
 
         info_exists = e4_cfg.current_field.info or e4_cfg.current_field.infofile
         menu_exists = e4_cfg.current_field.inputtype == 'BOOLEAN' or e4_cfg.current_field.menu
+        camera_exists = e4_cfg.current_field.inputtype == 'CAMERA'
 
-        if menu_exists or info_exists:
+        if menu_exists or info_exists or camera_exists:
+
+            if camera_exists:
+                bx = BoxLayout(orientation = 'vertical')
+                bx.add_widget(Camera(play=True, size_hint_y = .8,
+                                         resolution = (320,160)))
+                button = Button(text = "Snap",
+                                    size_hint_y = .2,
+                                    id = "snap",
+                                    color = OPTIONBUTTON_COLOR,
+                                    background_color = OPTIONBUTTON_BACKGROUND,
+                                    background_normal = '')                
+                bx.add_widget(button)
+                content_area.add_widget(bx)
 
             if menu_exists:
                 if info_exists:
@@ -696,17 +828,32 @@ class MainScreen(Screen):
                 else:
                     menulist = e4_cfg.current_field.menu
                 for menu_item in menulist:
-                    __button = Button(text = menu_item,
+                    button_color = OPTIONBUTTON_BACKGROUND                        
+                    if e4_cfg.current_field.name in e4_cfg.current_record.keys():
+                        if menu_item == e4_cfg.current_record[e4_cfg.current_field.name]:
+                            button_color = BUTTON_BACKGROUND
+                        elif e4_cfg.current_record[e4_cfg.current_field.name] == '' and menulist.index(menu_item) == 0:
+                            button_color = BUTTON_BACKGROUND 
+                    else:
+                        if menulist.index(menu_item) == 0:
+                            button_color = BUTTON_BACKGROUND
+                    menu_button = Button(text = menu_item,
                                         size_hint_y = None,
                                         id = e4_cfg.current_field.name,
                                         color = OPTIONBUTTON_COLOR,
-                                        background_color = OPTIONBUTTON_BACKGROUND,
+                                        background_color = button_color,
                                         background_normal = '')                
-                    scrollbox.add_widget(__button)
-                    __button.bind(on_press = call_back)
-                root1 = ScrollView(size_hint=(1, 1))
+                    scrollbox.add_widget(menu_button)
+                    if button_color == BUTTON_BACKGROUND:
+                        self.menu_item_with_focus = menu_button
+                    menu_button.bind(on_press = call_back)
+                root1 = ScrollView(size_hint=(1, 1), id='menuscroll')
                 root1.add_widget(scrollbox)
                 content_area.add_widget(root1)
+                root1.scroll_to(self.menu_item_with_focus)
+
+            if camera_exists or menu_exists:
+                self.input_item_with_focus = content_area
 
             if info_exists:
                 scrollbox = GridLayout(cols = 1,
@@ -740,19 +887,12 @@ class MainScreen(Screen):
                 root2 = ScrollView(size_hint=(1, 1))
                 root2.add_widget(info)
                 content_area.add_widget(root2)
-        self.focus_on_textbox()
-
-    def focus_on_textbox(self):
-        for widget in self.walk():
-            if widget.id=='field_data':
-                widget.focus = True
-                break
 
     def on_enter(self):
         pass
 
     def on_pre_enter(self):
-        self.focus_on_textbox()
+        pass
 
     def exit_program(self):
         e4_ini.update_value('E5','TOP', Window.top)
@@ -789,18 +929,23 @@ class MainScreen(Screen):
                     widget.text = e4_cfg.current_record[e4_cfg.current_field.name]
                 else:
                     widget.text = ''
+                self.input_item_with_focus = widget
             if widget.id=='scroll_content':
-                self.add_scroll_content(widget, self.menu_selection)
+                self.add_scroll_content(widget, self.menu_selection)    
                 break
+        if self.input_item_with_focus.id == 'field_data':
+            self.input_item_with_focus.focus = True
+        elif self.input_item_with_focus.id == 'scroll_content':
+            self.get_widget_by_id('field_data').focus = False
+            self.menu_item_with_focus.focus = True
 
     def save_field(self):
-        for widget in self.walk():
-            if widget.id=='field_data':
-                e4_cfg.current_record[e4_cfg.current_field.name] = widget.text 
-                widget.text = ''
-                break
+        widget = self.get_widget_by_id('field_data')
+        e4_cfg.current_record[e4_cfg.current_field.name] = widget.text 
+        widget.text = ''
 
     def go_back(self, value):
+        
         self.save_field()
         e4_cfg.previous()
         self.update_mainscreen()
@@ -815,21 +960,15 @@ class MainScreen(Screen):
                 e4_cfg.start()
             self.update_mainscreen()
         else:
-            for widget in self.walk():
-                if widget.id=='field_data':
-                    widget.text = e4_cfg.current_record[e4_cfg.current_field.name] 
-                    widget.focus = True
-                    break
-            self.popup = MessageBox(e4_cfg.current_field.name, valid_data)
+            widget = self.get_widget_by_id('field_data')
+            widget.text = e4_cfg.current_record[e4_cfg.current_field.name] 
+            widget.focus = True
+            self.popup = MessageBox(e4_cfg.current_field.name, valid_data, call_back = self.close_popup)
             self.popup.open()
+            self.popup_open = True
 
     def menu_selection(self, value):
-        for child in self.walk():
-            if child.id == value.id:
-                for child2 in self.walk():
-                    if child2.id == 'field_data':
-                        child2.text = value.text
-                        break
+        self.get_widget_by_id('field_data').text = value.text
         self.go_next(value)
 
     def save_record(self):
@@ -837,8 +976,21 @@ class MainScreen(Screen):
         if valid:
             e4_data.db.insert(e4_cfg.current_record)
         else:
-            self.popup = MessageBox('Save Error', valid)
+            self.popup = MessageBox('Save Error', valid, call_back=self.close_popup)
             self.popup.open()
+            self.popup_open = True
+
+    def close_popup(self, value):
+        self.popup.dismiss()
+        self.popup_open = False
+        self.event = Clock.schedule_once(self.set_focus, 1)
+
+    def set_focus(self, value):
+        if self.input_item_with_focus.id == 'field_data':
+            self.input_item_with_focus.focus = True
+        elif self.input_item_with_focus.id == 'scroll_content':
+            self.get_widget_by_id('field_data').focus = False
+            self.menu_item_with_focus.focus = True
 
 class InitializeOnePointHeader(Label):
     pass
@@ -974,33 +1126,6 @@ class TextNumericInput(Popup):
         self.size = (400, 400)
         self.auto_dismiss = True
 
-
-class YesNo(Popup):
-    def __init__(self, title, message, yes_callback, no_callback, **kwargs):
-        super(YesNo, self).__init__(**kwargs)
-        __content = BoxLayout(orientation = 'vertical')
-        __label = Label(text = message, size_hint=(1, 1), valign='middle', halign='center')
-        __label.bind(
-            width=lambda *x: __label.setter('text_size')(__label, (__label.width, None)),
-            texture_size=lambda *x: __label.setter('height')(__label, __label.texture_size[1]))
-        __content.add_widget(__label)
-        __button1 = Button(text = 'Yes', size_hint_y = .2,
-                            color = BUTTON_COLOR,
-                            background_color = BUTTON_BACKGROUND,
-                            background_normal = '')
-        __content.add_widget(__button1)
-        __button1.bind(on_press = yes_callback)
-        __button2 = Button(text = 'No', size_hint_y = .2,
-                            color = BUTTON_COLOR,
-                            background_color = BUTTON_BACKGROUND,
-                            background_normal = '')
-        __content.add_widget(__button2)
-        __button2.bind(on_press = no_callback)
-        self.title = title
-        self.content = __content
-        self.size_hint = (.8, .8)
-        self.size=(400, 400)
-        self.auto_dismiss = True
 
 class TextLabel(Label):
     def __init__(self, text, **kwargs):
