@@ -26,10 +26,6 @@ ScreenManager:
         id: about_screen
         name: 'AboutScreen'
         manager: 'screen_manager'
-    EditPointScreen:
-        id: editpoint_screen
-        name: 'EditPointScreen'
-        manager: 'screen_manager'
     EditPointsScreen:
         id: editpoints_screen
         name: 'EditPointsScreen'
@@ -38,7 +34,7 @@ ScreenManager:
         id: editcfg_screen
         name: 'EditCFGScreen'
         manager: 'screen_manager'
-
+        
 <MainScreen>:
     BoxLayout:
         id: mainbox
@@ -71,10 +67,7 @@ ScreenManager:
                     text: 'Edit'
                     color: (MENU_COLOR[0]/255, MENU_COLOR[1]/255, MENU_COLOR[2]/255,1)
                     ActionButton:
-                        text: 'The last point'
-                        color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
-                    ActionButton:
-                        text: 'Points'
+                        text: 'Records'
                         on_press: app.root.current = 'EditPointsScreen'
                         color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
                     ActionButton:
@@ -89,7 +82,7 @@ ScreenManager:
                         on_release: root.show_load_cfg()
                         color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
                     ActionButton:
-                        text: 'Save CFG as'
+                        text: 'Export CSVs'
                         on_release: root.show_save()
                         color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
                     ActionButton:
@@ -103,7 +96,6 @@ ScreenManager:
 
 <AboutScreen>:
 
-
 <SelectableButton>:
     # Draw a background to indicate selection
     canvas.before:
@@ -113,37 +105,7 @@ ScreenManager:
             pos: self.pos
             size: self.size
 
-
-<RV>:
-    rv_layout: layout
-    viewclass: 'SelectableButton'
-    SelectableRecycleBoxLayout:
-        id: layout
-        default_size: None, dp(56)
-        default_size_hint: 0.1, None
-        size_hint_y: None
-        height: self.minimum_height
-        orientation: "vertical"
-
-
-<DatumLister>:
-    BoxLayout:
-        orientation: "vertical"
-        size_hint_y: None
-        height: 30
-        Label:
-            text: 'Select a datum or define a new one.'
-        Button:
-            text: "New"
-        Button:
-            text: "Cancel"
-
-
-
-<EditPointsScreen>:
-<EditPointScreen>:
 <EditCFGScreen>:
-
 
 <LoadDialog>:
     BoxLayout:
@@ -159,14 +121,14 @@ ScreenManager:
             height: 30
             spacing: 5
             Button:
-                text: "Next"
-                on_release: root.load(filechooser.path, filechooser.selection)
+                text: "Back"
+                on_release: root.cancel()
                 color: BUTTON_COLOR
                 background_color: BUTTON_BACKGROUND
                 background_normal: ''
             Button:
-                text: "Back"
-                on_release: root.cancel()
+                text: "Next"
+                on_release: root.load(filechooser.path, filechooser.selection)
                 color: BUTTON_COLOR
                 background_color: BUTTON_BACKGROUND
                 background_normal: ''
@@ -197,9 +159,6 @@ ScreenManager:
             Button:
                 text: "Save"
                 on_release: root.save(filechooser.path, text_input.text)
-
-
-
 
 ## code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py
 
@@ -277,7 +236,7 @@ ScreenManager:
     panel4: add_new_panel
     do_default_tab: False
     TabbedPanelItem:
-        text: 'Data Frame'
+        text: 'Data'
         on_release: root.open_panel1()
         color: BUTTON_COLOR
         background_color: BUTTON_BACKGROUND
@@ -285,7 +244,7 @@ ScreenManager:
         DataframePanel:
             id: data_frame_panel
     TabbedPanelItem:
-        text: 'Add New'
+        text: 'Edit Record'
         color: BUTTON_COLOR
         background_color: BUTTON_BACKGROUND
         background_normal: ''

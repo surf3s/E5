@@ -1,16 +1,9 @@
-# First screen should be first field is the CFG is current
-# Otherwise a blank screen
+# Logic bug, if E5 starts on a cfg with errors, hitting esacpe crashes it
+# When selecting a bad cfg, errors don't show and it goes onto first field
 
-#   Need to establish a unique key for each record
-#   Finish valid data bit - need to show a popup when not valid in go_next()
-
+# Need to establish a unique key for each record
 # E4 conditions seem to accept OR at the end - check other options and implement
-
-# Bug - when you back track on first field (maybe ask if they want to delete the current record?)
-# Figure out a way to shift focus and scroll through menu choices with the keyboard
-# If a new menu item is entered instead of selected, offer to add it to the menu
 # Add a CFG option to sort menus
-# Better support for keyboard input (i.e. pressing keys moves to menu item and enter selects)
 
 # Long term
 #   Think about whether to allow editing of CFG in the program
@@ -170,9 +163,6 @@ class db(dbs):
 
 class ini(blockdata):
     
-    blocks = []
-    filename = ''
-
     def __init__(self, filename):
         if filename=='':
             filename = 'E4.ini'
@@ -221,6 +211,7 @@ class cfg(blockdata):
         self.has_errors = False
         self.has_warnings = False
         self.key_field = None  # not implimented yet
+        self.description = ''
         if not filename=='':
             self.load(filename)
             self.is_valid()
@@ -475,17 +466,6 @@ class cfg(blockdata):
                 break
         return(condition_value)
 
-class record_button(Button):
-    def __init__(self,id,text,**kwargs):
-        super(Button, self).__init__(**kwargs)
-        self.text = text
-        self.id = id
-        self.size_hint_y = None
-        self.id = id
-        self.color = BUTTON_COLOR
-        self.background_color = BUTTON_BACKGROUND
-        self.background_normal = ''
-
 class LoadDialog(FloatLayout):
     start_path =  ObjectProperty(None)
     load = ObjectProperty(None)
@@ -540,212 +520,327 @@ class MessageBox(Popup):
     def __init__(self, title, message, call_back = None, button_text = 'OK', **kwargs):
         super(MessageBox, self).__init__(**kwargs)
         popup_contents = GridLayout(cols = 1, spacing = 5)
-        info = Label(text = message,
-                    size_hint_y = None,
-                    #size_hint_x = scrollbox.width,
-                    color = POPUP_TEXT_COLOR, id = 'info',
-                    #halign = 'left',
-                    text_size = (self.width * 2.8, None),
-                    #height = self.texture_size[1],
-                    font_size = TEXT_FONT_SIZE)
-        #info.bind(texture_size=lambda *y: scrollbox.setter('width')(scrollbox, scrollbox.width))
-        info.bind(texture_size=lambda *x: info.setter('height')(info, info.texture_size[1]))
-        #scrollbox.add_widget(info)    
-        sv = ScrollView(size_hint = (1, 1), bar_width = SCROLLBAR_WIDTH)
-        sv.add_widget(info)
-        popup_contents.add_widget(sv)
-        button1 = Button(text = button_text, size_hint_y = .2,
-                            color = BUTTON_COLOR,
-                            background_color = BUTTON_BACKGROUND,
-                            background_normal = '')
-        popup_contents.add_widget(button1)
-        if call_back:
-            button1.bind(on_press = call_back)
-        else:
-            button1.bind(on_press = self.dismiss)
+        popup_contents.add_widget(e5_scrollview_label(message, color = POPUP_TEXT_COLOR))
+        if not call_back:
+            call_back = self.dismiss
+        popup_contents.add_widget(e5_button(button_text,
+                                            call_back = call_back,
+                                            selected = True,
+                                            button_height = .1))
         self.title = title
         self.content = popup_contents
         self.size_hint = (.8, .8)
         self.size = (400, 400)
         self.auto_dismiss = False
-        button1.focus = True
+
+class e5_button(Button):
+    def __init__(self, text, id = '', selected = False, call_back = None, button_height = None, **kwargs):
+        super(e5_button, self).__init__(**kwargs)
+        self.text = text
+        self.size_hint_y = button_height
+        self.id = id
+        self.color = BUTTON_COLOR
+        if selected:
+            self.background_color = BUTTON_BACKGROUND
+            self.id = '*' + self.id 
+        else:
+            self.background_color = OPTIONBUTTON_BACKGROUND
+        if call_back:
+            self.on_press = call_back
+        self.background_normal = ''
+
+class e5_scrollview_menu(ScrollView):
+    def __init__(self, menu_list, menu_selected, widget_id = '', call_back = None, **kwargs):
+        super(e5_scrollview_menu, self).__init__(**kwargs)
+        scrollbox = GridLayout(cols = 1,
+                                size_hint_y = None,
+                                id = widget_id + '_box',
+                                spacing = 5)
+        scrollbox.bind(minimum_height = scrollbox.setter('height'))
+
+        for menu_item in menu_list:
+            if menu_item == menu_selected:
+                scrollbox.add_widget(e5_button(menu_item, menu_item,
+                                        selected = True, call_back = call_back))
+            else:
+                scrollbox.add_widget(e5_button(menu_item, menu_item,
+                                        selected = False, call_back = call_back))
+        self.size_hint = (1,1)
+        self.id = widget_id + '_scroll'
+        self.add_widget(scrollbox)
+
+class e5_scrollview_label(ScrollView):
+    def __init__(self, text, widget_id = '', color = WINDOW_COLOR, **kwargs):
+        super(e5_scrollview_label, self).__init__(**kwargs)
+        scrollbox = GridLayout(cols = 1,
+                                size_hint_y = None,
+                                id = widget_id + '_box',
+                                spacing = 5)
+        scrollbox.bind(minimum_height = scrollbox.setter('height'))
+
+        info = Label(text = text, markup = True,
+                    size_hint_y = None,
+                    color = color,
+                    id = widget_id + '_label',
+                    text_size = (self.width, None),
+                    font_size = TEXT_FONT_SIZE)
+
+        info.bind(texture_size=lambda instance, value: setattr(instance, 'height', value[1]))
+        info.bind(width=lambda instance, value: setattr(instance, 'text_size', (value * .95, None)))
+
+        #info.bind(texture_size=lambda *x: info.setter('height')(info, info.texture_size[1]))
+        scrollbox.add_widget(info)
+        
+        self.bar_width = SCROLLBAR_WIDTH
+        self.size_hint = (1,1)
+        self.id = widget_id + '_scroll'
+        self.add_widget(scrollbox)
 
 class MainScreen(Screen):
 
     popup = ObjectProperty(None)
     popup_open = False
     event = ObjectProperty(None)
-    input_item_with_focus = ObjectProperty(None)
-    menu_item_with_focus = ObjectProperty(None)
+    widget_with_focus = ObjectProperty(None)
 
     def __init__(self,**kwargs):
         super(MainScreen, self).__init__(**kwargs)
 
-        e4_cfg.start()
+        self.add_widget(BoxLayout(orientation = 'vertical',
+                                size_hint_y = .9,
+                                size_hint_x = .8,
+                                pos_hint={'center_x': .5},
+                                id = 'mainscreen',
+                                padding = 20,
+                                spacing = 20))
 
-        if not e4_cfg.EOF or not e4_cfg.BOF:
-            self.data_entry()
+        self.fpath = ''
 
-        if e4_cfg.has_errors:
-            message_text = '\nThe following errors in the configuration file %s must be fixed before data entry can begin.\n\n' % e4_cfg.filename
-            for error_message in e4_cfg.errors:
-                message_text += error_message + "\n\n"
-            self.message(message_text)
-
-        if e4_cfg.has_warnings and not e4_cfg.has_errors:
-            self.event = Clock.schedule_once(self.show_warnings, 1)
-
-        if not e4_cfg.has_errors and not e4_cfg.has_warnings and e4_cfg.EOF and e4_cfg.BOF:
-            message_text = SPLASH_HELP
-            self.message(message_text)
+        self.build_mainscreen()
 
         Window.bind(on_key_down  =self._on_keyboard_down)
 
-    def show_warnings(self, dt):
+    def build_mainscreen(self):
+
+        if e4_cfg.filename:
+            e4_cfg.start()
+
+            if not e4_cfg.EOF or not e4_cfg.BOF:
+                self.data_entry()
+                if e4_cfg.has_warnings:
+                    self.event = Clock.schedule_once(self.show_popup_message, 1)
+            else:
+                self.cfg_menu()
+                self.event = Clock.schedule_once(self.show_popup_message, 1)
+
+        else:
+            self.cfg_menu()
+
+    def get_path(self):
+        if e4_ini.get_value("E5", "CFG"):
+            return(ntpath.split(e4_ini.get_value("E5", "CFG"))[0])
+        else:
+            return(os.getcwd())
+
+    def get_files(self, fpath, exts = None):
+        files = []
+        for (dirpath, dirnames, filenames) in os.walk(fpath):
+            files.extend(filenames)
+            break
+        if exts:
+            return([filename for filename in files if filename.upper().endswith(exts.upper())])
+        else:
+            return(files)
+
+    def cfg_menu(self):
+        mainscreen = self.get_widget_by_id('mainscreen')
+        mainscreen.clear_widgets()
+
+        self.cfg_files = self.get_files(self.get_path(), 'cfg')
+
+        if self.cfg_files:
+
+            self.cfg_file_selected = self.cfg_files[0]
+        
+            lb = Label(text = 'Begin data entry with one of these CFG files',
+                        color = WINDOW_COLOR,
+                        size_hint_y = .1)
+            mainscreen.add_widget(lb)
+
+            mainscreen.add_widget(e5_scrollview_menu(self.cfg_files,
+                                                     self.cfg_file_selected,
+                                                     widget_id = 'cfg',
+                                                     call_back = self.cfg_selected))
+            self.scroll_menu = self.get_widget_by_id('cfg_scroll')
+            self.make_scroll_menu_item_visible()
+            self.widget_with_focus = self.scroll_menu
+
+        else:
+            label_text = '\nBefore data entry can begin, you need to have a CFG file.  The current folder contains none.  Either switch to a folder that contains CFG files or create one.' 
+            mainscreen.add_widget(Label(text = label_text, id = 'label',
+                                        color = WINDOW_COLOR))
+            self.widget_with_focus = mainscreen
+
+    def cfg_selected(self, value):
+        self.cfg_load(os.path.join(self.get_path(), value.text))
+        
+    def cfg_load(self, cfgfile_name):
+        e4_cfg.load(cfgfile_name)
+        e4_ini.update()
+        self.build_mainscreen()
+
+    def show_popup_message(self, dt):
         self.event.cancel()
-        e4_cfg.has_warnings = False
-        message_text = '\nThough data entry can start, there are the following warnings in the configuration file %s.\n\n' % e4_cfg.filename
-        for error_message in e4_cfg.errors:
-            message_text += error_message + "\n\n"
-        self.popup = MessageBox('Warnings', message_text, call_back = self.close_popup)
+        message_text = SPLASH_HELP
+        title = 'E5'
+        if e4_cfg.has_errors:
+            e4_cfg.filename = ''
+            message_text = 'The following errors in the configuration file %s must be fixed before data entry can begin.\n\n' % e4_cfg.filename
+            title = 'Errors'                
+        elif e4_cfg.has_warnings:
+            e4_cfg.has_warnings = False
+            message_text = '\nThough data entry can start, there are the following warnings in the configuration file %s.\n\n' % e4_cfg.filename
+            title = 'Warnings'
+        message_text = message_text + '\n\n'.join(e4_cfg.errors)
+        self.popup = MessageBox(title, message_text, call_back = self.close_popup)
         self.popup.open()
         self.popup_open = True
 
     def message(self, message_text):
-        scrollbox = GridLayout(cols = 1,
-                                size_hint_y = None,
-                                id = 'messagebox')
-        scrollbox.bind(minimum_height = scrollbox.setter('height'))
-        info = Label(text = message_text, markup = True,
-                    size_hint_y = None,
-                    #size_hint_x = scrollbox.width,
-                    color = (0,0,0,1), id = 'info',
-                    text_size = (Window.width / 2, None),
-                    font_size = TEXT_FONT_SIZE)
-        #info.bind(texture_size=lambda *x: scrollbox.setter('width')(scrollbox, scrollbox.width))
-        info.bind(texture_size=lambda *x: info.setter('height')(info, info.texture_size[1]))
-        root = ScrollView(size_hint=(1, None),
-                            size=(Window.width, Window.height * .9),
-                            bar_width = SCROLLBAR_WIDTH)
-        root.add_widget(info)
-        self.add_widget(root)
+        mainscreen = self.get_widget_by_id('mainscreen')
+        mainscreen.clear_widgets()
+        mainscreen.add_widget(e5_scrollview_label(text = message_text))
 
     def data_entry(self):
-        mainscreen = BoxLayout(orientation = 'vertical',
-                                size_hint_y = .9,
-                                pos_hint={'center_x': .54},
-                                id = 'inputbox',
-                                padding = 20,
-                                spacing = 20)
+        mainscreen = self.get_widget_by_id('mainscreen')
+        mainscreen.clear_widgets()
+
         #inputbox.bind(minimum_height = inputbox.setter('height'))
 
         label = Label(text = e4_cfg.current_field.prompt,
-                    size_hint = (.9, .1),
-                    color = (0,0,0,1), id = 'field_prompt',
+                    size_hint = (1, .1),
+                    color = WINDOW_COLOR, id = 'field_prompt',
                     halign = 'center',
                     font_size = TEXT_FONT_SIZE)
         mainscreen.add_widget(label)
         label.bind(texture_size = label.setter('size'))
         label.bind(size_hint_min_x = label.setter('width'))
 
-
-        kb = TextInput(size_hint = (.9, .07),
+        kb = TextInput(size_hint = (1, .07),
                             multiline = False,
                             write_tab = False,
                             id = 'field_data',
                             font_size = TEXT_FONT_SIZE)
         mainscreen.add_widget(kb)
-        self.input_item_with_focus = kb
+        self.widget_with_focus = kb
         kb.focus = True
 
         scroll_content = BoxLayout(orientation = 'horizontal',
-                                    size_hint = (.9, .6),
+                                    size_hint = (1, .6),
                                     id = 'scroll_content',
                                     spacing = 20)
-        self.add_scroll_content(scroll_content, self.menu_selection)
+        self.add_scroll_content(scroll_content)
         mainscreen.add_widget(scroll_content)
 
-        buttons = GridLayout(cols = 2, size_hint = (.9, .2), spacing = 20)
+        buttons = GridLayout(cols = 2, size_hint = (1, .2), spacing = 20)
         
-        back_button = Button(text = 'Back', size_hint_y = None, id = 'back',
-                        color = BUTTON_COLOR,
-                        font_size = BUTTON_FONT_SIZE,
-                        background_color = BUTTON_BACKGROUND,
-                        background_normal = '')
-        buttons.add_widget(back_button)
-        back_button.bind(on_press = self.go_back)
+        buttons.add_widget(e5_button('Back', id = 'back', selected = True, call_back = self.go_back))
+        #back_button = Button(text = 'Back', size_hint_y = None, id = 'back',
+        #                color = BUTTON_COLOR,
+        #                font_size = BUTTON_FONT_SIZE,
+        #                background_color = BUTTON_BACKGROUND,
+        #                background_normal = '')
+        #buttons.add_widget(back_button)
+        #back_button.bind(on_press = self.go_back)
 
-        next_button = Button(text = 'Next', size_hint_y = None, id = 'next',
-                        color = BUTTON_COLOR,
-                        font_size = BUTTON_FONT_SIZE,
-                        background_color = BUTTON_BACKGROUND,
-                        background_normal = '')
-        buttons.add_widget(next_button)
-        next_button.bind(on_press = self.go_next)
+        #next_button = Button(text = 'Next', size_hint_y = None, id = 'next',
+        #                color = BUTTON_COLOR,
+        #                font_size = BUTTON_FONT_SIZE,
+        #                background_color = BUTTON_BACKGROUND,
+        #                background_normal = '')
+        #buttons.add_widget(next_button)
+        #next_button.bind(on_press = self.go_next)
+        
+        buttons.add_widget(e5_button('Next', id = 'next', selected = True, call_back = self.go_next))
         
         mainscreen.add_widget(buttons)
         
-        self.add_widget(mainscreen)
+        #self.add_widget(mainscreen)
 
     def _keyboard_closed(self):
         self._keyboard.unbind(on_key_down = self._on_keyboard_down)
         self._keyboard = None
 
-    def make_menu_item_visible(self):
-        self.get_widget_by_id('menuscroll').scroll_to(self.menu_item_with_focus)
+    def scroll_menu_clear_selected(self):
+        for widget in self.scroll_menu.children[0].children:
+            if widget.id[0] == '*':
+                widget.id = widget.id[1:]
+                widget.background_color = OPTIONBUTTON_BACKGROUND
+                break
 
-    def move_menu_item(self, ascii_code):
-        if self.menu_item_with_focus:
-            index_no = e4_cfg.current_field.menu.index(self.menu_item_with_focus.text)
+    def scroll_menu_get_selected(self):
+        for widget in self.scroll_menu.children[0].children:
+            if widget.id[0] == '*':
+                return(widget)
+
+    def scroll_menu_set_selected(self, text):
+        for widget in self.scroll_menu.children[0].children:
+            if widget.text == text:
+                widget.background_color = BUTTON_BACKGROUND
+                if not widget.id[0] == "*":
+                    widget.id = "*" + widget.id
+                break
+
+    def scroll_menu_list(self):
+        menu_list = []
+        for widget in self.scroll_menu.children[0].children:
+            menu_list.append(widget.text)
+        menu_list.reverse()
+        return(menu_list)
+        # return([widget.text for widget in self.scroll_menu.children])
+
+    def make_scroll_menu_item_visible(self):
+        self.scroll_menu.scroll_to(self.scroll_menu_get_selected())
+
+    def move_scroll_menu_item(self, ascii_code):
+
+        menu_list = self.scroll_menu_list()
+        index_no = menu_list.index(self.scroll_menu_get_selected().text)
+
+        if index_no >= 0:
             new_index = -1
             if ascii_code == 279:
-                new_index = len(e4_cfg.current_field.menu) - 1
+                new_index = len(menu_list) - 1
             elif ascii_code == 278:
                 new_index = 0
             elif ascii_code in [273, 276] and index_no > 0:
                 new_index = index_no - 1
-            elif ascii_code in [274, 275] and index_no < (len(e4_cfg.current_field.menu) - 1):
+            elif ascii_code in [274, 275] and index_no < (len(menu_list) - 1):
                 new_index = index_no + 1
             if new_index >= 0:
-                self.menu_item_with_focus.background_color = OPTIONBUTTON_BACKGROUND
-                for widget in self.walk():
-                    if widget.id == e4_cfg.current_field.name:
-                        if widget.text == e4_cfg.current_field.menu[new_index]:
-                            self.menu_item_with_focus = widget
-                            widget.background_color = BUTTON_BACKGROUND
-                            self.make_menu_item_visible()
-                            self.get_widget_by_id('field_data').text =  widget.text 
-                            break
+                self.scroll_menu_clear_selected()
+                self.scroll_menu_set_selected(menu_list[new_index])
+                self.make_scroll_menu_item_visible()
+                if self.get_widget_by_id('field_data'):
+                    self.get_widget_by_id('field_data').text = menu_list[new_index]
 
-    def menu_item_match(self, match_str):
-        if self.menu_item_with_focus:
-            index_no = e4_cfg.current_field.menu.index(self.menu_item_with_focus.text)
-            self.menu_item_with_focus.background_color = OPTIONBUTTON_BACKGROUND
-            matching_cases = []
-            for menu_item in e4_cfg.current_field.menu:
-                if menu_item.upper()[0] == match_str.upper():
-                    matching_cases.append(e4_cfg.current_field.menu.index(menu_item))
-            if len(matching_cases) == 1:
-                index_no = matching_cases[0]
-            if len(matching_cases) > 1:
-                new_index_no = None
-                for match in matching_cases:
-                    if match > index_no:
-                        new_index_no = match
-                        break
-                if not new_index_no:
-                    index_no = matching_cases[0]
-                else:  
-                    index_no = new_index_no
-            for widget in self.walk():
-                if widget.id==e4_cfg.current_field.name:
-                    if widget.text == e4_cfg.current_field.menu[index_no]:
-                        self.menu_item_with_focus = widget
-                        widget.background_color = BUTTON_BACKGROUND
-                        self.make_menu_item_visible()
-                        if len(matching_cases) == 1:
-                            self.menu_selection(widget)
-                        break
+    def scroll_menu_char_match(self, match_str):
+
+        menu_list = self.scroll_menu_list()
+        index_no = menu_list.index(self.scroll_menu_get_selected().text)
+
+        new_index = (index_no + 1) % len(menu_list)
+        while not new_index == index_no:
+            if menu_list[new_index].upper()[0] == match_str.upper():
+                self.scroll_menu_clear_selected()
+                self.scroll_menu_set_selected(menu_list[new_index])
+                self.make_scroll_menu_item_visible()
+                if self.get_widget_by_id('field_data'):
+                    self.get_widget_by_id('field_data').text = menu_list[new_index]
+                break
+            else:
+                new_index = (new_index + 1) % len(menu_list)
+                # need new logic to auto select when only one case is available
 
     def get_widget_by_id(self, id):
         for widget in self.walk():
@@ -759,36 +854,40 @@ class MainScreen(Screen):
         print('INFO: The key %s has been pressed %s' % (ascii_code, text_str))
         if not self.popup_open:
             if ascii_code == 9 or ascii_code == 8:
-                if self.input_item_with_focus.id == 'scroll_content':
-                    self.input_item_with_focus = self.get_widget_by_id('field_data')
-                    self.input_item_with_focus.focus = True
-                elif self.input_item_with_focus.id == 'field_data' and e4_cfg.current_field.inputtype in ['MENU','BOOLEAN']:
-                    self.input_item_with_focus.focus = False
-                    self.input_item_with_focus = self.get_widget_by_id('scroll_content')
+                if self.widget_with_focus.id == 'menu_scroll':
+                    self.widget_with_focus = self.get_widget_by_id('field_data')
+                    self.widget_with_focus.focus = True
+                elif self.widget_with_focus.id == 'field_data' and e4_cfg.current_field.inputtype in ['MENU','BOOLEAN']:
+                    self.widget_with_focus.focus = False
+                    self.widget_with_focus = self.get_widget_by_id('menu_scroll')
                 return False
             if ascii_code == 27:
-                self.go_back(None)
+                if e4_cfg.filename:
+                    self.go_back(None)
             if ascii_code == 13:
-                if e4_cfg.current_field.inputtype in ['MENU','BOOLEAN'] and self.get_widget_by_id('field_data').text =='':
-                    self.get_widget_by_id('field_data').text = self.menu_item_with_focus.text 
-                self.go_next(None)
+                if e4_cfg.filename:
+                    if e4_cfg.current_field.inputtype in ['MENU','BOOLEAN'] and self.get_widget_by_id('field_data').text =='':
+                        self.get_widget_by_id('field_data').text = self.scroll_menu_get_selected().text 
+                    self.go_next(None)
+                else:
+                    self.cfg_selected(self.scroll_menu_get_selected())
             if ascii_code == 51:
                 return True 
-            if ascii_code in [273, 274, 275, 276, 278, 279] and e4_cfg.current_field.inputtype in ['MENU','BOOLEAN']:
-                self.move_menu_item(ascii_code)
+            if ascii_code in [273, 274, 275, 276, 278, 279] and self.scroll_menu:
+                self.move_scroll_menu_item(ascii_code)
+                return False 
             if text_str:
-                if text_str.upper() in ascii_uppercase and e4_cfg.current_field.inputtype in ['MENU','BOOLEAN']:
-                    if self.input_item_with_focus.id == 'scroll_content':
-                        self.menu_item_match(text_str)
-                        return False
+                if text_str.upper() in ascii_uppercase:
+                    self.scroll_menu_char_match(text_str)
+                    return False
         else:
             if ascii_code == 13:
-                self.close_popup(None)
-                self.get_widget_by_id('field_data').focus = True
+                self.close_popup()
+                self.widget_with_focus.focus = True
                 return False
         return True # return True to accept the key. Otherwise, it will be used by the system.
 
-    def add_scroll_content(self, content_area, call_back):
+    def add_scroll_content(self, content_area):
     
         content_area.clear_widgets()
 
@@ -802,13 +901,8 @@ class MainScreen(Screen):
                 bx = BoxLayout(orientation = 'vertical')
                 bx.add_widget(Camera(play=True, size_hint_y = .8,
                                          resolution = (320,160)))
-                button = Button(text = "Snap",
-                                    size_hint_y = .2,
-                                    id = "snap",
-                                    color = OPTIONBUTTON_COLOR,
-                                    background_color = OPTIONBUTTON_BACKGROUND,
-                                    background_normal = '')                
-                bx.add_widget(button)
+                bx.add_widget(e5_button(text = "Snap",
+                                        id = "snap", selected = True))                
                 content_area.add_widget(bx)
 
             if menu_exists:
@@ -818,75 +912,70 @@ class MainScreen(Screen):
                     no_cols = int(content_area.width/150)
                 if no_cols < 1:
                     no_cols = 1
-                scrollbox = GridLayout(cols = no_cols,
-                                        size_hint_y = None,
-                                        id = 'menubox',
-                                        spacing = 5)
-                scrollbox.bind(minimum_height = scrollbox.setter('height'))
-                if e4_cfg.current_field.inputtype == 'BOOLEAN':
-                    menulist = ['True','False']
-                else:
-                    menulist = e4_cfg.current_field.menu
-                for menu_item in menulist:
-                    button_color = OPTIONBUTTON_BACKGROUND                        
-                    if e4_cfg.current_field.name in e4_cfg.current_record.keys():
-                        if menu_item == e4_cfg.current_record[e4_cfg.current_field.name]:
-                            button_color = BUTTON_BACKGROUND
-                        elif e4_cfg.current_record[e4_cfg.current_field.name] == '' and menulist.index(menu_item) == 0:
-                            button_color = BUTTON_BACKGROUND 
-                    else:
-                        if menulist.index(menu_item) == 0:
-                            button_color = BUTTON_BACKGROUND
-                    menu_button = Button(text = menu_item,
-                                        size_hint_y = None,
-                                        id = e4_cfg.current_field.name,
-                                        color = OPTIONBUTTON_COLOR,
-                                        background_color = button_color,
-                                        background_normal = '')                
-                    scrollbox.add_widget(menu_button)
-                    if button_color == BUTTON_BACKGROUND:
-                        self.menu_item_with_focus = menu_button
-                    menu_button.bind(on_press = call_back)
-                root1 = ScrollView(size_hint=(1, 1), id='menuscroll')
-                root1.add_widget(scrollbox)
-                content_area.add_widget(root1)
-                root1.scroll_to(self.menu_item_with_focus)
 
-            if camera_exists or menu_exists:
-                self.input_item_with_focus = content_area
+                #scrollbox = GridLayout(cols = no_cols,
+                #                        size_hint_y = None,
+                #                        id = 'menubox',
+                #                        spacing = 5)
+                #scrollbox.bind(minimum_height = scrollbox.setter('height'))
+
+                if e4_cfg.current_field.inputtype == 'BOOLEAN':
+                    menu_list = ['True','False']
+                else:
+                    menu_list = e4_cfg.current_field.menu
+
+                if e4_cfg.current_field.name in e4_cfg.current_record.keys():
+                    selected_menu = e4_cfg.current_record[e4_cfg.current_field.name]
+                else:
+                    selected_menu = menu_list[0]
+
+                content_area.add_widget(e5_scrollview_menu(menu_list,
+                                                           selected_menu,
+                                                           widget_id = 'menu',
+                                                           call_back = self.menu_selection))
+                #for menu_item in menulist:
+                #    button_color = OPTIONBUTTON_BACKGROUND                        
+                #    if e4_cfg.current_field.name in e4_cfg.current_record.keys():
+                #        if menu_item == e4_cfg.current_record[e4_cfg.current_field.name]:
+                #            button_color = BUTTON_BACKGROUND
+                #        elif e4_cfg.current_record[e4_cfg.current_field.name] == '' and menulist.index(menu_item) == 0:
+                #            button_color = BUTTON_BACKGROUND 
+                #    else:
+                #        if menulist.index(menu_item) == 0:
+                #            button_color = BUTTON_BACKGROUND
+                #    menu_button = Button(text = menu_item,
+                #                        size_hint_y = None,
+                #                        id = e4_cfg.current_field.name,
+                #                        color = OPTIONBUTTON_COLOR,
+                #                        background_color = button_color,
+                #                        background_normal = '')                
+                #    scrollbox.add_widget(menu_button)
+                #    if button_color == BUTTON_BACKGROUND:
+                #        self.menu_item_with_focus = menu_button
+                #    menu_button.bind(on_press = call_back)
+                #root1 = ScrollView(size_hint=(1, 1), id='menuscroll')
+                #root1.add_widget(scrollbox)
+                #content_area.add_widget(root1)
+                self.scroll_menu = self.get_widget_by_id('menu_scroll')
+                self.make_scroll_menu_item_visible()
+                self.widget_with_focus = self.scroll_menu
 
             if info_exists:
-                scrollbox = GridLayout(cols = 1,
-                                        size_hint_y = None,
-                                        id = 'infobox')
-                scrollbox.bind(minimum_height = scrollbox.setter('height'))
-                if e4_cfg.current_field.infofile:
-                    fname = os.path.join(e4_cfg.path, e4_cfg.current_field.infofile)
-                    if os.path.exists(fname):
-                        try:
-                            with open(fname, 'r') as f:
-                                the_info = f.read()
-                        except:
-                            the_info = 'Could not open file %s.' % fname
-                    else:
-                        the_info = 'The file %s does not exist.' % fname
-                else:
-                    the_info = e4_cfg.current_field.info      
-                print(scrollbox.width)      
-                info = Label(text = the_info,
-                            size_hint_y = None,
-                            #size_hint_x = scrollbox.width,
-                            color = (0,0,0,1), id = 'info',
-                            #halign = 'left',
-                            text_size = (scrollbox.width * 2.8, None),
-                            #height = self.texture_size[1],
-                            font_size = TEXT_FONT_SIZE)
-                #info.bind(texture_size=lambda *y: scrollbox.setter('width')(scrollbox, scrollbox.width))
-                info.bind(texture_size=lambda *x: info.setter('height')(info, info.texture_size[1]))
-                #scrollbox.add_widget(info)    
-                root2 = ScrollView(size_hint=(1, 1))
-                root2.add_widget(info)
-                content_area.add_widget(root2)
+                content_area.add_widget(e5_scrollview_label(self.get_info()))
+
+    def get_info(self):
+        if e4_cfg.current_field.infofile:
+            fname = os.path.join(e4_cfg.path, e4_cfg.current_field.infofile)
+            if os.path.exists(fname):
+                try:
+                    with open(fname, 'r') as f:
+                        return(f.read())
+                except:
+                    return('Could not open file %s.' % fname)
+            else:
+                return('The file %s does not exist.' % fname)
+        else:
+            return(e4_cfg.current_field.info)
 
     def on_enter(self):
         pass
@@ -911,10 +1000,8 @@ class MainScreen(Screen):
         self.popup.open()
 
     def load(self, path, filename):
-        global e4_cfg, e4_ini
-        e4_cfg.load(os.path.join(path, filename[0]))
-        e4_ini.update()
         self.dismiss_popup()
+        self.cfg_load(os.path.join(path, filename[0]))
 
     def dismiss_popup(self):
         self.popup.dismiss()
@@ -929,28 +1016,28 @@ class MainScreen(Screen):
                     widget.text = e4_cfg.current_record[e4_cfg.current_field.name]
                 else:
                     widget.text = ''
-                self.input_item_with_focus = widget
+                self.widget_with_focus = widget
             if widget.id=='scroll_content':
-                self.add_scroll_content(widget, self.menu_selection)    
+                self.add_scroll_content(widget)    
                 break
-        if self.input_item_with_focus.id == 'field_data':
-            self.input_item_with_focus.focus = True
-        elif self.input_item_with_focus.id == 'scroll_content':
-            self.get_widget_by_id('field_data').focus = False
-            self.menu_item_with_focus.focus = True
+        self.widget_with_focus.focus = True
 
     def save_field(self):
         widget = self.get_widget_by_id('field_data')
         e4_cfg.current_record[e4_cfg.current_field.name] = widget.text 
         widget.text = ''
 
-    def go_back(self, value):
-        
-        self.save_field()
-        e4_cfg.previous()
-        self.update_mainscreen()
+    def go_back(self, *args):
+        if e4_cfg.filename:
+            self.save_field()
+            e4_cfg.previous()
+            if e4_cfg.BOF:
+                e4_cfg.filename = ''
+                self.build_mainscreen()
+            else:
+                self.update_mainscreen()
 
-    def go_next(self, value):
+    def go_next(self, *args):
         self.save_field()
         valid_data = e4_cfg.data_is_valid()
         if valid_data == True:
@@ -980,84 +1067,13 @@ class MainScreen(Screen):
             self.popup.open()
             self.popup_open = True
 
-    def close_popup(self, value):
+    def close_popup(self):
         self.popup.dismiss()
         self.popup_open = False
         self.event = Clock.schedule_once(self.set_focus, 1)
 
     def set_focus(self, value):
-        if self.input_item_with_focus.id == 'field_data':
-            self.input_item_with_focus.focus = True
-        elif self.input_item_with_focus.id == 'scroll_content':
-            self.get_widget_by_id('field_data').focus = False
-            self.menu_item_with_focus.focus = True
-
-class InitializeOnePointHeader(Label):
-    pass
-
-class InitializeDirectScreen(Screen):
-
-    popup = ObjectProperty(None)
-
-    def datum_list(self):
-        layout_popup = GridLayout(cols = 1, spacing = 10, size_hint_y = None)
-        layout_popup.bind(minimum_height=layout_popup.setter('height'))
-        for datum in datums.names(EDMpy.edm_datums):
-            button1 = Button(text = datum, size_hint_y = None, id = datum,
-                        color = OPTIONBUTTON_COLOR,
-                        background_color = OPTIONBUTTON_BACKGROUND,
-                        background_normal = '')
-            layout_popup.add_widget(button1)
-            button1.bind(on_press = self.initialize_direct)
-        button2 = Button(text = 'Cancel', size_hint_y = None,
-                        color = BUTTON_COLOR,
-                        background_color = BUTTON_BACKGROUND,
-                        background_normal = '')
-        layout_popup.add_widget(button2)
-        root = ScrollView(size_hint=(1, None), size=(Window.width, Window.height/1.9))
-        root.add_widget(layout_popup)
-        self.popup = Popup(title = 'Initial Direct',
-                    content = root,
-                    size_hint = (None, None),
-                    size=(400, 400),
-                    #pos_hint = {None, None},
-                    auto_dismiss = False)
-        button2.bind(on_press = self.popup.dismiss)
-        self.popup.open()
-
-    def initialize_direct(self, value):
-        EDMpy.edm_station.X = EDMpy.edm_datums.datums[EDMpy.edm_datums.datums.Name==value.id].iloc[0]['X']
-        EDMpy.edm_station.Y = EDMpy.edm_datums.datums[EDMpy.edm_datums.datums.Name==value.id].iloc[0]['X']
-        EDMpy.edm_station.Z = EDMpy.edm_datums.datums[EDMpy.edm_datums.datums.Name==value.id].iloc[0]['X']
-        self.popup.dismiss()
-        self.parent.current = 'MainScreen'
-
-class InitializeSetAngleScreen(Screen):
-    def set_angle(self, foreshot, backshot):
-        if foreshot:
-            totalstation.set_horizontal_angle(foreshot)
-        elif backshot:
-            # flip angle 180
-            totalstation.set_horizontal_angle(foreshot)
-        self.parent.current = 'MainScreen'
-
-class InitializeOnePointScreen(Screen):
-    def __init__(self,**kwargs):
-        super(InitializeOnePointScreen, self).__init__(**kwargs)
-        self.add_widget(InitializeOnePointHeader())
-        self.add_widget(DatumLister())
-
-class InitializeTwoPointScreen(Screen):
-    def __init__(self,**kwargs):
-        super(InitializeTwoPointScreen, self).__init__(**kwargs)
-        self.add_widget(InitializeOnePointHeader())
-        self.add_widget(DatumLister())
-
-class InitializeThreePointScreen(Screen):
-    def __init__(self,**kwargs):
-        super(InitializeThreePointScreen, self).__init__(**kwargs)
-        self.add_widget(InitializeOnePointHeader())
-        self.add_widget(DatumLister())
+        self.widget_with_focus.focus = True
 
 class MenuList(Popup):
     def __init__(self, title, menu_list, call_back, **kwargs):
@@ -1125,7 +1141,6 @@ class TextNumericInput(Popup):
         self.size_hint = (None, None)
         self.size = (400, 400)
         self.auto_dismiss = True
-
 
 class TextLabel(Label):
     def __init__(self, text, **kwargs):
@@ -1224,283 +1239,6 @@ class EditCFGScreen(Screen):
     def show_menu(self):
         pass
 
-class EditPointScreen(Screen):
-
-    global e4_cfg
-    global e4_data
-
-    popup = ObjectProperty(None)
-
-    def on_pre_enter(self):
-        #super(Screen, self).__init__(**kwargs)
-        self.clear_widgets()
-        layout = GridLayout(cols = 2, spacing = 10, size_hint_y = None, id = 'fields')
-        layout.bind(minimum_height=layout.setter('height'))
-        for field_name in e4_cfg.fields():
-            f = e4_cfg.get(field_name)
-            layout.add_widget(Label(text = field_name,
-                                size_hint_y = None, color = BUTTON_COLOR))
-            if field_name in ['SUFFIX','X','Y','Z','PRISM','DATE','VANGLE','HANGLE','SLOPED']:
-                if field_name == 'SUFFIX':
-                    layout.add_widget(Label(text = str(edm_station.suffix), id = 'SUFFIX',
-                                        size_hint_y = None, color = BUTTON_COLOR))
-                if field_name == 'X':
-                    layout.add_widget(Label(text = str(edm_station.x), id = 'X',
-                                        size_hint_y = None, color = BUTTON_COLOR))
-                if field_name == 'Y':
-                    layout.add_widget(Label(text = str(edm_station.y), id = 'Y',
-                                        size_hint_y = None, color = BUTTON_COLOR))
-                if field_name == 'Z':
-                    layout.add_widget(Label(text = str(edm_station.z), id = 'Z',
-                                        size_hint_y = None, color = BUTTON_COLOR))
-                if field_name == 'SLOPED':
-                    layout.add_widget(Label(text = str(edm_station.sloped), id = 'SLOPED',
-                                        size_hint_y = None, color = BUTTON_COLOR))
-                if field_name == 'HANGLE':
-                    layout.add_widget(Label(text = edm_station.hangle, id = 'HANGLE',
-                                        size_hint_y = None, color = BUTTON_COLOR))
-                if field_name == 'VANGLE':
-                    layout.add_widget(Label(text = edm_station.vangle, id = 'VANGLE',
-                                        size_hint_y = None, color = BUTTON_COLOR))
-                if field_name == 'DATE':
-                    layout.add_widget(Label(text = "%s" % datetime.datetime.now(), id = 'DATE',
-                                        size_hint_y = None, color = BUTTON_COLOR))
-                if field_name == 'PRISM':
-                    prism_button = Button(text = str(edm_station.prism), size_hint_y = None,
-                                    color = OPTIONBUTTON_COLOR,
-                                    background_color = OPTIONBUTTON_BACKGROUND,
-                                    background_normal = '',
-                                    id = field_name)
-                    layout.add_widget(prism_button)
-                    prism_button.bind(on_press = self.show_menu)
-            else:
-                if f.inputtype == 'TEXT':
-                    layout.add_widget(TextInput(multiline=False, id = field_name))
-                if f.inputtype == 'NUMERIC':
-                    layout.add_widget(TextInput(id = field_name))
-                if f.inputtype == 'MENU':
-                    button1 = Button(text = 'MENU', size_hint_y = None,
-                                    color = OPTIONBUTTON_COLOR,
-                                    background_color = OPTIONBUTTON_BACKGROUND,
-                                    background_normal = '',
-                                    id = field_name)
-                    layout.add_widget(button1)
-                    button1.bind(on_press = self.show_menu)
-        button2 = Button(text = 'Save', size_hint_y = None,
-                        color = BUTTON_COLOR,
-                        background_color = BUTTON_BACKGROUND,
-                        background_normal = '')
-        layout.add_widget(button2)
-        button2.bind(on_press = self.save)
-        button3 = Button(text = 'Back', size_hint_y = None,
-                        color = BUTTON_COLOR,
-                        background_color = BUTTON_BACKGROUND,
-                        background_normal = '')
-        layout.add_widget(button3)
-        root = ScrollView(size_hint=(1, None), size=(Window.width, Window.height))
-        root.add_widget(layout)
-        self.add_widget(root)
-
-    def show_menu(self, value):
-        if value.id!='PRISM':  
-            self.popup = MenuList(value.id, e4_cfg.get(value.id).menu, self.menu_selection)
-        else:
-            self.popup = MenuList(value.id, edm_prisms.names(), self.prism_change)
-        self.popup.open()
-
-    def prism_change(self, value):
-        edm_station.z = edm_station.z + edm_station.prism
-        edm_station.prism = edm_prisms.get(value.text).height 
-        edm_station.z = edm_station.z - edm_station.prism
-        for child in self.walk():
-            if child.id == value.id:
-                child.text = str(edm_station.prism)
-            if child.id == 'Z':
-                child.text = str(edm_station.z)
-        self.popup.dismiss()
-
-    def menu_selection(self, value):
-        for child in self.walk():
-            if child.id == value.id:
-                if value.text == 'Add':
-                    for widget in self.popup.walk():
-                        if widget.id == 'new_item':
-                            child.text = widget.text
-                            e4_cfg.update_value(value.id,'MENU',
-                                                e4_cfg.get_value(value.id,'MENU') + "," + widget.text) 
-                else:
-                    child.text = value.text
-        self.popup.dismiss()
-
-    def save(self, value):
-        new_record = {}
-        for widget in self.walk():
-            for f in e4_data.fields():
-                if widget.id == f:
-                    new_record[f] = widget.text
-        valid = e4_cfg.valid_datarecord(new_record)
-        if valid:
-            e4_data.db.insert(new_record)
-            edm_units.update_defaults(new_record)
-            self.parent.current = 'MainScreen'
-        else:
-            self.popup = MessageBox('Save Error', valid_record)
-            self.popup.open()
-
-class EditPointsScreen(Screen):
-    def __init__(self,**kwargs):
-        super(EditPointsScreen, self).__init__(**kwargs)
-        if e4_data:
-            self.add_widget(DfguiWidget(e4_data, e4_cfg.fields()))
-
-class SelectableRecycleBoxLayout(FocusBehavior, LayoutSelectionBehavior, RecycleBoxLayout):
-    """ Adds selection and focus behaviour to the view. """
-    selected_value = StringProperty('')
-    btn_info = ListProperty(['Button 0 Text', 'Button 1 Text', 'Button 2 Text'])
-
-class SelectableButton(RecycleDataViewBehavior, Button):
-    """ Add selection support to the Label """
-    index = None
-
-    def refresh_view_attrs(self, rv, index, data):
-        """ Catch and handle the view changes """
-        self.index = index
-        return super(SelectableButton, self).refresh_view_attrs(rv, index, data)
-
-    def on_press(self):
-        self.parent.selected_value = 'Selected: {}'.format(self.parent.btn_info[int(self.id)])
-
-    def on_release(self):
-        MessageBox().open()
-
-class RV(RecycleView):
-    rv_layout = ObjectProperty(None)
-
-    def __init__(self, **kwargs):
-        super(RV, self).__init__(**kwargs)
-        self.data = [{'text': "Datum " + str(x), 'id': str(x)} for x in range(30)]
-
-class DatumLister(BoxLayout,Screen):
-    def __init__(self, list_dicts=[], *args, **kwargs):
-
-        super(DatumLister, self).__init__(*args, **kwargs)
-        self.orientation = "vertical"
-        self.add_widget(RV())
-
-class EditDatumScreen(Screen):
-    pass
-
-class StationConfigurationScreen(Screen):
-    def __init__(self,**kwargs):
-        super(StationConfigurationScreen, self).__init__(**kwargs)
-    
-        layout = GridLayout(cols = 2, spacing = 5)
-
-        # Station type menu
-        self.StationLabel = Label(text="Station type", color = WINDOW_COLOR)
-        layout.add_widget(self.StationLabel)
-        self.StationMenu = Spinner(text="Simulate", values=("Leica", "Wild", "Topcon", "Simulate"), id = 'station',
-                                    color = OPTIONBUTTON_COLOR,
-                                    background_color = OPTIONBUTTON_BACKGROUND,
-                                    background_normal = '')
-        self.StationMenu.size_hint  = (0.3, 0.2)
-        layout.add_widget(self.StationMenu)
-
-        # Communications type menu
-        self.CommTypeLabel = Label(text="Communications", color = WINDOW_COLOR)
-        layout.add_widget(self.CommTypeLabel)
-        self.CommTypeMenu = Spinner(text="None", values=("Serial", "Bluetooth"), id = 'communications',
-                                    color = OPTIONBUTTON_COLOR,
-                                    background_color = OPTIONBUTTON_BACKGROUND,
-                                    background_normal = '')
-        self.CommTypeMenu.size_hint  = (0.3, 0.2)
-        layout.add_widget(self.CommTypeMenu)
-
-        # Port number
-        self.PortNoLabel = Label(text="Port Number", color = WINDOW_COLOR)
-        layout.add_widget(self.PortNoLabel)
-        self.PortNoMenu = Spinner(text="COM1", values=("COM1", "COM2","COM3","COM4","COM5","COM6"), id = 'comport',
-                                    color = OPTIONBUTTON_COLOR,
-                                    background_color = OPTIONBUTTON_BACKGROUND,
-                                    background_normal = '')
-        self.PortNoMenu.size_hint  = (0.3, 0.2)
-        layout.add_widget(self.PortNoMenu)
-
-        # Speed
-        self.SpeedLabel = Label(text="Speed", color = WINDOW_COLOR)
-        layout.add_widget(self.SpeedLabel)
-        self.SpeedMenu = Spinner(text="1200", values=("1200", "2400","4800","9600"), id = 'baudrate',
-                                    color = OPTIONBUTTON_COLOR,
-                                    background_color = OPTIONBUTTON_BACKGROUND,
-                                    background_normal = '')
-        self.SpeedMenu.size_hint  = (0.3, 0.2)
-        layout.add_widget(self.SpeedMenu)
-
-        # Parity
-        self.ParityLabel = Label(text="Parity", color = WINDOW_COLOR)
-        layout.add_widget(self.ParityLabel)
-        self.ParityMenu = Spinner(text="Even", values=("Even", "Odd","None"), id = 'parity',
-                                    color = OPTIONBUTTON_COLOR,
-                                    background_color = OPTIONBUTTON_BACKGROUND,
-                                    background_normal = '')
-        self.ParityMenu.size_hint  = (0.3, 0.2)
-        layout.add_widget(self.ParityMenu)
-
-        # Databits
-        self.DataBitsLabel = Label(text="Data bits", color = WINDOW_COLOR)
-        layout.add_widget(self.DataBitsLabel)
-        self.DataBitsMenu = Spinner(text="7", values=("7", "8"), id = 'databits',
-                                    color = OPTIONBUTTON_COLOR,
-                                    background_color = OPTIONBUTTON_BACKGROUND,
-                                    background_normal = '')
-        self.DataBitsMenu.size_hint  = (0.3, 0.2)
-        layout.add_widget(self.DataBitsMenu)
-
-        # Stopbits
-        self.StopBitsLabel = Label(text="Stop bits", color = WINDOW_COLOR)
-        layout.add_widget(self.StopBitsLabel)
-        self.StopBitsMenu = Spinner(text="1", values=("0", "1", "2"), id = 'stopbits',
-                                    color = OPTIONBUTTON_COLOR,
-                                    background_color = OPTIONBUTTON_BACKGROUND,
-                                    background_normal = '')
-        self.StopBitsMenu.size_hint  = (0.3, 0.2)
-        layout.add_widget(self.StopBitsMenu)
-
-        button1 = Button(text = 'Save', size_hint_y = None, id = 'save',
-                        color = BUTTON_COLOR,
-                        background_color = BUTTON_BACKGROUND,
-                        background_normal = '')
-        layout.add_widget(button1)
-        button1.bind(on_press = self.close_screen)
-        button2 = Button(text = 'Back', size_hint_y = None, id = 'cancel',
-                        color = BUTTON_COLOR,
-                        background_color = BUTTON_BACKGROUND,
-                        background_normal = '')
-        layout.add_widget(button2)
-        button2.bind(on_press = self.close_screen)
-
-        self.add_widget(layout)
-
-    def close_screen(self, instance):
-        if instance.id=='save':
-            for child in self.children[0].children:
-                if child.id=='stopbits':
-                    EDMpy.edm_station.stopbits = child.text
-                if child.id=='baudrate':
-                    EDMpy.edm_station.baudrate = child.text
-                if child.id=='databits':
-                    EDMpy.edm_station.databits = child.text
-                if child.id=='comport':
-                    EDMpy.edm_station.comport = child.text
-                if child.id=='parity':
-                    EDMpy.edm_station.parity = child.text
-                if child.id=='communications':
-                    EDMpy.edm_station.communications = child.text
-                if child.id=='station':
-                    EDMpy.edm_station.make = child.text
-                ## need code to open com port here
-        self.parent.current = 'MainScreen'
-
 class InfoScreen(Screen):
     def __init__(self,**kwargs):
         super(InfoScreen, self).__init__(**kwargs)
@@ -1553,6 +1291,12 @@ class AboutScreen(InfoScreen):
 
     def go_back(self, value):
         self.parent.current = 'MainScreen'
+
+class EditPointsScreen(Screen):
+    def __init__(self,**kwargs):
+        super(EditPointsScreen, self).__init__(**kwargs)
+        if e4_data:
+            self.add_widget(DfguiWidget(e4_data, e4_cfg.fields()))
 
 # Code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py
 
@@ -1698,10 +1442,6 @@ class AddNewPanel(BoxLayout):
 
 class AddNew(BoxLayout):
 
-    global edm_datums
-    global edm_prisms
-    global edm_units
-    
     popup = ObjectProperty(None)
     sorted_result = None
 
@@ -1802,31 +1542,6 @@ class DfguiWidget(TabbedPanel):
         pass
 
 # End code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py
-
-class YesNoCancel(Popup):
-    def __init__(self, caption, cancel = False, **kwargs):
-        super(YesNoCancel, self).__init__(**kwargs)
-        box = BoxLayout()
-        self.label = Label(text = caption)
-        self.button1 = Button(text = "Yes", size_hint=(0.75, 1), font_size="15sp")
-        self.button1.bind(on_press = self.yes)
-        self.button2 = Button(text = "No", size_hint=(0.75, 1), font_size="15sp")
-        self.button2.bind(on_press = self.no)
-        box.add_widget(self.label)
-        box.add_widget(self.button1)
-        box.add_widget(self.button2)
-        if cancel == True:
-            box.button3 = Button(text = "Cancel", size_hint=(0.75, 1), font_size="15sp")
-            box.button3.bind(on_press = self.cancel)
-            box.add_widget(self.button3)
-        self.add_widget(box)
-        self.open()
-    def yes(self, instance):
-        return('Yes')
-    def no(self, instance):
-        return('No')
-    def cancel(self, instance):
-        return('Cancel')
 
 class E5py(App):
 
