@@ -4,8 +4,6 @@
 #:set MENU_COLOR [0, 0, 0]
 #:set SUBMENU_COLOR [255, 255, 255]
 #:set WINDOW_COLOR (0, 0, 0, 1)
-#:set DATAGRID_ODD [224.0/255, 224.0/255, 224.0/255, 1]
-#:set DATAGRID_EVEN [189.0/255, 189.0/255, 189.0/255, 1]
 
 ScreenManager:
     id: screen_manager
@@ -22,6 +20,14 @@ ScreenManager:
         id: log_screen
         name: 'LogScreen'
         manager: 'screen_manager'
+    CFGScreen:
+        id: cfg_screen
+        name: 'CFGScreen'
+        manager: 'screen_manager'
+    INIScreen:
+        id: ini_screen
+        name: 'INIScreen'
+        manager: 'screen_manager'
     AboutScreen:
         id: about_screen
         name: 'AboutScreen'
@@ -34,6 +40,10 @@ ScreenManager:
         id: editcfg_screen
         name: 'EditCFGScreen'
         manager: 'screen_manager'
+    E5SettingsScreen:
+        id: e5settings_screen
+        name: 'E5SettingsScreen'
+        manager: 'screen_manager'
         
 <MainScreen>:
     BoxLayout:
@@ -44,13 +54,23 @@ ScreenManager:
                 size_hint_y : .1
                 use_separator: True
                 pos_hint: {'top':1}
+                background_color: (.5, .5, .5, 1)
+                background_image: 'white-bg.png'
+                background_normal: ''
                 ActionPrevious:
                     title: 'pyEDM'
                     with_previous: False
+                    background_color: (.5, .5, .5, 1)
+                    background_normal: ''
                 ActionOverflow:
+                    background_color: (.5, .5, .5, 1)
+                    background_normal: ''
                 ActionGroup:
                     text: 'Help'
-                    color: (MENU_COLOR[0]/255, MENU_COLOR[1]/255, MENU_COLOR[2]/255,1)
+                    color: root.text_color
+                    id: topmenu
+                    background_color: (.5, .5, .5, 1)
+                    background_normal: ''
                     ActionButton:
                         text: 'Status'
                         on_press: app.root.current = 'StatusScreen'
@@ -60,12 +80,21 @@ ScreenManager:
                         on_press: app.root.current = 'LogScreen'
                         color: SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255, 1
                     ActionButton:
+                        text: 'CFG'
+                        on_press: app.root.current = 'CFGScreen'
+                        color: SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255, 1
+                    ActionButton:
+                        text: 'INI'
+                        on_press: app.root.current = 'INIScreen'
+                        color: SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255, 1
+                    ActionButton:
                         text: 'About'
                         on_press: app.root.current = 'AboutScreen'
                         color: SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255, 1
                 ActionGroup:
                     text: 'Edit'
-                    color: (MENU_COLOR[0]/255, MENU_COLOR[1]/255, MENU_COLOR[2]/255,1)
+                    color: root.text_color
+                    id: topmenu
                     ActionButton:
                         text: 'Records'
                         on_press: app.root.current = 'EditPointsScreen'
@@ -74,16 +103,20 @@ ScreenManager:
                         text: 'CFG'
                         on_press: app.root.current = 'EditCFGScreen'
                         color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
+                    ActionButton:
+                        text: 'Settings'
+                        on_press: app.root.current = 'E5SettingsScreen'
+                        color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
                 ActionGroup:
                     text: 'File'
-                    color: (MENU_COLOR[0]/255, MENU_COLOR[1]/255, MENU_COLOR[2]/255,1)
+                    color: root.text_color
                     ActionButton:
                         text: 'Open CFG'
                         on_release: root.show_load_cfg()
                         color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
                     ActionButton:
                         text: 'Export CSVs'
-                        on_release: root.show_save()
+                        on_release: root.show_save_csvs()
                         color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
                     ActionButton:
                         text: 'Exit'
@@ -118,47 +151,51 @@ ScreenManager:
             path: root.start_path
         BoxLayout:
             size_hint_y: None
-            height: 30
+            height: 50
             spacing: 5
+            padding: 5
             Button:
-                text: "Back"
+                text: "Cancel"
                 on_release: root.cancel()
-                color: BUTTON_COLOR
-                background_color: BUTTON_BACKGROUND
+                color: root.button_color
+                background_color: root.button_background
                 background_normal: ''
             Button:
-                text: "Next"
+                text: "Open"
                 on_release: root.load(filechooser.path, filechooser.selection)
-                color: BUTTON_COLOR
-                background_color: BUTTON_BACKGROUND
+                color: root.button_color
+                background_color: root.button_background
                 background_normal: ''
 
 <SaveDialog>:
-    text_input: text_input
+    #text_input: text_input
     BoxLayout:
         size: root.size
         pos: root.pos
         orientation: "vertical"
         FileChooserListView:
             id: filechooser
-            on_selection: text_input.text = self.selection and self.selection[0] or ''
-
-        TextInput:
-            id: text_input
-            size_hint_y: None
-            height: 30
-            multiline: False
+            #on_selection: text_input.text = self.selection and self.selection[0] or ''
+            path: root.start_path
 
         BoxLayout:
             size_hint_y: None
-            height: 30
+            height: 50
+            spacing: 5
+            padding: 5
             Button:
                 text: "Cancel"
                 on_release: root.cancel()
+                color: root.button_color
+                background_color: root.button_background
+                background_normal: ''
 
             Button:
                 text: "Save"
-                on_release: root.save(filechooser.path, text_input.text)
+                on_release: root.save(filechooser.path)
+                color: root.button_color
+                background_color: root.button_background
+                background_normal: ''
 
 ## code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py
 
@@ -196,14 +233,14 @@ ScreenManager:
 <ScrollCell>:
     canvas.before:
         Color:
-            rgba: DATAGRID_ODD if root.is_even else DATAGRID_EVEN
+            rgba: root.datagrid_odd if root.is_even else root.datagrid_even
         Rectangle:
             pos: self.pos
             size: self.size
     text: root.text
     id: root.id
     on_press: root.callback(root.key, root.field, root.db)
-    background_color: DATAGRID_ODD if root.is_even else DATAGRID_EVEN
+    background_color: root.datagrid_odd if root.is_even else root.datagrid_even
     font_size: "12dp"
     halign: "center"
     valign: "middle"
@@ -229,32 +266,25 @@ ScreenManager:
         width: self.minimum_width
         height: self.minimum_height
 
-
-
 <DfguiWidget>:
     panel1: data_frame_panel
-    panel4: add_new_panel
+    panel2: add_new_panel
     do_default_tab: False
     TabbedPanelItem:
         text: 'Data'
         on_release: root.open_panel1()
-        color: BUTTON_COLOR
-        background_color: BUTTON_BACKGROUND
         background_normal: ''
         DataframePanel:
             id: data_frame_panel
     TabbedPanelItem:
         text: 'Edit Record'
-        color: BUTTON_COLOR
-        background_color: BUTTON_BACKGROUND
         background_normal: ''
+        on_release: root.open_panel2()
         AddNewPanel:
             id: add_new_panel
     TabbedPanelItem:
         text: 'Close'
-        on_release: app.root.current = 'MainScreen'
-        color: BUTTON_COLOR
-        background_color: BUTTON_BACKGROUND
+        on_release: root.close_panels()
         background_normal: ''
 
 <DataframePanel>:
