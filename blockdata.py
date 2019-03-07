@@ -2,6 +2,9 @@ import logging
 import os
 
 class blockdata:
+
+    filename = ''
+
     def update_value(self, blockname, varname, vardata, append = False):
         block_exists = False
         for block in self.blocks:
@@ -22,24 +25,26 @@ class blockdata:
 
     def read_blocks(self):
         self.blocks = []
-        print(self.filename)
         try:
-            with open(self.filename) as f:
-                for line in f:
-                    if len(line) > 2:
-                        if line.strip()[0]=="[":
-                            blockname = line.strip()[1:-1].upper()
-                        else:
-                            if '=' in line:
-                                varname = line.split("=")[0].strip().upper()
-                                vardata = line.split("=")[1].strip()
-                                self.update_value(blockname, varname, vardata)
+            if os.path.isfile(self.filename):
+                with open(self.filename) as f:
+                    for line in f:
+                        if len(line) > 2:
+                            if line.strip()[0]=="[":
+                                blockname = line.strip()[1:-1].upper()
+                            else:
+                                if '=' in line:
+                                    varname = line.split("=")[0].strip().upper()
+                                    vardata = line.split("=")[1].strip()
+                                    self.update_value(blockname, varname, vardata)
+            else:
+                f = open(self.filename, mode = 'w')
+                f.close()
         except Exception as ex:
             template = "An exception of type {0} occurred. Arguments:\n{1!r}"
             message = template.format(type(ex).__name__, ex.args)
             logging.exception(message)
             print(message)
-            return([])
         return(self.blocks)
 
     def names(self):

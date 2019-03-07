@@ -62,13 +62,6 @@ from string import ascii_uppercase
 
 import logging
 import logging.handlers as handlers
-logger = logging.getLogger('E5')
-logger.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh = logging.FileHandler('E5.log')
-fh.setLevel(logging.INFO)
-fh.setFormatter(formatter)
-logger.addHandler(fh)
 
 # My libraries for this project
 from blockdata import blockdata
@@ -102,7 +95,7 @@ SPLASH_HELP += "and documentation on writing your own CFG file can be found at t
 
 class ColorScheme:
 
-    def __init__(self, color_name = None):
+    def __init__(self, color_name = 'light blue'):
         self.optionbutton_font_size = "15sp"
         self.button_font_size = "15sp"
         self.text_font_size = "15sp"
@@ -181,12 +174,21 @@ class db(dbs):
     filename = None
     db_name = 'data'
     datagrid_doc_id = None
+    table = '_default'
 
-    def __init__(self, filename):
-        if filename=='':
-            filename = 'e4_data.json'
+    def __init__(self, filename = ''):
+        if filename:
+            self.filename = filename
         self.filename = filename
-        self.db = TinyDB(self.filename)
+
+    def open(self, filename = ''):
+        if filename:
+            self.filename = filename
+        try:
+            self.db = TinyDB(self.filename)
+        except:
+            self.db = None
+            self.filename = ''
 
     def status(self):
         if self.filename:
@@ -249,12 +251,17 @@ class db(dbs):
 
 class ini(blockdata):
     
-    def __init__(self, filename):
+    def __init__(self, filename = ''):
         if filename=='':
             filename = 'E5.ini'
         self.filename = filename
         self.incremental_backups = False
         self.backup_interval = 0
+        self.first_time = True
+
+    def open(self, filename = ''):
+        if filename:
+            self.filename = filename
         self.blocks = self.read_blocks()
         self.first_time = (self.blocks == [])
         self.is_valid()
@@ -317,10 +324,10 @@ class field:
 
 class cfg(blockdata):
 
-    def __init__(self, filename):
+    def __init__(self, filename = ''):
         self.initialize()
-        if not filename=='':
-            self.load(filename)
+        if filename:
+            self.filename = filename
 
     def initialize(self):
         self.blocks = []
@@ -334,6 +341,11 @@ class cfg(blockdata):
         self.has_warnings = False
         self.key_field = None   # not implimented yet
         self.description = ''   # not implimented yet
+
+    def open(self, filename = ''):
+        if filename:
+            self.filename = filename
+        self.load()
 
     def empty_record(self):
         if self.current_record:
@@ -395,9 +407,6 @@ class cfg(blockdata):
             if del_field in field_names:
                 field_names.remove(del_field)
         return(field_names)
-
-    def build_default(self):
-        pass
 
     def data_is_valid(self):
         if self.current_field.required and self.current_record[self.current_field.name]=='':
@@ -492,12 +501,16 @@ class cfg(blockdata):
     def save(self):
         self.write_blocks()
 
-    def load(self, filename):
-        self.filename = filename 
-        self.path = ntpath.split(filename)[0]
-        self.blocks = self.read_blocks()
-        if self.blocks==[]:
-            self.build_default()
+    def load(self, filename = ''):
+        if filename:
+            self.filename = filename
+        self.path = ntpath.split(self.filename)[0]
+
+        self.blocks = []
+        if os.path.isfile(self.filename):
+            self.blocks = self.read_blocks()
+        else:
+            self.filename = ''
         self.BOF = True
         if len(self.blocks)>0:
             self.EOF = False
@@ -893,9 +906,34 @@ class MainScreen(Screen):
         
     def cfg_load(self, cfgfile_name):
         e4_cfg.load(cfgfile_name)
+        if e4_cfg.filename:
+            self.open_db()
         e4_ini.update()
         self.build_mainscreen()
 
+    def open_db(self):
+        database = e4_cfg.get_value('E5','DATABASE')
+        if database:
+            if os.path.isfile(database):
+                e4_data.open(database)
+            else:
+                database = os.path.split(database)[1]
+                database = os.path.join(e4_cfg.path, database)
+                e4_data.open(database)
+        else:
+            database = os.path.split(e4_cfg.filename)[1]
+            if "." in database:
+                database = database.split('.')[0]
+            database = database + '.json'
+            e4_data.open(os.path.join(e4_cfg.path, database))
+        if e4_cfg.get_value('E5','TABLE'):    
+            e4_data.table = e4_cfg.get_value('E5','TABLE')
+        else:
+            e4_data.table = '_default'
+        e4_cfg.update_value('E5','DATABASE', e4_data.filename)
+        e4_cfg.update_value('E5','TABLE', e4_data.table)
+        e4_cfg.save()
+        
     def show_popup_message(self, dt):
         self.event.cancel()
         if e4_cfg.has_errors or e4_cfg.has_warnings:
@@ -1199,10 +1237,10 @@ class MainScreen(Screen):
         self.popup_open = True
 
     def show_load_cfg(self):
-        if e4_cfg.path:
+        if e4_cfg.filename and e4_cfg.path:
             start_path = e4_cfg.path
         else:
-            start_path = os.path.dirname(os.path.abspath( __file__ ))
+            start_path = e4_ini.get_value('E5','APP_PATH')
         content = LoadDialog(load = self.load, 
                             cancel = self.dismiss_popup,
                             start_path = start_path,
@@ -1559,7 +1597,7 @@ class INIScreen(InfoScreen):
 class EditPointsScreen(Screen):
     def __init__(self,**kwargs):
         super(EditPointsScreen, self).__init__(**kwargs)
-        if e4_data:
+        if e4_data.db:
             self.add_widget(DfguiWidget(e4_data, e4_cfg.fields()))
 
     def on_pre_enter(self):
@@ -1889,7 +1927,51 @@ class DfguiWidget(TabbedPanel):
 
 class E5py(App):
 
+    def __init__(self, **kwargs):
+        super(E5py, self).__init__(**kwargs)
+
+        logger.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        fh = logging.FileHandler('E5.log')
+        fh.setLevel(logging.INFO)
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
+
+        app_path = self.user_data_dir
+        e4_ini.open(os.path.join(app_path, 'E5.ini'))
+
+        if not e4_ini.first_time:
+
+            if e4_ini.get_value('E5','ColorScheme'):
+                e5_colors.set_to(e4_ini.get_value('E5','ColorScheme'))
+            if e4_ini.get_value('E5','DarkMode').upper() == 'TRUE':
+                e5_colors.set_to_darkmode()
+
+            if e4_ini.get_value("E5", "CFG"):
+                e4_cfg.open(e4_ini.get_value("E5", "CFG"))
+                if e4_cfg.filename:
+                    if e4_cfg.get_value('E5','DATABASE'):
+                        e4_data.open(e4_cfg.get_value('E5','DATABASE'))
+                    else:
+                        database = os.path.split(e4_cfg.filename)[1]
+                        if "." in database:
+                            database = database.split('.')[0]
+                        database = database + '.json'
+                        e4_data.open(os.path.join(e4_cfg.path, database))
+                    if e4_cfg.get_value('E5','TABLE'):    
+                        e4_data.table = e4_cfg.get_value('E5','TABLE')
+                    else:
+                        e4_data.table = '_default'
+                    e4_cfg.update_value('E5','DATABASE', e4_data.filename)
+                    e4_cfg.update_value('E5','TABLE', e4_data.table)
+                    e4_cfg.save()
+            e4_ini.update()
+            e4_ini.save()
+        e5_colors.need_redraw = False    
+        e4_ini.update_value('E5','APP_PATH', self.user_data_dir)
+
     def build(self):
+
         #Window.clearcolor = e5_colors.window_background
         Window.minimum_width = 450
         Window.minimum_height = 450
@@ -1916,29 +1998,18 @@ class E5py(App):
         if window_width and window_height:
             Window.size = (window_width, window_height)
         self.title = "E5 " + __version__
-        e4_ini.update_value('E5','app_path', self.user_data_dir)
+
+        logger.info('E5 started, logger initialized, and application built.')
 
 Factory.register('E5', cls=E5py)
 
 if __name__ == '__main__':
-    logger.info('E5 started.')
-    e4_ini = ini('E5.ini')
-    e5_colors = ColorScheme(e4_ini.get_value('E5','ColorScheme'))
-    if e4_ini.get_value('E5','DarkMode').upper() == 'TRUE':
-        e5_colors.set_to_darkmode()
-    if e4_ini.get_value("E5", "CFG"):
-        e4_cfg = cfg(e4_ini.get_value("E5", "CFG"))
-        database = e4_ini.get_value("E5", "TABLE")
-        if not database:
-            database = ntpath.split(e4_cfg.filename)[1]
-        if "." in database:
-            database = database.split('.')[0]
-        e4_data = db(database + '.json')
-        e4_cfg.save()
-        e4_ini.update()
-        e4_ini.save()
-    else:
-        e4_cfg = cfg('')
-        e4_data = None
-    e5_colors.need_redraw = False    
+
+    # Initialize a set of classes that are global
+    logger = logging.getLogger('E5')
+    e4_ini = ini()
+    e4_cfg = cfg()
+    e4_data = db()
+    e5_colors = ColorScheme()
+
     E5py().run()
