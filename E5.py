@@ -1,9 +1,13 @@
-# Logic bug, if E5 starts on a cfg with errors, hitting esacpe crashes it
-# When selecting a bad cfg, errors don't show and it goes onto first field
-
-# Once I have factor figured out, consider doing factory register for validating data and other things
-
+# Errors:
+#   When log file is too long, a black label appears
+#       Need to either show only last lines are break into multiple labels
 # Debug and test conditionals
+# Handle database and table names in the CFG and program better
+# On unique fields, give a warning but let data entry continue
+#   then overwrite previous record
+# Implement 'sort' option on menus
+# Datagrid does not update after each new record
+# Key press on boolean moves to right menu item but adds key press too
 
 # Load records into grid in recno reverse order
 # Consider putting a dropdown menu into the grid view for sorting and maybe searching
@@ -15,6 +19,7 @@
 # Long term
 #   Think about whether to allow editing of CFG in the program
 #   Get location data from GPS
+# Once I have factor figured out, consider doing factory register for validating data and other things
 
 __version__ = '1.0.0'
 
@@ -49,23 +54,20 @@ from kivy.graphics import Color, Rectangle
 from kivy.config import Config
 
 import os 
-import random
-import datetime
-import logging
-import logging.handlers as handlers
-import time
+#import random
+from datetime import datetime
+#import time
 import ntpath
 from string import ascii_uppercase
 
+import logging
+import logging.handlers as handlers
 logger = logging.getLogger('E5')
 logger.setLevel(logging.INFO)
-
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-fh = logging.FileHandler('E4.log')
+fh = logging.FileHandler('E5.log')
 fh.setLevel(logging.INFO)
 fh.setFormatter(formatter)
-
 logger.addHandler(fh)
 
 # My libraries for this project
@@ -80,6 +82,23 @@ from collections import OrderedDict
 SCROLLBAR_WIDTH = 5
 BLACK = 0x000000
 WHITE = 0xFFFFFF
+
+SPLASH_HELP = "\nE5 is a generalized data entry program intended "
+SPLASH_HELP += "for archaeologists but likely useful for others as well.  It works with a "
+SPLASH_HELP += "configuration file where the data entry fields are defined.  Importantly, E5 "
+SPLASH_HELP += "makes it simple to make entry in one field conditional on values previously "
+SPLASH_HELP += "entered for other fields.  The goal is to make data entry fast, efficient "
+SPLASH_HELP += "and error free.\n\n"
+SPLASH_HELP += "E5 is a complete, from scratch re-write of E4.  It is backwards compatible "
+SPLASH_HELP += "with E4 configuration files, but it supports a great many new features. "
+SPLASH_HELP += "For one, it is now built on Python to be cross-platform compatible, and the "
+SPLASH_HELP += "source code is available at GitHub.  E5 will run on Windows, Mac OS, Linux "
+SPLASH_HELP += "and Android tablets and phones.  For this reason and others, E5 now uses an "
+SPLASH_HELP += "open database format.  All data are stored in human readable, ASCII formatted "
+SPLASH_HELP += "JSON files.  Data can also be exported to CSV files for easy import into any "
+SPLASH_HELP += "database, statistics or spreadsheet software.\n\n"
+SPLASH_HELP += "To start using this program, you will need to open CFG file.  Example CFG files "
+SPLASH_HELP += "and documentation on writing your own CFG file can be found at the E5 GitHub site."
 
 class ColorScheme:
 
@@ -156,28 +175,6 @@ class ColorScheme:
         else:
             return('Error: %s is not a valid color scheme.' % (name))
 
-
-POPUP_BACKGROUND = (0, 0, 0, 1)
-POPUP_TEXT_COLOR = (1, 1, 1, 1)
-
-
-SPLASH_HELP = "[b]E5[/b]\n\nE5 is a generalized data entry program intended "
-SPLASH_HELP += "for archaeologists but likely useful for others as well.  It works with a "
-SPLASH_HELP += "configuration file where the data entry fields are defined.  Importantly, E5 "
-SPLASH_HELP += "makes it simple to make entry in one field conditional on values previously "
-SPLASH_HELP += "entered for other fields.  The goal is to make data entry fast, efficient "
-SPLASH_HELP += "and error free.\n\n"
-SPLASH_HELP += "E5 is a complete, from scratch re-write of E4.  It is backwards compatible "
-SPLASH_HELP += "with E4 configuration files, but it supports a great many new features. "
-SPLASH_HELP += "For one, it is now built on Python to be cross-platform compatible, and the "
-SPLASH_HELP += "source code is available at GitHub.  E5 will run on Windows, Mac OS, Linux "
-SPLASH_HELP += "and Android tablets and phones.  For this reason and others, E5 now uses an "
-SPLASH_HELP += "open database format.  All data are stored in human readable, ASCII formatted "
-SPLASH_HELP += "JSON files.  Data can also be exported to CSV files for easy import into any "
-SPLASH_HELP += "database, statistics or spreadsheet software.\n\n"
-SPLASH_HELP += "To start using this program, you will need to open CFG file.  Example CFG files "
-SPLASH_HELP += "and documentation on writing your own CFG file can be found at the E5 GitHub site."
-
 class db(dbs):
     MAX_FIELDS = 300
     db = None
@@ -192,8 +189,20 @@ class db(dbs):
         self.db = TinyDB(self.filename)
 
     def status(self):
-        txt = 'The data file is %s\n' % self.filename
-        txt += 'There are %s records in the data file.\n' % len(self.db)
+        if self.filename:
+            txt = '\nThe JSON data file is %s.\n\n' % self.filename
+            if self.db:
+                if len(self.db.tables()) > 0:
+                    txt += 'There are %s tables in this data file as follows:\n' % len(self.db.tables())
+                    for table_name in self.db.tables():
+                        txt += "  A table named '%s' with %s records.\n" % (table_name, len(self.db.table(table_name)))
+                    txt += '\nIn total there are %s records in the data file.\n\n' % len(self.db)
+                else:
+                    txt += 'There are no tables in this data file.\n\n'
+            else:
+                txt += 'The data file is empty or has not been initialized.\n'
+        else:
+            txt = '\nA data file has not been opened.\n'
         return(txt)
 
     def create_defaults(self):
@@ -242,11 +251,12 @@ class ini(blockdata):
     
     def __init__(self, filename):
         if filename=='':
-            filename = 'E4.ini'
+            filename = 'E5.ini'
         self.filename = filename
         self.incremental_backups = False
         self.backup_interval = 0
         self.blocks = self.read_blocks()
+        self.first_time = (self.blocks == [])
         self.is_valid()
         self.incremental_backups = self.get_value('E5','IncrementalBackups').upper() == 'TRUE'
         self.backup_interval = int(self.get_value('E5','BackupInterval'))
@@ -285,7 +295,7 @@ class ini(blockdata):
         self.write_blocks()
 
     def status(self):
-        txt = 'The INI file is %s.\n' % self.filename
+        txt = '\nThe INI file is %s.\n' % self.filename
         return(txt)
 
 class field:
@@ -331,7 +341,7 @@ class cfg(blockdata):
                 if not self.get(key).carry:
                     self.current_record[key] = ''
                 if self.get(key).inputtype == 'DATETIME':
-                    self.current_record[key] = datetime.datetime.now()
+                    self.current_record[key] = "%s" % datetime.now().replace(microsecond=0)
 
     def validate_current_record(self):
         return(True)
@@ -413,7 +423,7 @@ class cfg(blockdata):
         self.errors = []
         if len(self.fields())==0:
             self.errors.append('Error: No fields defined in the CFG file.')
-            self.errors.has_errors = True
+            self.has_errors = True
         else:
             prior_fieldnames = []
             for field_name in self.fields():
@@ -497,8 +507,11 @@ class cfg(blockdata):
         self.is_valid()
 
     def status(self):
-        txt = 'CFG file is %s\n' % self.filename
-        txt += 'and contains %s fields.' % len(self.blocks)
+        if self.filename:
+            txt = '\nThe CFG file is %s\n' % self.filename
+            txt += 'and contains %s fields.' % len(self.blocks)
+        else:
+            txt = 'A CFG file has not been opened.\n'
         return(txt)
 
     def next(self):
@@ -678,7 +691,7 @@ class MessageBox(Popup):
     def __init__(self, title, message, call_back = None, button_text = 'OK', **kwargs):
         super(MessageBox, self).__init__(**kwargs)
         popup_contents = GridLayout(cols = 1, spacing = 5)
-        popup_contents.add_widget(e5_scrollview_label(message, color = POPUP_TEXT_COLOR))
+        popup_contents.add_widget(e5_scrollview_label(message, color = e5_colors.popup_text_color))
         if not call_back:
             call_back = self.dismiss
         popup_contents.add_widget(e5_button(button_text,
@@ -804,7 +817,6 @@ class MainScreen(Screen):
 
         self.build_mainscreen()
 
-
     def build_mainscreen(self):
 
         mainscreen = self.get_widget_by_id('mainscreen')
@@ -822,6 +834,9 @@ class MainScreen(Screen):
                 self.event = Clock.schedule_once(self.show_popup_message, 1)
 
         else:
+            if e4_ini.first_time:
+                e4_ini.first_time = False
+                self.event = Clock.schedule_once(self.show_popup_message, 1)
             self.cfg_menu()
 
     def set_dropdown_menu_colors(self):
@@ -853,7 +868,7 @@ class MainScreen(Screen):
 
             self.cfg_file_selected = self.cfg_files[0]
         
-            lb = Label(text = 'Begin data entry with one of these CFG files',
+            lb = Label(text = 'Begin data entry with one of these CFG files or use File Open',
                         color = e5_colors.text_color,
                         size_hint_y = .1)
             mainscreen.add_widget(lb)
@@ -867,9 +882,10 @@ class MainScreen(Screen):
             self.widget_with_focus = self.scroll_menu
 
         else:
-            label_text = '\nBefore data entry can begin, you need to have a CFG file.  The current folder contains none.  Either switch to a folder that contains CFG files or create one.' 
-            mainscreen.add_widget(Label(text = label_text, id = 'label',
-                                        color = e5_colors.text_color))
+            label_text = '\nBefore data entry can begin, you need to have a CFG file.\n\nThe current folder contains none.  Either use File Open to switch a folder that contains CFG files or create one.' 
+            lb = e5_scrollview_label(text = label_text, id = 'label')
+            lb.halign = 'center'
+            mainscreen.add_widget(lb)
             self.widget_with_focus = mainscreen
 
     def cfg_selected(self, value):
@@ -882,17 +898,19 @@ class MainScreen(Screen):
 
     def show_popup_message(self, dt):
         self.event.cancel()
-        message_text = SPLASH_HELP
-        title = 'E5'
-        if e4_cfg.has_errors:
-            message_text = 'The following errors in the configuration file %s must be fixed before data entry can begin.\n\n' % e4_cfg.filename
-            e4_cfg.filename = ''
-            title = 'CFG File Errors'                
-        elif e4_cfg.has_warnings:
-            e4_cfg.has_warnings = False
-            message_text = '\nThough data entry can start, there are the following warnings in the configuration file %s.\n\n' % e4_cfg.filename
-            title = 'Warnings'
-        message_text = message_text + '\n\n'.join(e4_cfg.errors)
+        if e4_cfg.has_errors or e4_cfg.has_warnings:
+            if e4_cfg.has_errors:
+                message_text = 'The following errors in the configuration file %s must be fixed before data entry can begin.\n\n' % e4_cfg.filename
+                e4_cfg.filename = ''
+                title = 'CFG File Errors'                
+            elif e4_cfg.has_warnings:
+                e4_cfg.has_warnings = False
+                message_text = '\nThough data entry can start, there are the following warnings in the configuration file %s.\n\n' % e4_cfg.filename
+                title = 'Warnings'
+            message_text = message_text + '\n\n'.join(e4_cfg.errors)
+        else:
+            title = 'E5'
+            message_text = SPLASH_HELP
         self.popup = MessageBox(title, message_text, call_back = self.close_popup)
         self.popup.open()
         self.popup_open = True
@@ -956,9 +974,10 @@ class MainScreen(Screen):
                 break
 
     def scroll_menu_get_selected(self):
-        for widget in self.scroll_menu.children[0].children:
-            if widget.id[0] == '*':
-                return(widget)
+        if self.scroll_menu:
+            for widget in self.scroll_menu.children[0].children:
+                if widget.id[0] == '*':
+                    return(widget)
 
     def scroll_menu_set_selected(self, text):
         for widget in self.scroll_menu.children[0].children:
@@ -970,9 +989,10 @@ class MainScreen(Screen):
 
     def scroll_menu_list(self):
         menu_list = []
-        for widget in self.scroll_menu.children[0].children:
-            menu_list.append(widget.text)
-        menu_list.reverse()
+        if self.scroll_menu:
+            for widget in self.scroll_menu.children[0].children:
+                menu_list.append(widget.text)
+            menu_list.reverse()
         return(menu_list)
         # return([widget.text for widget in self.scroll_menu.children])
 
@@ -1004,20 +1024,21 @@ class MainScreen(Screen):
     def scroll_menu_char_match(self, match_str):
 
         menu_list = self.scroll_menu_list()
-        index_no = menu_list.index(self.scroll_menu_get_selected().text)
+        if menu_list:
+            index_no = menu_list.index(self.scroll_menu_get_selected().text)
 
-        new_index = (index_no + 1) % len(menu_list)
-        while not new_index == index_no:
-            if menu_list[new_index].upper()[0] == match_str.upper():
-                self.scroll_menu_clear_selected()
-                self.scroll_menu_set_selected(menu_list[new_index])
-                self.make_scroll_menu_item_visible()
-                if self.get_widget_by_id('field_data'):
-                    self.get_widget_by_id('field_data').text = menu_list[new_index]
-                break
-            else:
-                new_index = (new_index + 1) % len(menu_list)
-                # need new logic to auto select when only one case is available
+            new_index = (index_no + 1) % len(menu_list)
+            while not new_index == index_no:
+                if menu_list[new_index].upper()[0] == match_str.upper():
+                    self.scroll_menu_clear_selected()
+                    self.scroll_menu_set_selected(menu_list[new_index])
+                    self.make_scroll_menu_item_visible()
+                    if self.get_widget_by_id('field_data'):
+                        self.get_widget_by_id('field_data').text = menu_list[new_index]
+                    break
+                else:
+                    new_index = (new_index + 1) % len(menu_list)
+                    # need new logic to auto select when only one case is available
 
     def get_widget_by_id(self, id):
         for widget in self.walk():
@@ -1178,9 +1199,13 @@ class MainScreen(Screen):
         self.popup_open = True
 
     def show_load_cfg(self):
+        if e4_cfg.path:
+            start_path = e4_cfg.path
+        else:
+            start_path = os.path.dirname(os.path.abspath( __file__ ))
         content = LoadDialog(load = self.load, 
                             cancel = self.dismiss_popup,
-                            start_path = os.path.dirname(os.path.abspath( __file__ )),
+                            start_path = start_path,
                             button_color = e5_colors.button_color,
                             button_background = e5_colors.button_background)
         self.popup = Popup(title = "Load CFG file", content = content,
@@ -1497,13 +1522,23 @@ class InfoScreen(Screen):
 
 class StatusScreen(InfoScreen):
     def on_pre_enter(self):
-        txt = e4_data.status() + e4_cfg.status() + e4_ini.status()
+        txt = ''
+        if e4_data:
+            txt += e4_data.status()
+        else:
+            txt += 'A data file has not been initialized or opened.\n\n'
+        txt += e4_cfg.status()
+        txt += e4_ini.status()
+        txt += '\nThe default user path is %s.' % e4_ini.get_value("E5","APP_PATH")
         self.content.text = txt
 
 class LogScreen(InfoScreen):
     def on_pre_enter(self):
-        with open('E4.log','r') as f:
-            self.content.text = f.read()
+        try:
+            with open('E5.log','r') as f:
+                self.content.text = f.read()
+        except:
+            self.content.text = 'An error occurred when reading the log file %s.' % ('E5.log')
 
 class AboutScreen(InfoScreen):
     def on_pre_enter(self):
@@ -1881,7 +1916,8 @@ class E5py(App):
         if window_width and window_height:
             Window.size = (window_width, window_height)
         self.title = "E5 " + __version__
-   
+        e4_ini.update_value('E5','app_path', self.user_data_dir)
+
 Factory.register('E5', cls=E5py)
 
 if __name__ == '__main__':

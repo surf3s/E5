@@ -1,9 +1,5 @@
 #:kivy 1.1.0
-#:set BUTTON_BACKGROUND (0, .69, 255/255, 1)
-#:set BUTTON_COLOR (0, 0, 0, 1)
-#:set MENU_COLOR [0, 0, 0]
-#:set SUBMENU_COLOR [255, 255, 255]
-#:set WINDOW_COLOR (0, 0, 0, 1)
+#:set SUBMENU_COLOR (1, 1, 1, 1)
 
 ScreenManager:
     id: screen_manager
@@ -74,23 +70,23 @@ ScreenManager:
                     ActionButton:
                         text: 'Status'
                         on_press: app.root.current = 'StatusScreen'
-                        color: SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255, 1
+                        color: SUBMENU_COLOR
                     ActionButton:
                         text: 'Log'
                         on_press: app.root.current = 'LogScreen'
-                        color: SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255, 1
+                        color: SUBMENU_COLOR
                     ActionButton:
                         text: 'CFG'
                         on_press: app.root.current = 'CFGScreen'
-                        color: SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255, 1
+                        color: SUBMENU_COLOR
                     ActionButton:
                         text: 'INI'
                         on_press: app.root.current = 'INIScreen'
-                        color: SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255, 1
+                        color: SUBMENU_COLOR
                     ActionButton:
                         text: 'About'
                         on_press: app.root.current = 'AboutScreen'
-                        color: SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255, 1
+                        color: SUBMENU_COLOR
                 ActionGroup:
                     text: 'Edit'
                     color: root.text_color
@@ -98,34 +94,32 @@ ScreenManager:
                     ActionButton:
                         text: 'Records'
                         on_press: app.root.current = 'EditPointsScreen'
-                        color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
+                        color: SUBMENU_COLOR
                     ActionButton:
                         text: 'CFG'
                         on_press: app.root.current = 'EditCFGScreen'
-                        color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
+                        color: SUBMENU_COLOR
                     ActionButton:
                         text: 'Settings'
                         on_press: app.root.current = 'E5SettingsScreen'
-                        color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
+                        color: SUBMENU_COLOR
                 ActionGroup:
                     text: 'File'
                     color: root.text_color
                     ActionButton:
                         text: 'Open CFG'
                         on_release: root.show_load_cfg()
-                        color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
+                        color: SUBMENU_COLOR
                     ActionButton:
                         text: 'Export CSVs'
                         on_release: root.show_save_csvs()
-                        color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
+                        color: SUBMENU_COLOR
                     ActionButton:
                         text: 'Exit'
                         on_release: root.exit_program()
-                        color: (SUBMENU_COLOR[0]/255, SUBMENU_COLOR[1]/255, SUBMENU_COLOR[2]/255,1)
+                        color: SUBMENU_COLOR
 
 <StatusScreen>:
-
-<LogScreen>:
 
 <AboutScreen>:
 
