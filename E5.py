@@ -1,6 +1,4 @@
 # Errors:
-#   When log file is too long, a black label appears
-#       Need to either show only last lines are break into multiple labels
 # Debug and test conditionals
 # Handle database and table names in the CFG and program better
 # On unique fields, give a warning but let data entry continue
@@ -21,7 +19,8 @@
 #   Get location data from GPS
 # Once I have factor figured out, consider doing factory register for validating data and other things
 
-__version__ = '1.0.0'
+__version__ = '1.0.1'
+__date__ = 'March, 2019'
 
 from kivy.clock import Clock
 from kivy.app import App
@@ -152,9 +151,9 @@ class ColorScheme:
         return(self.valid_colors.keys())
 
     def make_rgb(self, hex_color):
-        return([(( hex_color >> 16 ) & 0xFF)/255,
-                (( hex_color >> 8 ) & 0xFF)/255,
-                (hex_color & 0xFF)/255,
+        return([(( hex_color >> 16 ) & 0xFF)/255.0,
+                (( hex_color >> 8 ) & 0xFF)/255.0,
+                (hex_color & 0xFF)/255.0,
                 1])
 
     def set_to(self, name):
@@ -312,15 +311,23 @@ class field:
         self.prompt = ''
         self.length = 0
         self.menu = ''
+        self.menufile = ''
         self.conditions = []
         self.increment = False
         self.carry = False 
         self.unique = False
         self.info = ''
-        self.infofile = ''
+        self.infofile = ''          
         self.data = ''
-        self.key = False
+        self.key = False            # Not yet implemented (maybe not necessary)
         self.required = False
+        self.sorted = False         # Not yet implemented
+        self.valid = []
+        self.validfile = ''
+        self.invalid = []
+        self.invalidfile = ''
+        self.lookupfile = ''
+        self.lookupdb = None
 
 class cfg(blockdata):
 
@@ -350,10 +357,16 @@ class cfg(blockdata):
     def empty_record(self):
         if self.current_record:
             for key in self.current_record:
-                if not self.get(key).carry:
+                if not self.get(key).carry and not self.get(key).increment:
                     self.current_record[key] = ''
-                if self.get(key).inputtype == 'DATETIME':
-                    self.current_record[key] = "%s" % datetime.now().replace(microsecond=0)
+        for field_name in self.fields():
+            if self.get(field_name).inputtype == 'DATETIME':
+                self.current_record[field_name] = '%s' % datetime.now().replace(microsecond=0)
+            if self.get(field_name).increment:
+                try:
+                    self.current_record[field_name] = '%s' % (int(self.current_record[field_name]) + 1)
+                except:
+                    self.current_record[field_name] = '1'
 
     def validate_current_record(self):
         return(True)
@@ -371,12 +384,56 @@ class cfg(blockdata):
             f.increment = self.get_value(field_name,"INCREMENT").upper() == 'TRUE'
             f.carry = self.get_value(field_name,"CARRY").upper() == 'TRUE'
             f.required = self.get_value(field_name,"REQUIRED").upper() == 'TRUE'
-            if self.get_value(field_name, 'MENU'):
-                f.menu = self.get_value(field_name, 'MENU').split(",")
-            else:
-                f.menu = ''
+            f.sorted = self.get_value(field_name,"SORTED").upper() == 'TRUE'
+
+            f.menu = []
+            if f.inputtype == 'MENU':
+                if self.get_value(field_name, 'MENU'):
+                    f.menu = self.get_value(field_name, 'MENU').split(",")
+                if self.get_value(field_name, 'MENU FILE'):
+                    f.menufile = self.get_value(field_name, 'MENU FILE')
+                    if f.menufile:
+                        try:
+                            with open(self.get_value(field_name, 'MENU FILE')) as fileio:
+                                f.menu = fileio.readlines()
+                        except:
+                            pass
+                
             f.info = self.get_value(field_name, 'INFO')
             f.infofile = self.get_value(field_name, 'INFO FILE')
+            if f.infofile:
+                try:
+                    with open(f.infofile) as fileio:
+                        f.info = fileio.read()
+                except:
+                    f.info = "Error: Could not read from the info file '%s'." % f.infofile
+
+
+            f.validfile = self.get_value(field_name, 'VALID FILE')
+            f.valid = []
+            if f.validfile:
+                try:
+                    with open(f.validfile) as fileio:
+                        f.valid = fileio.readlines()
+                except:
+                    pass
+
+            f.invalidfile = self.get_value(field_name, 'INVALID FILE')
+            f.invalid = []
+            if f.invalidfile:
+                try:
+                    with open(f.invalidfile) as fileio:
+                        f.invalid = fileio.readlines()
+                except:
+                    pass
+
+            if f.lookupfile:
+                # convert the name to a json extension
+                # open the db 
+                # and return here a handle to it
+                f.lookupdb = None
+                pass
+
             for condition_no in range(1, 6):
                 if self.get_value(field_name, "CONDITION%s" % condition_no):
                     f.conditions.append(self.get_value(field_name, "CONDITION%s" % condition_no))
@@ -386,7 +443,11 @@ class cfg(blockdata):
         self.update_value(field_name, 'PROMPT', f.prompt)
         self.update_value(field_name, 'LENGTH', f.length)
         self.update_value(field_name, 'TYPE', f.inputtype)
-        #self.update_value(field_name, 'MENU', f.menu)
+        self.update_value(field_name, 'INFO FILE', f.infofile)
+        self.update_value(field_name, 'MENU FILE', f.menufile)
+        self.update_value(field_name, 'VALID FILE', f.invalidfile)
+        self.update_value(field_name, 'INVALID FILE', f.validfile)
+        self.update_value(field_name, 'LOOKUP FILE', f.lookupfile)
 
     def get_field_data(self, field_name = None):
         f = field_name
@@ -423,6 +484,14 @@ class cfg(blockdata):
                 val = int(self.current_record[self.current_field.name])
             except ValueError:
                 return('\nError: This field is marked as numeric but a non-numeric value was provided.')
+        if self.current_field.valid:
+            if not any(s.upper() == self.current_record[self.current_field.name].upper() for s in self.valid):
+                return("\nError: The entry '%s' does not appear in the list of valid entries found in '%s'." %
+                             (self.current_record[self.current_field.name], self.current_field.validfile) )
+        if self.current_field.invalid:
+            if any(s.upper() == self.current_record[self.current_field.name].upper() for s in self.valid):
+                return("\nError: The entry '%s' appears in the list of invalid entries found in '%s'." %
+                             (self.current_record[self.current_field.name], self.current_field.invalidfile) )
         return(True)
 
     def is_valid(self):
@@ -434,10 +503,51 @@ class cfg(blockdata):
             self.errors.append('Error: No fields defined in the CFG file.')
             self.has_errors = True
         else:
+            self.rename_block('E4','E5')        # Convert E4 file to E5
             prior_fieldnames = []
             for field_name in self.fields():
 
-                for field_option in ['UNIQUE','CARRY','INCREMENT','REQUIRED']:
+                # This change makes an E4 file compatible with E5
+                if self.get_value(field_name, "LOOK UP"):
+                    self.rename_key(field_name, 'LOOK UP', 'LOOKUP FILE')
+
+                if self.get_value(field_name, 'LOOKUP FILE'):
+                    filename = locate_file(self.get_value(field_name, 'LOOKUP FILE'))
+                    if filename:
+                        self.update_value(field_name, 'LOOKUP FILE', filename)
+                        try:
+                            # read the first line to get fieldnames
+                            # look for a fieldname match with the current fieldname
+                            # create a TinyDB
+                            # go through each line and write to TinyDB
+                            fieldnames = []
+                            firstline = True
+                            with open(filename) as fileio:
+                                lineno = 0
+                                for line in fileio:
+                                    lineno += 1
+                                    data = line.split(',')    
+                                    if firstline:
+                                        fieldnames = data
+                                        firstline = False
+                                    else:
+                                        if len(data) == len(fieldnames):
+                                            self.has_errors = True
+                                            self.errors.append("ERROR: The CSV file '%s' had a problem on line %s.  The number of fields provided does not match the expected number of field." % (filename, lineno))
+                                            break
+                                    # insert data into a data record
+                                    data_record = {}
+                                    for field in fieldnames:
+                                        data_record[field] = data[field]
+                                    e4_data.db.insert(e4_cfg.current_record)
+
+                        except:
+                            pass
+                    else:
+                        self.has_warnings = True
+                        self.errors.append("Warning: Could not locate the lookup file '%s' for the field %s." % (self.get_value(field_name, 'LOOKUP FILE'), field_name))
+
+                for field_option in ['UNIQUE','CARRY','INCREMENT','REQUIRED','SORTED']:
                     if self.get_value(field_name, field_option):
                         if self.get_value(field_name, field_option).upper() == 'YES':
                             self.update_value(field_name, field_option, 'TRUE')
@@ -458,13 +568,48 @@ class cfg(blockdata):
                     f.prompt = field_name
 
                 f.inputtype = f.inputtype.upper()
-                if not f.inputtype in ['TEXT','NUMERIC','MENU','DATETIME','BOOLEAN','CAMERA','GPS','INSTRUMENT']:
-                    self.errors.append('Error: The value %s for the field %s is not a valid input type.  Valid input types include Text, Numeric, Instrument, Menu, Datetime, Boolean, Camera and GPS.' % (f.inputtype, field_name))
+                if not f.inputtype in ['TEXT','NOTE','NUMERIC','MENU','DATETIME','BOOLEAN','CAMERA','GPS','INSTRUMENT']:
+                    self.errors.append('Error: The value %s for the field %s is not a valid input type.  Valid input types include Text, Note, Numeric, Instrument, Menu, Datetime, Boolean, Camera and GPS.' % (f.inputtype, field_name))
                     self.has_errors = True
 
-                if f.inputtype == 'MENU' and len(f.menu)==0:
-                    self.errors.append('Error: The field %s is listed a menu, but no menu list was provided with a MENU option.' % field_name)
+                if f.infofile:
+                    if locate_file(f.infofile):
+                        f.infofile = locate_file(f.infofile)
+                    else:
+                        self.has_warnings = True
+                        self.errors.append("Warning: Could not locate the info file '%s' for the field %s." % (f.infofile, field_name))
+
+                if f.validfile:
+                    if locate_file(f.validfile):
+                        f.validfile = locate_file(f.validfile)
+                    else:
+                        self.has_warnings = True
+                        self.errors.append("Warning: Could not locate the valid file '%s' for the field %s." % (f.validfile, field_name))
+
+                if f.invalidfile:
+                    if locate_file(f.invalidfile):
+                        f.invalidfile = locate_file(f.invalidfile)
+                    else:
+                        self.has_warnings = True
+                        self.errors.append("Warning: Could not locate the valid file '%s' for the field %s." % (f.invalidfile, field_name))
+
+                if f.lookupfile:
+                    if locate_file(f.lookupfile):
+                        f.lookupfile = locate_file(f.lookupfile)
+
+                if f.inputtype == 'MENU' and (len(f.menu)==0 and f.menufile == ''):
+                    self.errors.append('Error: The field %s is listed a menu, but no menu list or menu file was provided with a MENU or MENUFILE option.' % field_name)
                     self.has_errors = True
+
+                if f.menufile:
+                    if locate_file(f.menufile):
+                        f.menufile = locate_file(f.menufile)
+                    else:
+                        self.has_warnings = True
+                        self.errors.append("Warning: Could not locate the menu file '%s' for the field %s." % (f.menufile, field_name))
+                
+                if f.inputtype == 'MENU':
+                    a=3
 
                 if any((c in set(r' !@#$%^&*()?/\{}<.,.|+=_-~`')) for c in field_name):
                     self.errors.append('Warning: The field %s has non-standard characters in it.  E5 will attempt to work with it, but it is highly recommended that you rename it as it will likely cause problems elsewhere.' % field_name)
@@ -480,7 +625,7 @@ class cfg(blockdata):
                             self.has_errors = True
                         else:
                             condition_fieldname = condition_parsed[0]
-                            if not condition_fieldname in prior_fieldnames:
+                            if not condition_fieldname.upper() in prior_fieldnames:
                                 self.errors.append('Error: Condition number %s for the field %s references field %s which has not been defined prior to this.' % (n, field_name, condition_fieldname))
                                 self.has_errors = True
                             else:
@@ -495,7 +640,7 @@ class cfg(blockdata):
                                             self.errors.append('Warning: Condition number %s for the field %s tries to match the value "%s" to the menulist in field %s, but field %s does not contain this value.' % (n, field_name, condition_match, condition_fieldname, condition_fieldname))
                                             self.has_warnings = True
                 self.put(field_name, f)
-                prior_fieldnames.append(field_name)
+                prior_fieldnames.append(field_name.upper())
         return(self.has_errors)
 
     def save(self):
@@ -912,20 +1057,13 @@ class MainScreen(Screen):
         self.build_mainscreen()
 
     def open_db(self):
-        database = e4_cfg.get_value('E5','DATABASE')
-        if database:
-            if os.path.isfile(database):
-                e4_data.open(database)
-            else:
-                database = os.path.split(database)[1]
-                database = os.path.join(e4_cfg.path, database)
-                e4_data.open(database)
-        else:
+        database = locate_file(e4_cfg.get_value('E5','DATABASE'))
+        if not database:
             database = os.path.split(e4_cfg.filename)[1]
             if "." in database:
                 database = database.split('.')[0]
-            database = database + '.json'
-            e4_data.open(os.path.join(e4_cfg.path, database))
+            database = os.path.join(e4_cfg.path, database + '.json')
+        e4_data.open(database)
         if e4_cfg.get_value('E5','TABLE'):    
             e4_data.table = e4_cfg.get_value('E5','TABLE')
         else:
@@ -953,10 +1091,10 @@ class MainScreen(Screen):
         self.popup.open()
         self.popup_open = True
 
-    def message(self, message_text):
-        mainscreen = self.get_widget_by_id('mainscreen')
-        mainscreen.clear_widgets()
-        mainscreen.add_widget(e5_scrollview_label(text = message_text))
+    #def message(self, message_text):
+    #    mainscreen = self.get_widget_by_id('mainscreen')
+    #    mainscreen.clear_widgets()
+    #    mainscreen.add_widget(e5_scrollview_label(text = message_text))
 
     def data_entry(self):
 
@@ -964,7 +1102,7 @@ class MainScreen(Screen):
         #inputbox.bind(minimum_height = inputbox.setter('height'))
 
         label = Label(text = e4_cfg.current_field.prompt,
-                    size_hint = (1, .1),
+                    size_hint = (1, .13),
                     color = e5_colors.text_color,
                     id = 'field_prompt',
                     halign = 'center',
@@ -973,8 +1111,8 @@ class MainScreen(Screen):
         label.bind(texture_size = label.setter('size'))
         label.bind(size_hint_min_x = label.setter('width'))
 
-        kb = TextInput(size_hint = (1, .07),
-                            multiline = False,
+        kb = TextInput(size_hint = (1, .07 if not e4_cfg.current_field.inputtype == 'NOTE' else .07 * 5),
+                            multiline = (e4_cfg.current_field.inputtype == 'NOTE'),
                             write_tab = False,
                             id = 'field_data',
                             font_size = e5_colors.text_font_size)
@@ -984,7 +1122,7 @@ class MainScreen(Screen):
         kb.focus = True
 
         scroll_content = BoxLayout(orientation = 'horizontal',
-                                    size_hint = (1, .6),
+                                    size_hint = (1, .6 if not e4_cfg.current_field.inputtype == 'NOTE' else .6 - .07 * 4),
                                     id = 'scroll_content',
                                     spacing = 20)
         self.add_scroll_content(scroll_content)
@@ -1172,7 +1310,7 @@ class MainScreen(Screen):
                                                            ncols = ncols))
                 self.scroll_menu = self.get_widget_by_id('menu_scroll')
                 self.make_scroll_menu_item_visible()
-                self.widget_with_focus = self.scroll_menu
+                self.widget_with_focus = self.scroll_menu if self.scroll_menu else self
 
             if info_exists:
                 content_area.add_widget(e5_scrollview_label(self.get_info()))
@@ -1209,14 +1347,20 @@ class MainScreen(Screen):
         App.get_running_app().stop()
 
     def show_save_csvs(self):
-        content = SaveDialog(start_path = e4_cfg.path,
-                            save = self.save_csvs, 
-                            cancel = self.dismiss_popup,
-                            button_color = e5_colors.button_color,
-                            button_background = e5_colors.button_background)
-        self.popup = Popup(title = "Select a folder for the  CSV files", content = content,
-                            size_hint = (0.9, 0.9))
+        if e4_cfg.filename and e4_data.filename:
+            content = SaveDialog(start_path = e4_cfg.path,
+                                save = self.save_csvs, 
+                                cancel = self.dismiss_popup,
+                                button_color = e5_colors.button_color,
+                                button_background = e5_colors.button_background)
+            self.popup = Popup(title = "Select a folder for the  CSV files",
+                                content = content,
+                                size_hint = (0.9, 0.9))
+        else:
+            self.popup = MessageBox('E5', '\nOpen a CFG before exporting to CSV',
+                                    call_back = self.dismiss_popup)
         self.popup.open()
+        self.popup_open = True
 
     def save_csvs(self, path):
 
@@ -1254,7 +1398,8 @@ class MainScreen(Screen):
         self.dismiss_popup()
         self.cfg_load(os.path.join(path, filename[0]))
 
-    def dismiss_popup(self):
+    def dismiss_popup(self, *args):
+        self.popup_open = False
         self.popup.dismiss()
         self.parent.current = 'MainScreen'
 
@@ -1267,9 +1412,12 @@ class MainScreen(Screen):
                     widget.text = e4_cfg.current_record[e4_cfg.current_field.name]
                 else:
                     widget.text = ''
+                widget.multiline = (e4_cfg.current_field.inputtype == 'NOTE')
+                widget.size_hint = (1, .07 if not e4_cfg.current_field.inputtype == 'NOTE' else .07 * 5)
                 self.widget_with_focus = widget
                 self.scroll_menu = None
             if widget.id=='scroll_content':
+                #widget.size_hint = (1, .6 if not e4_cfg.current_field.inputtype == 'NOTE' else .6 - .07 * 4),
                 self.add_scroll_content(widget)    
                 break
         self.widget_with_focus.focus = True
@@ -1572,26 +1720,35 @@ class StatusScreen(InfoScreen):
 
 class LogScreen(InfoScreen):
     def on_pre_enter(self):
+        self.content.text = 'The last 150 lines:\n\n'
         try:
-            with open('E5.log','r') as f:
-                self.content.text = f.read()
+            with open(logger.handlers[0].baseFilename,'r') as f:
+                content = f.readlines()
+            self.content.text += ''.join(list(reversed(content))[0:150])
         except:
-            self.content.text = 'An error occurred when reading the log file %s.' % ('E5.log')
+            self.content.text = "\nAn error occurred when reading the log file '%s'." % ('E5.log')
 
 class AboutScreen(InfoScreen):
     def on_pre_enter(self):
-        self.content.text = '\n\nE4py by Shannon P. McPherron\n\nVersion ' + __version__ + ' Alpha\nApple Pie\n\nAn OldStoneAge.Com Production\n\nJanuary, 2019'
+        self.content.text = '\n\nE5 by Shannon P. McPherron\n\nVersion ' + __version__ + ' Alpha\nApple Pie\n\n'
+        self.content.text += 'Build using Python 3.6, Kivy 1.10.1 and TinyDB 3.11.1\n\n'
+        self.content.text += 'An OldStoneAge.Com Production\n\n' + __date__ 
         self.content.halign = 'center'
         self.content.valign = 'middle'
 
 class CFGScreen(InfoScreen):
     def on_pre_enter(self):
-        with open(e4_cfg.filename,'r') as f:
-            self.content.text = f.read()
-
+        if e4_cfg.filename:
+            try:
+                with open(e4_cfg.filename,'r') as f:
+                    self.content.text = f.read()
+            except:
+                self.content.text = "There was an error reading from the CFG file '%s'" % e4_cfg.filename
+        else:
+            self.content.text = '\nOpen a CFG file before trying to view it.'
 class INIScreen(InfoScreen):
     def on_pre_enter(self):
-        with open(e4_ini.filename,'r') as f:
+        with open(e4_ini.filename, 'r') as f:
             self.content.text = f.read()
 
 class EditPointsScreen(Screen):
@@ -1613,7 +1770,7 @@ class EditPointsScreen(Screen):
     def on_leave(self):
         Window.unbind(on_key_down = self._on_keyboard_down)
 
-# Code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py
+#### Code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py
 
 class HeaderCell(Button):
     def __init__(self,**kwargs):
@@ -1930,14 +2087,15 @@ class E5py(App):
     def __init__(self, **kwargs):
         super(E5py, self).__init__(**kwargs)
 
+        app_path = self.user_data_dir
+
         logger.setLevel(logging.INFO)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        fh = logging.FileHandler('E5.log')
+        fh = logging.FileHandler(os.path.join(app_path, 'E5.log'))
         fh.setLevel(logging.INFO)
         fh.setFormatter(formatter)
         logger.addHandler(fh)
 
-        app_path = self.user_data_dir
         e4_ini.open(os.path.join(app_path, 'E5.ini'))
 
         if not e4_ini.first_time:
@@ -1972,7 +2130,6 @@ class E5py(App):
 
     def build(self):
 
-        #Window.clearcolor = e5_colors.window_background
         Window.minimum_width = 450
         Window.minimum_height = 450
         if not e4_ini.get_value("E5","TOP") == '':
@@ -2002,6 +2159,18 @@ class E5py(App):
         logger.info('E5 started, logger initialized, and application built.')
 
 Factory.register('E5', cls=E5py)
+
+# See if the file as given can be found.
+# If not, try to find it in the same folder as the CFG file.
+# This can happen when a CFG and associated files are copied to a 
+# new folder or computer or device.
+def locate_file(filename):
+    if os.path.isfile(filename):
+        return(filename)
+    p, f = os.path.split(filename)
+    if os.path.isfile(os.path.join(e4_cfg.path, f)):
+        return(os.path.join(e4_cfg.path, f))
+    return('')
 
 if __name__ == '__main__':
 

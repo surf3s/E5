@@ -62,13 +62,27 @@ class blockdata:
                     return('')
         return('')                
 
+    def rename_block(self, oldname, newname):
+        for block in self.blocks:
+            if block['BLOCKNAME'] == oldname.upper():
+                block['BLOCKNAME'] = newname.upper()
+                return
+
+    def rename_key(self, blockname, old_key, new_key):
+        for block in self.blocks:
+            if block['BLOCKNAME'] == blockname.upper():
+                block[new_key] = block.pop(old_key)
+                return
+        
     def write_blocks(self):
         try:
             with open(self.filename, mode = 'w') as f:
                 for block in self.blocks:
                     f.write("[%s]\n" % block['BLOCKNAME'])
                     for item in block.keys():
-                        f.write(item + "=%s\n" % block[item])
+                        if not item=='BLOCKNAME':
+                            if block[item]:
+                                f.write(item + "=%s\n" % block[item])
                     f.write("\n")
             return(True)
         except:

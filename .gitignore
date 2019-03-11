@@ -118,4 +118,5 @@ dmypy.json
 *.cfg
 CFGs/
 *.json
-
+backup/
+*.pptx
