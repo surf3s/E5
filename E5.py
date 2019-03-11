@@ -22,6 +22,7 @@
 __version__ = '1.0.1'
 __date__ = 'March, 2019'
 
+from kivy.utils import platform
 from kivy.clock import Clock
 from kivy.app import App
 from kivy.uix.camera import Camera
@@ -907,13 +908,17 @@ class e5_scrollview_menu(ScrollView):
                                 spacing = 5)
         scrollbox.bind(minimum_height = scrollbox.setter('height'))
 
-        for menu_item in menu_list:
-            if menu_item == menu_selected:
-                scrollbox.add_widget(e5_button(menu_item, menu_item,
-                                        selected = True, call_back = call_back))
-            else:
-                scrollbox.add_widget(e5_button(menu_item, menu_item,
-                                        selected = False, call_back = call_back))
+        if menu_list:
+            for menu_item in menu_list:
+                if menu_item == menu_selected:
+                    scrollbox.add_widget(e5_button(menu_item, menu_item,
+                                            selected = True, call_back = call_back))
+                else:
+                    scrollbox.add_widget(e5_button(menu_item, menu_item,
+                                            selected = False, call_back = call_back))
+        else:
+            scrollbox.add_widget(Button(text = '',
+                                         background_normal = ''))
         self.size_hint = (1,1)
         self.id = widget_id + '_scroll'
         self.add_widget(scrollbox)
@@ -1047,7 +1052,8 @@ class MainScreen(Screen):
             self.widget_with_focus = mainscreen
 
     def cfg_selected(self, value):
-        self.cfg_load(os.path.join(self.get_path(), value.text))
+        if value.text:
+            self.cfg_load(os.path.join(self.get_path(), value.text))
         
     def cfg_load(self, cfgfile_name):
         e4_cfg.load(cfgfile_name)
@@ -1117,6 +1123,7 @@ class MainScreen(Screen):
                             id = 'field_data',
                             font_size = e5_colors.text_font_size)
         mainscreen.add_widget(kb)
+        kb.bind(text = self.textbox_changed)
         self.widget_with_focus = kb
         self.scroll_menu = None
         kb.focus = True
@@ -1128,6 +1135,11 @@ class MainScreen(Screen):
         self.add_scroll_content(scroll_content)
         mainscreen.add_widget(scroll_content)
 
+        if e4_cfg.current_field.inputtype in ['BOOLEAN','MENU']:
+            self.scroll_menu_setup()
+
+        self._get_widget_count('menu_scroll')
+
         buttons = GridLayout(cols = 2, size_hint = (1, .2), spacing = 20)
         
         buttons.add_widget(e5_button('Back', id = 'back', selected = True, call_back = self.go_back))
@@ -1137,31 +1149,44 @@ class MainScreen(Screen):
         mainscreen.add_widget(buttons)
         
         #self.add_widget(mainscreen)
+    def scroll_menu_setup(self):
+        self.scroll_menu = self.get_widget_by_id('menu_scroll')
+        self.make_scroll_menu_item_visible()
+        self.widget_with_focus = self.scroll_menu if self.scroll_menu else self
+
+    def textbox_changed(self, instance, value):
+        if e4_cfg.current_field.inputtype in ['BOOLEAN','MENU']:
+            self.add_scroll_content(self.get_widget_by_id('scroll_content'), value)
+            self.scroll_menu_setup()
 
     def _keyboard_closed(self):
         self._keyboard.unbind(on_key_down = self._on_keyboard_down)
         self._keyboard = None
 
     def scroll_menu_clear_selected(self):
-        for widget in self.scroll_menu.children[0].children:
-            if widget.id[0] == '*':
-                widget.id = widget.id[1:]
-                widget.background_color = e5_colors.optionbutton_background
-                break
+        if self.scroll_menu:
+            for widget in self.scroll_menu.children[0].children:
+                if widget.id[0] == '*':
+                    widget.id = widget.id[1:]
+                    widget.background_color = e5_colors.optionbutton_background
+                    break
 
     def scroll_menu_get_selected(self):
         if self.scroll_menu:
             for widget in self.scroll_menu.children[0].children:
-                if widget.id[0] == '*':
-                    return(widget)
+                if widget.id:
+                    if widget.id[0] == '*':
+                        return(widget)
+        return(None)
 
     def scroll_menu_set_selected(self, text):
-        for widget in self.scroll_menu.children[0].children:
-            if widget.text == text:
-                widget.background_color = e5_colors.button_background
-                if not widget.id[0] == "*":
-                    widget.id = "*" + widget.id
-                break
+        if self.scroll_menu:
+            for widget in self.scroll_menu.children[0].children:
+                if widget.text == text:
+                    widget.background_color = e5_colors.button_background
+                    if not widget.id[0] == "*":
+                        widget.id = "*" + widget.id
+                    break
 
     def scroll_menu_list(self):
         menu_list = []
@@ -1174,47 +1199,52 @@ class MainScreen(Screen):
 
     def make_scroll_menu_item_visible(self):
         if self.scroll_menu:
-            self.scroll_menu.scroll_to(self.scroll_menu_get_selected())
+            if self.scroll_menu_get_selected():
+                self.scroll_menu.scroll_to(self.scroll_menu_get_selected())
 
     def move_scroll_menu_item(self, ascii_code):
-        menu_list = self.scroll_menu_list()
-        index_no = menu_list.index(self.scroll_menu_get_selected().text)
+        if self.scroll_menu:
+            menu_list = self.scroll_menu_list()
+            if self.scroll_menu_get_selected():
+                index_no = menu_list.index(self.scroll_menu_get_selected().text)
+            else:
+                index_no = 0
 
-        if index_no >= 0:
-            new_index = -1
-            if ascii_code == 279:
-                new_index = len(menu_list) - 1
-            elif ascii_code == 278:
-                new_index = 0
-            elif ascii_code in [273, 276] and index_no > 0:
-                new_index = index_no - 1
-            elif ascii_code in [274, 275] and index_no < (len(menu_list) - 1):
-                new_index = index_no + 1
-            if new_index >= 0:
-                self.scroll_menu_clear_selected()
-                self.scroll_menu_set_selected(menu_list[new_index])
-                self.make_scroll_menu_item_visible()
-                if self.get_widget_by_id('field_data'):
-                    self.get_widget_by_id('field_data').text = menu_list[new_index]
-
-    def scroll_menu_char_match(self, match_str):
-
-        menu_list = self.scroll_menu_list()
-        if menu_list:
-            index_no = menu_list.index(self.scroll_menu_get_selected().text)
-
-            new_index = (index_no + 1) % len(menu_list)
-            while not new_index == index_no:
-                if menu_list[new_index].upper()[0] == match_str.upper():
+            if index_no >= 0:
+                new_index = -1
+                if ascii_code == 279:
+                    new_index = len(menu_list) - 1
+                elif ascii_code == 278:
+                    new_index = 0
+                elif ascii_code in [273, 276] and index_no > 0:
+                    new_index = index_no - 1
+                elif ascii_code in [274, 275] and index_no < (len(menu_list) - 1):
+                    new_index = index_no + 1
+                if new_index >= 0:
                     self.scroll_menu_clear_selected()
                     self.scroll_menu_set_selected(menu_list[new_index])
                     self.make_scroll_menu_item_visible()
-                    if self.get_widget_by_id('field_data'):
-                        self.get_widget_by_id('field_data').text = menu_list[new_index]
-                    break
-                else:
-                    new_index = (new_index + 1) % len(menu_list)
-                    # need new logic to auto select when only one case is available
+                    #if self.get_widget_by_id('field_data'):
+                    #    self.get_widget_by_id('field_data').text = menu_list[new_index]
+
+    def scroll_menu_char_match(self, match_str):
+        if self.scroll_menu:
+            menu_list = self.scroll_menu_list()
+            if menu_list:
+                index_no = menu_list.index(self.scroll_menu_get_selected().text)
+
+                new_index = (index_no + 1) % len(menu_list)
+                while not new_index == index_no:
+                    if menu_list[new_index].upper()[0] == match_str.upper():
+                        self.scroll_menu_clear_selected()
+                        self.scroll_menu_set_selected(menu_list[new_index])
+                        self.make_scroll_menu_item_visible()
+                        if self.get_widget_by_id('field_data'):
+                            self.get_widget_by_id('field_data').text = menu_list[new_index]
+                        break
+                    else:
+                        new_index = (new_index + 1) % len(menu_list)
+                        # need new logic to auto select when only one case is available
 
     def get_widget_by_id(self, id):
         for widget in self.walk():
@@ -1222,12 +1252,21 @@ class MainScreen(Screen):
                 return(widget)
         return(None)
 
+    def _get_widget_count(self, id):
+        count = 0
+        for widget in self.walk():
+            if widget.id == id:
+                count += 1
+        print(count)
+
     def _on_keyboard_down(self, *args):
         ascii_code = args[1]
         text_str = args[3]  
         print('INFO: The key %s has been pressed %s' % (ascii_code, text_str))
         if not self.popup_open:
-            if ascii_code == 9 or ascii_code == 8:
+            if ascii_code == 8:
+                return False
+            if ascii_code == 9:
                 if self.widget_with_focus.id == 'menu_scroll':
                     self.widget_with_focus = self.get_widget_by_id('field_data')
                     self.widget_with_focus.focus = True
@@ -1240,8 +1279,15 @@ class MainScreen(Screen):
                     self.go_back(None)
             if ascii_code == 13:
                 if e4_cfg.filename:
-                    if e4_cfg.current_field.inputtype in ['MENU','BOOLEAN'] and self.get_widget_by_id('field_data').text =='':
-                        self.get_widget_by_id('field_data').text = self.scroll_menu_get_selected().text 
+                    if e4_cfg.current_field.inputtype in ['MENU','BOOLEAN']:
+                        textbox = self.get_widget_by_id('field_data').text
+                        menubox = self.scroll_menu_get_selected().text if self.scroll_menu_get_selected() else ''
+                        if textbox == '' and not menubox == '':
+                            self.get_widget_by_id('field_data').text = menubox
+                        elif not textbox == '' and not menubox == '':
+                            if not textbox.upper() == menubox.upper():
+                                if textbox.upper() == menubox.upper()[0:len(textbox)]:
+                                    self.get_widget_by_id('field_data').text = menubox
                     self.go_next(None)
                 else:
                     self.cfg_selected(self.scroll_menu_get_selected())
@@ -1249,11 +1295,13 @@ class MainScreen(Screen):
                 return True 
             if ascii_code in [273, 274, 275, 276, 278, 279] and self.scroll_menu:
                 self.move_scroll_menu_item(ascii_code)
+                self._get_widget_count('menu_scroll')
                 return False 
-            if text_str:
-                if text_str.upper() in ascii_uppercase:
-                    self.scroll_menu_char_match(text_str)
-                    return False
+            #if text_str:
+            #    if text_str.upper() in ascii_uppercase:
+            #        self.add_scroll_content(self.get_widget_by_id('scroll_content'), 
+            #                                self.get_widget_by_id('field_data').text + text_str)
+            #        return True
         else:
             if ascii_code == 13:
                 self.close_popup(None)
@@ -1261,12 +1309,12 @@ class MainScreen(Screen):
                 return False
         return True # return True to accept the key. Otherwise, it will be used by the system.
 
-    def add_scroll_content(self, content_area):
+    def add_scroll_content(self, content_area, menu_filter = ''):
     
         content_area.clear_widgets()
 
         info_exists = e4_cfg.current_field.info or e4_cfg.current_field.infofile
-        menu_exists = e4_cfg.current_field.inputtype == 'BOOLEAN' or e4_cfg.current_field.menu
+        menu_exists = e4_cfg.current_field.inputtype == 'BOOLEAN' or (not e4_cfg.current_field.menu == [])
         camera_exists = e4_cfg.current_field.inputtype == 'CAMERA'
 
         if menu_exists or info_exists or camera_exists:
@@ -1292,8 +1340,11 @@ class MainScreen(Screen):
                 else:
                     menu_list = e4_cfg.current_field.menu
 
+                if menu_filter:
+                    menu_list = [menu for menu in menu_list if menu.upper()[0:len(menu_filter)] == menu_filter.upper()]
+
                 selected_menu = e4_cfg.get_field_data('')
-                if not selected_menu:
+                if not selected_menu and menu_list:
                     selected_menu = menu_list[0]
 
                 if info_exists:
@@ -1308,9 +1359,6 @@ class MainScreen(Screen):
                                                            widget_id = 'menu',
                                                            call_back = self.menu_selection,
                                                            ncols = ncols))
-                self.scroll_menu = self.get_widget_by_id('menu_scroll')
-                self.make_scroll_menu_item_visible()
-                self.widget_with_focus = self.scroll_menu if self.scroll_menu else self
 
             if info_exists:
                 content_area.add_widget(e5_scrollview_label(self.get_info()))
@@ -1404,21 +1452,22 @@ class MainScreen(Screen):
         self.parent.current = 'MainScreen'
 
     def update_mainscreen(self):
+        textbox_contents = ''
         for widget in self.walk():
             if widget.id=='field_prompt':
                 widget.text = e4_cfg.current_field.name
             if widget.id == 'field_data':
-                if e4_cfg.current_field.name in e4_cfg.current_record.keys():
-                    widget.text = e4_cfg.current_record[e4_cfg.current_field.name]
-                else:
-                    widget.text = ''
+                widget.text = e4_cfg.current_record[e4_cfg.current_field.name] if e4_cfg.current_field.name in e4_cfg.current_record.keys() else ''
                 widget.multiline = (e4_cfg.current_field.inputtype == 'NOTE')
                 widget.size_hint = (1, .07 if not e4_cfg.current_field.inputtype == 'NOTE' else .07 * 5)
+                widget.select_all()
                 self.widget_with_focus = widget
                 self.scroll_menu = None
+                textbox_contents = widget.text 
             if widget.id=='scroll_content':
                 #widget.size_hint = (1, .6 if not e4_cfg.current_field.inputtype == 'NOTE' else .6 - .07 * 4),
-                self.add_scroll_content(widget)    
+                self.add_scroll_content(widget, textbox_contents)    
+                self.scroll_menu_setup()
                 break
         self.widget_with_focus.focus = True
 
@@ -1708,14 +1757,11 @@ class InfoScreen(Screen):
 
 class StatusScreen(InfoScreen):
     def on_pre_enter(self):
-        txt = ''
-        if e4_data:
-            txt += e4_data.status()
-        else:
-            txt += 'A data file has not been initialized or opened.\n\n'
+        txt = e4_data.status() if e4_data else 'A data file has not been initialized or opened.\n\n'
         txt += e4_cfg.status()
         txt += e4_ini.status()
-        txt += '\nThe default user path is %s.' % e4_ini.get_value("E5","APP_PATH")
+        txt += '\nThe default user path is %s.\n' % e4_ini.get_value("E5","APP_PATH")
+        txt += '\nThe operating system is %s.\n' % ['Windows','Linux','MacOSX','IOS','Unknown'][['win', 'linux', 'android', 'macosx', 'ios', 'unknown'].index(platform)]
         self.content.text = txt
 
 class LogScreen(InfoScreen):
@@ -1746,6 +1792,7 @@ class CFGScreen(InfoScreen):
                 self.content.text = "There was an error reading from the CFG file '%s'" % e4_cfg.filename
         else:
             self.content.text = '\nOpen a CFG file before trying to view it.'
+
 class INIScreen(InfoScreen):
     def on_pre_enter(self):
         with open(e4_ini.filename, 'r') as f:
