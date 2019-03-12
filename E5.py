@@ -54,9 +54,7 @@ from kivy.graphics import Color, Rectangle
 from kivy.config import Config
 
 import os 
-#import random
 from datetime import datetime
-#import time
 import ntpath
 from string import ascii_uppercase
 
@@ -486,11 +484,11 @@ class cfg(blockdata):
             except ValueError:
                 return('\nError: This field is marked as numeric but a non-numeric value was provided.')
         if self.current_field.valid:
-            if not any(s.upper() == self.current_record[self.current_field.name].upper() for s in self.valid):
+            if not any(s.upper() == self.current_record[self.current_field.name].upper() for s in self.current_field.valid):
                 return("\nError: The entry '%s' does not appear in the list of valid entries found in '%s'." %
                              (self.current_record[self.current_field.name], self.current_field.validfile) )
         if self.current_field.invalid:
-            if any(s.upper() == self.current_record[self.current_field.name].upper() for s in self.valid):
+            if any(s.upper() == self.current_record[self.current_field.name].upper() for s in self.current_field.invalid):
                 return("\nError: The entry '%s' appears in the list of invalid entries found in '%s'." %
                              (self.current_record[self.current_field.name], self.current_field.invalidfile) )
         return(True)
@@ -952,6 +950,30 @@ class e5_scrollview_label(ScrollView):
         self.size_hint = (1,1)
         self.id = widget_id + '_scroll'
         self.add_widget(scrollbox)
+
+class e5_DatagridScreen(Screen):
+
+    datagrid = ObjectProperty(None)
+
+    def __init__(self,**kwargs):
+        super(e5_DatagridScreen, self).__init__(**kwargs)
+        self.datagrid = DfguiWidget()
+        self.add_widget(self.datagrid)
+
+    def on_enter(self):
+        Window.bind(on_key_down = self._on_keyboard_down)
+        if self.datagrid:
+            self.datagrid.switch_to(self.datagrid.tab_list[2])
+
+    def _on_keyboard_down(self, *args):
+        print('key')
+        ### On key down, see if there is a current record,
+        # get the next record in the db,
+        # and then try to fire the highlight record stuff
+        return True
+
+    def on_leave(self):
+        Window.unbind(on_key_down = self._on_keyboard_down)
 
 class MainScreen(Screen):
 
@@ -1699,12 +1721,16 @@ class E5SettingsScreen(Screen):
         e5_colors.set_to(current_scheme)
         
         backups = GridLayout(cols = 2, size_hint_y = .3, spacing = 5, padding = 5)
-        backups.add_widget(e5_label('Auto-backup after\nevery how many\nrecords entered?'))
-        backups.add_widget(Slider(min = 0, max = 200,
-                                 value = 0, orientation = 'horizontal', id = 'backup_interval',
-                                 value_track = True, value_track_color= e5_colors.button_background))
+        backups.add_widget(e5_label('Auto-backup after\nevery %s\nrecords entered.' % e4_ini.backup_interval,
+                                    id = 'label_backup_interval'))
+        slide = Slider(min = 0, max = 200,
+                        value = e4_ini.backup_interval,
+                        orientation = 'horizontal', id = 'backup_interval',
+                        value_track = True, value_track_color= e5_colors.button_background)
+        backups.add_widget(slide)
+        slide.bind(value = self.update_backup_interval)
         backups.add_widget(e5_label('Use incremental backups?'))
-        backups_switch = Switch(active = False)
+        backups_switch = Switch(active = e4_ini.incremental_backups)
         backups_switch.bind(active = self.incremental_backups)
         backups.add_widget(backups_switch)
         layout.add_widget(backups)
@@ -1714,17 +1740,22 @@ class E5SettingsScreen(Screen):
                                  bar_width = SCROLLBAR_WIDTH)
         scrollview.add_widget(layout)
         settings_layout.add_widget(scrollview)
+
         settings_layout.add_widget(e5_button('Back', selected = True, call_back = self.go_back))
         self.add_widget(settings_layout)
+
+    def update_backup_interval(self, instance, value):
+        e4_ini.backup_interval = int(value)
+        for widget in self.walk():
+            if widget.id == 'label_backup_interval':
+                widget.text = 'Auto-backup after\nevery %s\nrecords entered.' % e4_ini.backup_interval
+                break
 
     def incremental_backups(self, instance, value):
         e4_ini.incremental_backups = value
 
     def darkmode(self, instance, value):
-        if value:
-            e5_colors.set_to_darkmode()
-        else:
-            e5_colors.set_to_lightmode()
+        e5_colors.set_to_darkmode() if value else e5_colors.set_to_lightmode()
         self.build_screen()
 
     def color_scheme_selected(self, instance):
@@ -1732,9 +1763,6 @@ class E5SettingsScreen(Screen):
         self.build_screen()
 
     def go_back(self, instance):
-        for widget in self.walk():
-            if widget.id == 'backup_interval':
-                e4_ini.backup_interval = int(widget.value)
         e4_ini.update()
         self.parent.current = 'MainScreen'
 
@@ -1798,24 +1826,20 @@ class INIScreen(InfoScreen):
         with open(e4_ini.filename, 'r') as f:
             self.content.text = f.read()
 
-class EditPointsScreen(Screen):
+class EditPointsScreen(e5_DatagridScreen):
+
     def __init__(self,**kwargs):
         super(EditPointsScreen, self).__init__(**kwargs)
         if e4_data.db:
-            self.add_widget(DfguiWidget(e4_data, e4_cfg.fields()))
+            self.datagrid.data = e4_data
+            self.datagrid.fields = e4_cfg.fields()
 
     def on_pre_enter(self):
-        Window.bind(on_key_down = self._on_keyboard_down)
-
-    def _on_keyboard_down(self, *args):
-        print('key')
-        ### On key down, see if there is a current record,
-        # get the next record in the db,
-        # and then try to fire the highlight record stuff
-        return True
-
-    def on_leave(self):
-        Window.unbind(on_key_down = self._on_keyboard_down)
+        if self.datagrid.data == None and not e4_data.db == None:
+            self.datagrid.load_data(e4_data, e4_cfg.fields())
+        elif not self.datagrid.data == None and not e4_data.db == None:
+            if not self.datagrid.record_count() == len(e4_data.db):
+                self.datagrid.reload_data()
 
 #### Code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py
 
@@ -1843,7 +1867,7 @@ class ScrollCell(Button):
     datagrid_even = [189.0/255, 189.0/255, 189.0/255, 1]
     def __init__(self,**kwargs):
         super(ScrollCell, self).__init__(**kwargs)
-        self.color = e5_colors.button_color
+        self.color = e5_colors.make_rgb(BLACK)
         self.background_normal = ''
         self.datagrid_even = e5_colors.datagrid_even
         self.datagrid_odd = e5_colors.datagrid_odd
@@ -1925,16 +1949,15 @@ class TableData(RecycleView):
 
     def menu_selection(self, value):
         ### need some data validation
-        print(value.id)
-        new_data = {}
+        new_data = {self.field: ''}
         if self.inputtype=='MENU':
             new_data[self.field] = value.text
         else:
             for widget in self.popup.walk():
                 if widget.id == 'new_item':
                     new_data[self.field] = widget.text
-        field_record = Query()
-        e4_data.db.update(new_data, field_record.doc_id == self.key)
+        self.parent.parent.parent.parent.data.db.update(new_data, doc_ids = [int(self.key)])
+
         for widget in self.walk():
             if widget.id=='datacell':
                 if widget.key == self.key and widget.field == self.field:
@@ -1984,16 +2007,15 @@ class DataframePanel(BoxLayout):
                 else:
                     reformatted_row[field] = ''
             data.append(reformatted_row)
-        #data = sorted(data, key=lambda k: k[self.sort_key]) 
+        data = sorted(data, key=lambda k: k['doc_id'], reverse = True) 
         self.add_widget(Table(list_dicts = data, column_names = self.column_names, df_name = self.df_name))
 
 class AddNewPanel(BoxLayout):
     
-    def populate(self, df, df_fields):
-        self.df_name = df.db_name            
-        self.addnew_list.bind(minimum_height=self.addnew_list.setter('height'))
-        for col in df.fields():
-            self.addnew_list.add_widget(AddNew(col, df.db_name))
+    def populate(self, data, fields):
+        self.addnew_list.bind(minimum_height = self.addnew_list.setter('height'))
+        for col in fields:
+            self.addnew_list.add_widget(AddNew(col))
 
     def get_addnews(self):
         result=[]
@@ -2006,10 +2028,9 @@ class AddNew(BoxLayout):
     popup = ObjectProperty(None)
     sorted_result = None
 
-    def __init__(self, col, df_name, **kwargs):
+    def __init__(self, col, **kwargs):
         super(AddNew, self).__init__(**kwargs)
         self.update_db = False
-        self.df_name = df_name
         self.widget_type = 'data'
         self.height = "30sp"
         self.size_hint = (0.9, None)
@@ -2078,36 +2099,57 @@ class AddNew(BoxLayout):
         self.popup.dismiss()
 
 class DfguiWidget(TabbedPanel):
+    data = ObjectProperty(None)
+    fields = ObjectProperty(None)
     datagrid_doc_id = None
     datagrid_background_color = None
     datagrid_widget_row = []
-    def __init__(self, df, df_fields, **kwargs):
+
+    def __init__(self, data = None, fields = [], **kwargs):
         super(DfguiWidget, self).__init__(**kwargs)
         self.textboxes_will_update_db = False
-        self.df = df
-        self.df_name = df.db_name
-        self.df_fields = df_fields
-        self.panel1.populate_data(df, df_fields)
-        self.panel2.populate(df, df_fields)
+
+        if data:
+            self.data = data
+            self.df_name = self.data.db_name
+        if fields:
+            self.fields = fields
+
+        if data and fields:
+            self.populate_panels()
+
         self.color = e5_colors.text_color
         self.background_color = e5_colors.window_background
         self.background_image = ''
+
         for tab_no in [0,1,2]:
             self.tab_list[tab_no].color = e5_colors.button_color
             self.tab_list[tab_no].background_color = e5_colors.button_background
+
+    def record_count(self):
+        return(self.tab_list[2].content.children[0].table_data.nrows if self.tab_list[2].content.children else 0)
+
+    def reload_data(self):
+        self.populate_panels()
+
+    def load_data(self, data, fields):
+        self.data = data
+        self.fields = fields
+        self.populate_panels()
+
+    def populate_panels(self):
+        self.panel1.populate_data(self.data, self.fields)
+        self.panel2.populate(self.data, self.fields)
 
     def open_panel1(self):
         self.textboxes_will_update_db = False
 
     def open_panel2(self):
         if self.datagrid_doc_id:
-            data_record = self.df.db.get(doc_id=int(self.datagrid_doc_id))
+            data_record = self.data.db.get(doc_id=int(self.datagrid_doc_id))
             for widget in self.ids.add_new_panel.children[0].walk():
-                if widget.id in self.df_fields:
-                    if widget.id in data_record:
-                        widget.text = data_record[widget.id]
-                    else:
-                        widget.text = ''
+                if widget.id in self.fields:
+                    widget.text = data_record[widget.id] if widget.id in data_record else ''
                     widget.bind(text = self.update_db)
             self.textboxes_will_update_db = True
 
@@ -2117,7 +2159,7 @@ class DfguiWidget(TabbedPanel):
                 if widget.field == instance.id and widget.key == self.datagrid_doc_id:
                     widget.text = value
                     update = {widget.field: value}
-                    self.df.db.update(update, doc_ids = [int(self.datagrid_doc_id)])
+                    self.data.db.update(update, doc_ids = [int(self.datagrid_doc_id)])
                     break
 
     def close_panels(self):
