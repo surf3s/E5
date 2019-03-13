@@ -57,6 +57,7 @@ import os
 from datetime import datetime
 import ntpath
 from string import ascii_uppercase
+from shutil import copyfile
 
 import logging
 import logging.handlers as handlers
@@ -205,9 +206,6 @@ class db(dbs):
             txt = '\nA data file has not been opened.\n'
         return(txt)
 
-    def create_defaults(self):
-        pass
-
     def get(self, name):
         unit, id = name.split('-')
         p = self.db.search( (where('unit')==unit) & (where('id')==id) )
@@ -237,15 +235,6 @@ class db(dbs):
 
     def delete_all(self):
         self.db.purge()
-
-    def export_csv(self):
-        pass
-
-    def delete_record(self):
-        pass
-
-    def add_record(self):
-        pass
 
 class ini(blockdata):
     
@@ -1171,6 +1160,7 @@ class MainScreen(Screen):
         mainscreen.add_widget(buttons)
         
         #self.add_widget(mainscreen)
+
     def scroll_menu_setup(self):
         self.scroll_menu = self.get_widget_by_id('menu_scroll')
         self.make_scroll_menu_item_visible()
@@ -1273,13 +1263,6 @@ class MainScreen(Screen):
             if widget.id == id:
                 return(widget)
         return(None)
-
-    def _get_widget_count(self, id):
-        count = 0
-        for widget in self.walk():
-            if widget.id == id:
-                count += 1
-        print(count)
 
     def _on_keyboard_down(self, *args):
         ascii_code = args[1]
@@ -1533,10 +1516,37 @@ class MainScreen(Screen):
         valid = e4_cfg.validate_current_record()
         if valid:
             e4_data.db.insert(e4_cfg.current_record)
+            self.make_backup()
         else:
-            self.popup = MessageBox('Save Error', valid, call_back=self.close_popup)
+            self.popup = MessageBox('Save Error', valid, call_back = self.close_popup)
             self.popup.open()
             self.popup_open = True
+
+    def make_backup(self):
+        if e4_ini.backup_interval > 0:
+            try:
+                record_counter = int(e4_cfg.get_value('E5','RECORDS UNTIL BACKUP')) if e4_cfg.get_value('E5','RECORDS UNTIL BACKUP') else e4_ini.backup_interval
+                record_counter -= 1
+                if record_counter <= 0:
+                    backup_path, backup_file = os.path.split(e4_data.filename)
+                    backup_file, backup_file_ext = backup_file.split('.')
+                    backup_file += self.time_stamp() if e4_ini.incremental_backups else '_backup'
+                    backup_file += backup_file_ext
+                    backup_file = os.path.join(backup_path, backup_file)
+                    copyfile(e4_ini.filename, backup_file)
+                    record_counter = e4_ini.backup_interval
+                e4_cfg.update_value('E5','RECORDS UNTIL BACKUP',str(record_counter))
+            except:
+                self.popup = MessageBox('Backup Error', "An error occurred while attempting to make a backup.  Check the backup settings and that the disk has enough space for a backup.", call_back = self.close_popup)
+                self.popup.open()
+                self.popup_open = True
+
+    def time_stamp(self):
+        time_stamp = '%s' % datetime.now().replace(microsecond=0)
+        time_stamp = time_stamp.replace('-','_')
+        time_stamp = time_stamp.replace(' ','_')
+        time_stamp = time_stamp.replace(':','_')
+        return('_' + time_stamp)
 
     def close_popup(self, value):
         self.popup.dismiss()
@@ -1894,10 +1904,6 @@ class TableData(RecycleView):
                                     'key': ord_dict['doc_id'], 'field': text,
                                     'db': df_name, 'id': 'datacell' })
 
-    def sort_data(self):
-        #TODO: Use this to sort table, rather than clearing widget each time.
-        pass
-
     def clear_highlight_row(self):
         if self.parent.parent.parent.parent.datagrid_doc_id:
             key = self.parent.parent.parent.parent.datagrid_doc_id
@@ -2002,10 +2008,7 @@ class DataframePanel(BoxLayout):
             reformatted_row = {}
             reformatted_row['doc_id'] = str(db_row.doc_id)
             for field in self.df_fields:
-                if field in db_row:
-                    reformatted_row[field] = db_row[field]
-                else:
-                    reformatted_row[field] = ''
+                reformatted_row[field] = db_row[field] if field in db_row else ''
             data.append(reformatted_row)
         data = sorted(data, key=lambda k: k['doc_id'], reverse = True) 
         self.add_widget(Table(list_dicts = data, column_names = self.column_names, df_name = self.df_name))
