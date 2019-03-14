@@ -197,7 +197,8 @@ class db(dbs):
                     txt += 'There are %s tables in this data file as follows:\n' % len(self.db.tables())
                     for table_name in self.db.tables():
                         txt += "  A table named '%s' with %s records.\n" % (table_name, len(self.db.table(table_name)))
-                    txt += '\nIn total there are %s records in the data file.\n\n' % len(self.db)
+                    txt += '\nIn total there are %s records in the data file.\n' % len(self.db)
+                    txt += "The current table is '%s'.\n\n" % self.table
                 else:
                     txt += 'There are no tables in this data file.\n\n'
             else:
@@ -1884,12 +1885,17 @@ class TableData(RecycleView):
     nrows = NumericProperty(None)
     ncols = NumericProperty(None)
     rgrid = ObjectProperty(None)
+    
+    datagrid_doc_id = None
+    datagrid_background_color = None
+    datagrid_widget_row = []
 
     popup = ObjectProperty(None)
 
     def __init__(self, list_dicts=[], column_names = None, tb = None, *args, **kwargs):
         self.nrows = len(list_dicts)
         self.ncols = len(column_names) 
+        self.id = 'datatable'
 
         super(TableData, self).__init__(*args, **kwargs)
 
@@ -1903,20 +1909,18 @@ class TableData(RecycleView):
                                     'db': tb, 'id': 'datacell' })
 
     def clear_highlight_row(self):
-        if self.parent.parent.parent.parent.datagrid_doc_id:
-            key = self.parent.parent.parent.parent.datagrid_doc_id
-            for widget in self.get_editcell_row(key):
-                widget.background_color = self.parent.parent.parent.parent.datagrid_background_color
-            self.parent.parent.parent.parent.datagrid_doc_id = ''        
-            self.parent.parent.parent.parent.datagrid_widget_row = []
+        if self.datagrid_doc_id:
+            for widget in self.get_editcell_row(self.datagrid_doc_id):
+                widget.background_color = self.datagrid_background_color
+            self.datagrid_doc_id = ''        
+            self.datagrid_widget_row = []
 
     def set_highlight_row(self):
-        if self.parent.parent.parent.parent.datagrid_doc_id:
-            key = self.parent.parent.parent.parent.datagrid_doc_id
-            widget_row = self.get_editcell_row(key)
+        if self.datagrid_doc_id:
+            widget_row = self.get_editcell_row(self.datagrid_doc_id)
             for widget in widget_row:
                 widget.background_color = e5_colors.optionbutton_background
-            self.parent.parent.parent.parent.datagrid_widget_row = widget_row
+            self.datagrid_widget_row = widget_row
 
     def get_editcell_row(self, key):
         row_widgets = []
@@ -1934,11 +1938,11 @@ class TableData(RecycleView):
         return(None)
 
     def editcell(self, key, field, db):
-        self.key = key
+        #self.key = key
         self.clear_highlight_row()
-        self.parent.parent.parent.parent.datagrid_doc_id = key
+        self.datagrid_doc_id = key
         editcell_widget = self.get_editcell(key, field)
-        self.parent.parent.parent.parent.datagrid_background_color = editcell_widget.background_color
+        self.datagrid_background_color = editcell_widget.background_color
         self.set_highlight_row()
         self.field = field
         self.tb = db
@@ -1961,11 +1965,11 @@ class TableData(RecycleView):
                 if widget.id == 'new_item':
                     new_data[self.field] = widget.text
 #        self.parent.parent.parent.parent.data.update(new_data, doc_ids = [int(self.key)])
-        self.tb.update(new_data, doc_ids = [int(self.key)])
+        self.tb.update(new_data, doc_ids = [int(self.datagrid_doc_id)])
 
         for widget in self.walk():
             if widget.id=='datacell':
-                if widget.key == self.key and widget.field == self.field:
+                if widget.key == self.datagrid_doc_id and widget.field == self.field:
                     widget.text = new_data[self.field]
         self.popup.dismiss()
 
@@ -2099,9 +2103,9 @@ class AddNew(BoxLayout):
 class DfguiWidget(TabbedPanel):
     data = ObjectProperty(None)
     fields = ObjectProperty(None)
-    datagrid_doc_id = None
-    datagrid_background_color = None
-    datagrid_widget_row = []
+    #datagrid_doc_id = None
+    #datagrid_background_color = None
+    #datagrid_widget_row = []
 
     def __init__(self, data = None, fields = [], **kwargs):
         super(DfguiWidget, self).__init__(**kwargs)
@@ -2124,7 +2128,8 @@ class DfguiWidget(TabbedPanel):
             self.tab_list[tab_no].background_color = e5_colors.button_background
 
     def record_count(self):
-        return(self.tab_list[2].content.children[0].table_data.nrows if self.tab_list[2].content.children else 0)
+        datatable = self.get_widget_by_id(self.tab_list[2].content, 'datatable')
+        return(datatable.nrows if datatable else 0)
 
     def reload_data(self):
         self.populate_panels()
@@ -2142,22 +2147,35 @@ class DfguiWidget(TabbedPanel):
         self.textboxes_will_update_db = False
 
     def open_panel2(self):
-        if self.datagrid_doc_id:
-            data_record = self.data.get(doc_id=int(self.datagrid_doc_id))
-            for widget in self.ids.add_new_panel.children[0].walk():
-                if widget.id in self.fields:
-                    widget.text = data_record[widget.id] if widget.id in data_record else ''
-                    widget.bind(text = self.update_db)
-            self.textboxes_will_update_db = True
+        datatable = self.get_widget_by_id(self.tab_list[2].content, 'datatable')
+        if datatable:
+            if datatable.datagrid_doc_id:
+                data_record = self.data.get(doc_id = int(datatable.datagrid_doc_id))
+                for widget in self.ids.add_new_panel.children[0].walk():
+                    if widget.id in self.fields:
+                        widget.text = data_record[widget.id] if widget.id in data_record else ''
+                        widget.bind(text = self.update_db)
+                self.textboxes_will_update_db = True
 
     def update_db(self, instance, value):
         if self.textboxes_will_update_db:
-            for widget in self.datagrid_widget_row:
-                if widget.field == instance.id and widget.key == self.datagrid_doc_id:
-                    widget.text = value
-                    update = {widget.field: value}
-                    self.data.update(update, doc_ids = [int(self.datagrid_doc_id)])
-                    break
+            datatable = self.get_widget_by_id(self.tab_list[2].content, 'datatable')
+            if datatable:
+                for widget in datatable.datagrid_widget_row:
+                    if widget.field == instance.id and widget.key == datatable.datagrid_doc_id:
+                        widget.text = value
+                        update = {widget.field: value}
+                        self.data.update(update, doc_ids = [int(datatable.datagrid_doc_id)])
+                        break
+
+    # repeats code above - could be put into a general functions package
+    def get_widget_by_id(self, start = None, id = ''):
+        if not start:
+            start = self
+        for widget in start.walk():
+            if widget.id == id:
+                return(widget)
+        return(None)
 
     def close_panels(self):
         self.parent.parent.current = 'MainScreen'
