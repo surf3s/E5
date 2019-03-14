@@ -1149,8 +1149,6 @@ class MainScreen(Screen):
         if e4_cfg.current_field.inputtype in ['BOOLEAN','MENU']:
             self.scroll_menu_setup()
 
-        self._get_widget_count('menu_scroll')
-
         buttons = GridLayout(cols = 2, size_hint = (1, .2), spacing = 20)
         
         buttons.add_widget(e5_button('Back', id = 'back', selected = True, call_back = self.go_back))
@@ -1841,12 +1839,12 @@ class EditPointsScreen(e5_DatagridScreen):
     def __init__(self,**kwargs):
         super(EditPointsScreen, self).__init__(**kwargs)
         if e4_data.db:
-            self.datagrid.data = e4_data
+            self.datagrid.data = e4_data.db.table(e4_data.table)
             self.datagrid.fields = e4_cfg.fields()
 
     def on_pre_enter(self):
         if self.datagrid.data == None and not e4_data.db == None:
-            self.datagrid.load_data(e4_data, e4_cfg.fields())
+            self.datagrid.load_data(e4_data.db.table(e4_data.table), e4_cfg.fields())
         elif not self.datagrid.data == None and not e4_data.db == None:
             if not self.datagrid.record_count() == len(e4_data.db):
                 self.datagrid.reload_data()
@@ -1889,7 +1887,7 @@ class TableData(RecycleView):
 
     popup = ObjectProperty(None)
 
-    def __init__(self, list_dicts=[], column_names = None, df_name = None, *args, **kwargs):
+    def __init__(self, list_dicts=[], column_names = None, tb = None, *args, **kwargs):
         self.nrows = len(list_dicts)
         self.ncols = len(column_names) 
 
@@ -1902,7 +1900,7 @@ class TableData(RecycleView):
                 self.data.append({'text': value, 'is_even': is_even,
                                     'callback': self.editcell,
                                     'key': ord_dict['doc_id'], 'field': text,
-                                    'db': df_name, 'id': 'datacell' })
+                                    'db': tb, 'id': 'datacell' })
 
     def clear_highlight_row(self):
         if self.parent.parent.parent.parent.datagrid_doc_id:
@@ -1943,7 +1941,7 @@ class TableData(RecycleView):
         self.parent.parent.parent.parent.datagrid_background_color = editcell_widget.background_color
         self.set_highlight_row()
         self.field = field
-        self.db = db
+        self.tb = db
         cfg_field = e4_cfg.get(field)
         self.inputtype = cfg_field.inputtype
         if cfg_field.inputtype == 'MENU':
@@ -1962,7 +1960,8 @@ class TableData(RecycleView):
             for widget in self.popup.walk():
                 if widget.id == 'new_item':
                     new_data[self.field] = widget.text
-        self.parent.parent.parent.parent.data.db.update(new_data, doc_ids = [int(self.key)])
+#        self.parent.parent.parent.parent.data.update(new_data, doc_ids = [int(self.key)])
+        self.tb.update(new_data, doc_ids = [int(self.key)])
 
         for widget in self.walk():
             if widget.id=='datacell':
@@ -1972,13 +1971,13 @@ class TableData(RecycleView):
 
 class Table(BoxLayout):
 
-    def __init__(self, list_dicts=[], column_names = None, df_name = None, *args, **kwargs):
+    def __init__(self, list_dicts=[], column_names = None, tb = None, *args, **kwargs):
 
         super(Table, self).__init__(*args, **kwargs)
         self.orientation = "vertical"
 
         self.header = TableHeader(column_names)
-        self.table_data = TableData(list_dicts = list_dicts, column_names = column_names, df_name = df_name)
+        self.table_data = TableData(list_dicts = list_dicts, column_names = column_names, tb = tb)
 
         self.table_data.fbind('scroll_x', self.scroll_with_header)
 
@@ -1989,29 +1988,25 @@ class Table(BoxLayout):
         self.header.scroll_x = value
 
 class DataframePanel(BoxLayout):
-    """
-    Panel providing the main data frame table view.
-    """
 
-    def populate_data(self, df, df_fields):
-        self.df_orig = df
+    def populate_data(self, tb, tb_fields):
+        self.tb = tb
         self.sort_key = None
-        self.column_names = ['doc_id'] + df_fields
-        self.df_name = df.db_name
-        self.df_fields = df_fields
+        self.column_names = ['doc_id'] + tb_fields
+        self.tb_fields = tb_fields
         self._generate_table()
 
     def _generate_table(self, sort_key=None, disabled=None):
         self.clear_widgets()
         data = []
-        for db_row in self.df_orig.db:
+        for tb_row in self.tb:
             reformatted_row = {}
-            reformatted_row['doc_id'] = str(db_row.doc_id)
-            for field in self.df_fields:
-                reformatted_row[field] = db_row[field] if field in db_row else ''
+            reformatted_row['doc_id'] = str(tb_row.doc_id)
+            for field in self.tb_fields:
+                reformatted_row[field] = tb_row[field] if field in tb_row else ''
             data.append(reformatted_row)
         data = sorted(data, key=lambda k: k['doc_id'], reverse = True) 
-        self.add_widget(Table(list_dicts = data, column_names = self.column_names, df_name = self.df_name))
+        self.add_widget(Table(list_dicts = data, column_names = self.column_names, tb = self.tb))
 
 class AddNewPanel(BoxLayout):
     
@@ -2114,7 +2109,6 @@ class DfguiWidget(TabbedPanel):
 
         if data:
             self.data = data
-            self.df_name = self.data.db_name
         if fields:
             self.fields = fields
 
@@ -2149,7 +2143,7 @@ class DfguiWidget(TabbedPanel):
 
     def open_panel2(self):
         if self.datagrid_doc_id:
-            data_record = self.data.db.get(doc_id=int(self.datagrid_doc_id))
+            data_record = self.data.get(doc_id=int(self.datagrid_doc_id))
             for widget in self.ids.add_new_panel.children[0].walk():
                 if widget.id in self.fields:
                     widget.text = data_record[widget.id] if widget.id in data_record else ''
@@ -2162,7 +2156,7 @@ class DfguiWidget(TabbedPanel):
                 if widget.field == instance.id and widget.key == self.datagrid_doc_id:
                     widget.text = value
                     update = {widget.field: value}
-                    self.data.db.update(update, doc_ids = [int(self.datagrid_doc_id)])
+                    self.data.update(update, doc_ids = [int(self.datagrid_doc_id)])
                     break
 
     def close_panels(self):
