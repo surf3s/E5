@@ -1,20 +1,22 @@
 # Errors:
+# Textbox input on datagrid doesn't work correctly
+# Refactor elements of datagrid names so they more clearly go together
+# Pull out code blocks and make separate files
+
 # Debug and test conditionals
 # Handle database and table names in the CFG and program better
 # On unique fields, give a warning but let data entry continue
 #   then overwrite previous record
 # Implement 'sort' option on menus
-# Datagrid does not update after each new record
 # Key press on boolean moves to right menu item but adds key press too
 
-# Load records into grid in recno reverse order
-# Consider putting a dropdown menu into the grid view for sorting and maybe searching
 
 # Need to establish a unique key for each record
 # E4 conditions seem to accept OR at the end - check other options and implement
 # Add a CFG option to sort menus
 
 # Long term
+#   Consider putting a dropdown menu into the grid view for sorting and maybe searching
 #   Think about whether to allow editing of CFG in the program
 #   Get location data from GPS
 # Once I have factor figured out, consider doing factory register for validating data and other things
@@ -22,6 +24,7 @@
 __version__ = '1.0.1'
 __date__ = 'March, 2019'
 
+#region Imports
 from kivy.utils import platform
 from kivy.clock import Clock
 from kivy.app import App
@@ -70,7 +73,9 @@ from dbs import dbs
 from tinydb import TinyDB, Query, where
 
 from collections import OrderedDict
+#endregion
 
+#region Constants
 SCROLLBAR_WIDTH = 5
 BLACK = 0x000000
 WHITE = 0xFFFFFF
@@ -91,7 +96,9 @@ SPLASH_HELP += "JSON files.  Data can also be exported to CSV files for easy imp
 SPLASH_HELP += "database, statistics or spreadsheet software.\n\n"
 SPLASH_HELP += "To start using this program, you will need to open CFG file.  Example CFG files "
 SPLASH_HELP += "and documentation on writing your own CFG file can be found at the E5 GitHub site."
+#endregion
 
+#region Data Classes
 class ColorScheme:
 
     def __init__(self, color_name = 'light blue'):
@@ -387,7 +394,10 @@ class cfg(blockdata):
                                 f.menu = fileio.readlines()
                         except:
                             pass
-                
+                if f.menu:
+                    f.menu = self.clean_menu(f.menu)
+                    f._menu_item_maxlen = max([len(menuitem) for menuitem in f.menu])
+
             f.info = self.get_value(field_name, 'INFO')
             f.infofile = self.get_value(field_name, 'INFO FILE')
             if f.infofile:
@@ -396,7 +406,6 @@ class cfg(blockdata):
                         f.info = fileio.read()
                 except:
                     f.info = "Error: Could not read from the info file '%s'." % f.infofile
-
 
             f.validfile = self.get_value(field_name, 'VALID FILE')
             f.valid = []
@@ -427,6 +436,14 @@ class cfg(blockdata):
                 if self.get_value(field_name, "CONDITION%s" % condition_no):
                     f.conditions.append(self.get_value(field_name, "CONDITION%s" % condition_no))
             return(f)
+
+    # Remove leading and trailing spaces
+    # and remove empty items once this is done.
+    def clean_menu(self, menulist):
+        for menu_item in menulist:
+            menu_item = menu_item.strip()
+        menulist = list(filter(('').__ne__, menulist))
+        return(menulist)
 
     def put(self, field_name, f):
         self.update_value(field_name, 'PROMPT', f.prompt)
@@ -597,9 +614,6 @@ class cfg(blockdata):
                         self.has_warnings = True
                         self.errors.append("Warning: Could not locate the menu file '%s' for the field %s." % (f.menufile, field_name))
                 
-                if f.inputtype == 'MENU':
-                    a=3
-
                 if any((c in set(r' !@#$%^&*()?/\{}<.,.|+=_-~`')) for c in field_name):
                     self.errors.append('Warning: The field %s has non-standard characters in it.  E5 will attempt to work with it, but it is highly recommended that you rename it as it will likely cause problems elsewhere.' % field_name)
                     self.has_warnings = True
@@ -609,6 +623,7 @@ class cfg(blockdata):
                     for condition in f.conditions:
                         n += 1
                         condition_parsed = condition.split(' ')
+                        condition_parsed = self.clean_menu(condition_parsed)
                         if len(condition_parsed)<2 or len(condition_parsed)>3:
                             self.errors.append('Error: Condition number %s for the field %s is not correctly formatted.  A condition requires a target field and a matching value.' % (n, field_name))
                             self.has_errors = True
@@ -624,12 +639,17 @@ class cfg(blockdata):
                                         condition_matches = condition_parsed[2].split(',')
                                     else:
                                         condition_matches = condition_parsed[1].split(',')
+                                    condition_matches = self.clean_menu(condition_matches)
+                                    condition_matches = list(filter(("''").__ne__, condition_matches))
+                                    condition_matches = list(filter(('""').__ne__, condition_matches))
                                     for condition_match in condition_matches:
                                         if condition_match.upper() not in [x.upper() for x in condition_field.menu]:
                                             self.errors.append('Warning: Condition number %s for the field %s tries to match the value "%s" to the menulist in field %s, but field %s does not contain this value.' % (n, field_name, condition_match, condition_fieldname, condition_fieldname))
                                             self.has_warnings = True
+
                 self.put(field_name, f)
                 prior_fieldnames.append(field_name.upper())
+
         return(self.has_errors)
 
     def save(self):
@@ -779,7 +799,9 @@ class cfg(blockdata):
             return(None)
         except:
             return('Could not write data to %s.' % (filename))
+#endregion
 
+#region File Menu
 class LoadDialog(FloatLayout):
     start_path =  ObjectProperty(None)
     load = ObjectProperty(None)
@@ -794,15 +816,17 @@ class SaveDialog(FloatLayout):
     button_background = ObjectProperty(None)
     start_path = ObjectProperty(None)
 
-class MainTextNumericInput(ScrollView):
-    def __init__(self, **kwargs):
-        super(MainTextNumericInput, self).__init__(**kwargs)
-        self.size_hint = (1, None)
-        self.size = (Window.width, Window.height/1.9)
-        content = GridLayout(cols = 1, spacing = 5, size_hint_y = None)
-        content.bind(minimum_height=content.setter('height'))
-        content.add_widget(TextInput(size_hint_y = None, multiline = False, id = 'new_item'))
-        self.add_widget(content)
+#endregion
+
+#class MainTextNumericInput(ScrollView):
+#    def __init__(self, **kwargs):
+#        super(MainTextNumericInput, self).__init__(**kwargs)
+#        self.size_hint = (1, None)
+#        self.size = (Window.width, Window.height/1.9)
+#        content = GridLayout(cols = 1, spacing = 5, size_hint_y = None)
+#        content.bind(minimum_height=content.setter('height'))
+#        content.add_widget(TextInput(size_hint_y = None, multiline = False, id = 'new_item'))
+#        self.add_widget(content)
 
 class YesNo(Popup):
     def __init__(self, title, message, yes_callback, no_callback, **kwargs):
@@ -851,6 +875,7 @@ class MessageBox(Popup):
         self.size = (400, 400)
         self.auto_dismiss = False
 
+#region E5 Widgets
 class e5_label(Label):
     def __init__(self, text, popup = False, **kwargs):
         super(e5_label, self).__init__(**kwargs)
@@ -859,6 +884,7 @@ class e5_label(Label):
             self.color = e5_colors.text_color
         else:
             self.color = e5_colors.popup_text_color
+        self.font_size = e5_colors.text_font_size
 
 class e5_side_by_side_buttons(GridLayout):
     def __init__(self, text, id = ['',''], selected = [False, False],
@@ -874,42 +900,115 @@ class e5_button(Button):
     def __init__(self, text, id = '', selected = False, call_back = None, button_height = None, **kwargs):
         super(e5_button, self).__init__(**kwargs)
         self.text = text
+        self.font_size = e5_colors.button_font_size
         self.size_hint_y = button_height
         self.id = id
         self.color = e5_colors.button_color
-        if selected:
-            self.background_color = e5_colors.button_background
-            self.id = '*' + self.id 
-        else:
-            self.background_color = e5_colors.optionbutton_background
+        self.background_color = e5_colors.button_background if selected else e5_colors.optionbutton_background
         if call_back:
             #self.on_press = call_back
             self.bind(on_press = call_back)
         self.background_normal = ''
 
 class e5_scrollview_menu(ScrollView):
+
+    scrollbox = ObjectProperty(None)
+    menu_selected_widget = None
+
     def __init__(self, menu_list, menu_selected, widget_id = '', call_back = None, ncols = 1, **kwargs):
         super(e5_scrollview_menu, self).__init__(**kwargs)
-        scrollbox = GridLayout(cols = ncols,
+        self.scrollbox = GridLayout(cols = ncols,
                                 size_hint_y = None,
                                 id = widget_id + '_box',
                                 spacing = 5)
-        scrollbox.bind(minimum_height = scrollbox.setter('height'))
-
+        self.scrollbox.bind(minimum_height = self.scrollbox.setter('height'))
+        
+        self.menu_selected_widget = None
         if menu_list:
             for menu_item in menu_list:
+                menu_button = e5_button(menu_item, menu_item,
+                                        selected = (menu_item == menu_selected),
+                                        call_back = call_back)
+                self.scrollbox.add_widget(menu_button)
                 if menu_item == menu_selected:
-                    scrollbox.add_widget(e5_button(menu_item, menu_item,
-                                            selected = True, call_back = call_back))
-                else:
-                    scrollbox.add_widget(e5_button(menu_item, menu_item,
-                                            selected = False, call_back = call_back))
+                    self.menu_selected_widget = menu_button
         else:
-            scrollbox.add_widget(Button(text = '',
+            self.scrollbox.add_widget(Button(text = '',
                                          background_normal = ''))
         self.size_hint = (1,1)
         self.id = widget_id + '_scroll'
-        self.add_widget(scrollbox)
+        self.add_widget(self.scrollbox)
+
+    def scroll_menu_clear_selected(self):
+        if self.menu_selected_widget:
+            self.menu_selected_widget.background_color = e5_colors.optionbutton_background
+            self.menu_selected_widget = None
+
+    def scroll_menu_get_selected(self):
+        return(self.menu_selected_widget)
+
+    def scroll_menu_set_selected(self, text):
+        self.scroll_menu_clear_selected()
+        for widget in self.scrollbox.children:
+            if widget.text == text:
+                widget.background_color = e5_colors.button_background
+                self.menu_selected_widget = widget
+                break
+
+    def scroll_menu_list(self):
+        menu_list = []
+        for widget in self.scrollbox.children:
+            menu_list.append(widget.text)
+        menu_list.reverse()
+        return(menu_list)
+        # return([widget.text for widget in self.scroll_menu.children])
+
+    def make_scroll_menu_item_visible(self):
+        if self.menu_selected_widget:
+            self.scroll_to(self.menu_selected_widget)
+
+    def move_scroll_menu_item(self, ascii_code):
+        menu_list = self.scroll_menu_list()
+        if self.menu_selected_widget:
+            index_no = menu_list.index(self.menu_selected_widget.text)
+        else:
+            index_no = 0
+
+        if index_no >= 0:
+            print (self.children[0].cols)
+            new_index = -1
+            if ascii_code == 279:
+                new_index = len(menu_list) - 1
+            elif ascii_code == 278:
+                new_index = 0
+            elif ascii_code == 273: # Up
+                new_index = max([index_no - self.children[0].cols, 0])
+            elif ascii_code == 276:
+                new_index = max([index_no - 1, 0])
+            elif ascii_code == 274: # Down
+                new_index = min([index_no + self.children[0].cols, len(menu_list) - 1])
+            elif ascii_code == 275:
+                new_index = min([index_no + 1, len(menu_list) -1])
+            if new_index >= 0:
+                self.scroll_menu_set_selected(menu_list[new_index])
+                self.make_scroll_menu_item_visible()
+                #if self.get_widget_by_id('field_data'):
+                #    self.get_widget_by_id('field_data').text = menu_list[new_index]
+
+    def scroll_menu_char_match(self, match_str):
+        menu_list = self.scroll_menu_list()
+        if menu_list:
+            index_no = menu_list.index(self.scroll_menu_get_selected().text)
+
+            new_index = (index_no + 1) % len(menu_list)
+            while not new_index == index_no:
+                if menu_list[new_index].upper()[0] == match_str.upper():
+                    self.scroll_menu_set_selected(menu_list[new_index])
+                    self.make_scroll_menu_item_visible()
+                    break
+                else:
+                    new_index = (new_index + 1) % len(menu_list)
+                    # need new logic to auto select when only one case is available
 
 class e5_scrollview_label(ScrollView):
     def __init__(self, text, widget_id = '', color = None, **kwargs):
@@ -956,7 +1055,23 @@ class e5_DatagridScreen(Screen):
             self.datagrid.switch_to(self.datagrid.tab_list[2])
 
     def _on_keyboard_down(self, *args):
-        print('key')
+        ascii_code = args[1]
+        text_str = args[3]  
+        if ascii_code in [273, 274, 275, 276, 278, 279] and self.datagrid.popup_scrollmenu:
+            self.datagrid.popup_scrollmenu.move_scroll_menu_item(ascii_code)
+            return False 
+        if ascii_code == 13 and (self.datagrid.popup_scrollmenu or self.datagrid.popup_textbox):
+            if self.datagrid.popup_textbox.focus:
+                self.datagrid.popup_addbutton.trigger_action(0)
+            else:
+                self.datagrid.popup_scrollmenu.menu_selected_widget.trigger_action(0)
+        if ascii_code == 8:
+            return False
+        if ascii_code == 27 and (self.datagrid.popup_scrollmenu or self.datagrid.popup_textbox):
+            self.datagrid.popup_scrollmenu= None
+            self.datagrid.popup_textbox = None
+            self.datagrid.popup.dismiss()
+
         ### On key down, see if there is a current record,
         # get the next record in the db,
         # and then try to fire the highlight record stuff
@@ -964,6 +1079,8 @@ class e5_DatagridScreen(Screen):
 
     def on_leave(self):
         Window.unbind(on_key_down = self._on_keyboard_down)
+
+#endregion
 
 class MainScreen(Screen):
 
@@ -1053,7 +1170,7 @@ class MainScreen(Screen):
                                                      widget_id = 'cfg',
                                                      call_back = self.cfg_selected))
             self.scroll_menu = self.get_widget_by_id('cfg_scroll')
-            self.make_scroll_menu_item_visible()
+            self.scroll_menu.make_scroll_menu_item_visible()
             self.widget_with_focus = self.scroll_menu
 
         else:
@@ -1109,11 +1226,6 @@ class MainScreen(Screen):
         self.popup.open()
         self.popup_open = True
 
-    #def message(self, message_text):
-    #    mainscreen = self.get_widget_by_id('mainscreen')
-    #    mainscreen.clear_widgets()
-    #    mainscreen.add_widget(e5_scrollview_label(text = message_text))
-
     def data_entry(self):
 
         mainscreen = self.get_widget_by_id('mainscreen')
@@ -1162,7 +1274,8 @@ class MainScreen(Screen):
 
     def scroll_menu_setup(self):
         self.scroll_menu = self.get_widget_by_id('menu_scroll')
-        self.make_scroll_menu_item_visible()
+        if self.scroll_menu:
+            self.scroll_menu.make_scroll_menu_item_visible()
         self.widget_with_focus = self.scroll_menu if self.scroll_menu else self
 
     def textbox_changed(self, instance, value):
@@ -1173,89 +1286,6 @@ class MainScreen(Screen):
     def _keyboard_closed(self):
         self._keyboard.unbind(on_key_down = self._on_keyboard_down)
         self._keyboard = None
-
-    def scroll_menu_clear_selected(self):
-        if self.scroll_menu:
-            for widget in self.scroll_menu.children[0].children:
-                if widget.id[0] == '*':
-                    widget.id = widget.id[1:]
-                    widget.background_color = e5_colors.optionbutton_background
-                    break
-
-    def scroll_menu_get_selected(self):
-        if self.scroll_menu:
-            for widget in self.scroll_menu.children[0].children:
-                if widget.id:
-                    if widget.id[0] == '*':
-                        return(widget)
-        return(None)
-
-    def scroll_menu_set_selected(self, text):
-        if self.scroll_menu:
-            for widget in self.scroll_menu.children[0].children:
-                if widget.text == text:
-                    widget.background_color = e5_colors.button_background
-                    if not widget.id[0] == "*":
-                        widget.id = "*" + widget.id
-                    break
-
-    def scroll_menu_list(self):
-        menu_list = []
-        if self.scroll_menu:
-            for widget in self.scroll_menu.children[0].children:
-                menu_list.append(widget.text)
-            menu_list.reverse()
-        return(menu_list)
-        # return([widget.text for widget in self.scroll_menu.children])
-
-    def make_scroll_menu_item_visible(self):
-        if self.scroll_menu:
-            if self.scroll_menu_get_selected():
-                self.scroll_menu.scroll_to(self.scroll_menu_get_selected())
-
-    def move_scroll_menu_item(self, ascii_code):
-        if self.scroll_menu:
-            menu_list = self.scroll_menu_list()
-            if self.scroll_menu_get_selected():
-                index_no = menu_list.index(self.scroll_menu_get_selected().text)
-            else:
-                index_no = 0
-
-            if index_no >= 0:
-                new_index = -1
-                if ascii_code == 279:
-                    new_index = len(menu_list) - 1
-                elif ascii_code == 278:
-                    new_index = 0
-                elif ascii_code in [273, 276] and index_no > 0:
-                    new_index = index_no - 1
-                elif ascii_code in [274, 275] and index_no < (len(menu_list) - 1):
-                    new_index = index_no + 1
-                if new_index >= 0:
-                    self.scroll_menu_clear_selected()
-                    self.scroll_menu_set_selected(menu_list[new_index])
-                    self.make_scroll_menu_item_visible()
-                    #if self.get_widget_by_id('field_data'):
-                    #    self.get_widget_by_id('field_data').text = menu_list[new_index]
-
-    def scroll_menu_char_match(self, match_str):
-        if self.scroll_menu:
-            menu_list = self.scroll_menu_list()
-            if menu_list:
-                index_no = menu_list.index(self.scroll_menu_get_selected().text)
-
-                new_index = (index_no + 1) % len(menu_list)
-                while not new_index == index_no:
-                    if menu_list[new_index].upper()[0] == match_str.upper():
-                        self.scroll_menu_clear_selected()
-                        self.scroll_menu_set_selected(menu_list[new_index])
-                        self.make_scroll_menu_item_visible()
-                        if self.get_widget_by_id('field_data'):
-                            self.get_widget_by_id('field_data').text = menu_list[new_index]
-                        break
-                    else:
-                        new_index = (new_index + 1) % len(menu_list)
-                        # need new logic to auto select when only one case is available
 
     def get_widget_by_id(self, id):
         for widget in self.walk():
@@ -1285,7 +1315,7 @@ class MainScreen(Screen):
                 if e4_cfg.filename:
                     if e4_cfg.current_field.inputtype in ['MENU','BOOLEAN']:
                         textbox = self.get_widget_by_id('field_data').text
-                        menubox = self.scroll_menu_get_selected().text if self.scroll_menu_get_selected() else ''
+                        menubox = self.scroll_menu.scroll_menu_get_selected().text if self.scroll_menu.scroll_menu_get_selected() else ''
                         if textbox == '' and not menubox == '':
                             self.get_widget_by_id('field_data').text = menubox
                         elif not textbox == '' and not menubox == '':
@@ -1294,12 +1324,11 @@ class MainScreen(Screen):
                                     self.get_widget_by_id('field_data').text = menubox
                     self.go_next(None)
                 else:
-                    self.cfg_selected(self.scroll_menu_get_selected())
+                    self.cfg_selected(self.scroll_menu.scroll_menu_get_selected())
             if ascii_code == 51:
                 return True 
             if ascii_code in [273, 274, 275, 276, 278, 279] and self.scroll_menu:
-                self.move_scroll_menu_item(ascii_code)
-                self._get_widget_count('menu_scroll')
+                self.scroll_menu.move_scroll_menu_item(ascii_code)
                 return False 
             #if text_str:
             #    if text_str.upper() in ascii_uppercase:
@@ -1381,12 +1410,8 @@ class MainScreen(Screen):
         else:
             return(e4_cfg.current_field.info)
 
-    def on_enter(self):
-        pass
-
     def on_pre_enter(self):
         Window.bind(on_key_down = self._on_keyboard_down)
-        print('mainscreen')
         if e5_colors.need_redraw:
             pass
 
@@ -1555,48 +1580,22 @@ class MainScreen(Screen):
     def set_focus(self, value):
         self.widget_with_focus.focus = True
 
-class MenuList(Popup):
-    def __init__(self, title, menu_list, call_back, **kwargs):
-        super(MenuList, self).__init__(**kwargs)
-        
-        pop_content = GridLayout(cols = 1, size_hint_y = 1, spacing = 5, padding = 5)
+#region Edit Screens
 
-        new_item = GridLayout(cols = 2, spacing = 5, size_hint_y = .1)
-        new_item.add_widget(TextInput(id = 'new_item', size_hint_y = .1))
-        new_item.add_widget(e5_button('Add', id = title,
-                                             selected = True,
-                                             call_back = call_back,
-                                             button_height = .1))
-        pop_content.add_widget(new_item)
+class EditPointsScreen(e5_DatagridScreen):
 
-        ncols = int(Window.width / 200)
-        if ncols < 1:
-            ncols = 1
+    def __init__(self,**kwargs):
+        super(EditPointsScreen, self).__init__(**kwargs)
+        if e4_data.db:
+            self.datagrid.data = e4_data.db.table(e4_data.table)
+            self.datagrid.fields = e4_cfg
 
-        pop_content.add_widget(e5_scrollview_menu(menu_list, '', call_back = call_back, ncols = ncols))
-
-        pop_content.add_widget(e5_button('Back', selected = True, call_back = self.dismiss))
-
-        self.content = pop_content
-        
-        self.title = title
-        self.size_hint = (.8, .8)
-        self.auto_dismiss = True
-
-class TextNumericInput(Popup):
-    def __init__(self, title, call_back, **kwargs):
-        super(TextNumericInput, self).__init__(**kwargs)
-        content = GridLayout(cols = 1, spacing = 5, padding = 5, size_hint_y = None)
-        content.add_widget(TextInput(size_hint_y = .1, multiline = False, id = 'new_item'))
-        content.add_widget(e5_side_by_side_buttons(['Back','Next'],
-                                                    button_height = .2,
-                                                    id = [title,title],
-                                                    selected = [True, True],
-                                                    call_back = [self.dismiss, call_back]))
-        self.title = title
-        self.content = content
-        self.size_hint = (.8, .3)
-        self.auto_dismiss = True
+    def on_pre_enter(self):
+        if self.datagrid.data == None and not e4_data.db == None:
+            self.datagrid.load_data(e4_data.db.table(e4_data.table), e4_cfg)
+        elif not self.datagrid.data == None and not e4_data.db == None:
+            if not self.datagrid.record_count() == len(e4_data.db):
+                self.datagrid.reload_data()
 
 class TextLabel(Label):
     def __init__(self, text, **kwargs):
@@ -1605,7 +1604,7 @@ class TextLabel(Label):
         self.color = e5_colors.text_color
         self.font_size = e5_colors.text_font_size
         self.size_hint_y = None
-        
+
 class EditCFGScreen(Screen):
 
     def on_pre_enter(self):
@@ -1775,6 +1774,11 @@ class E5SettingsScreen(Screen):
         e4_ini.update()
         self.parent.current = 'MainScreen'
 
+### End Edit Screens
+#endregion
+
+#region Help Screens
+### Help Screens
 class InfoScreen(Screen):
 
     content = ObjectProperty(None)
@@ -1835,22 +1839,69 @@ class INIScreen(InfoScreen):
         with open(e4_ini.filename, 'r') as f:
             self.content.text = f.read()
 
-class EditPointsScreen(e5_DatagridScreen):
+### End Help Screens
+#endregion
 
-    def __init__(self,**kwargs):
-        super(EditPointsScreen, self).__init__(**kwargs)
-        if e4_data.db:
-            self.datagrid.data = e4_data.db.table(e4_data.table)
-            self.datagrid.fields = e4_cfg.fields()
-
-    def on_pre_enter(self):
-        if self.datagrid.data == None and not e4_data.db == None:
-            self.datagrid.load_data(e4_data.db.table(e4_data.table), e4_cfg.fields())
-        elif not self.datagrid.data == None and not e4_data.db == None:
-            if not self.datagrid.record_count() == len(e4_data.db):
-                self.datagrid.reload_data()
-
+#region Data Grid
 #### Code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py
+
+class MenuList(Popup):
+    
+    def __init__(self, title, menu_list, menu_selected = '', call_back = None, **kwargs):
+        super(MenuList, self).__init__(**kwargs)
+        
+        pop_content = GridLayout(cols = 1, size_hint_y = 1, spacing = 5, padding = 5)
+
+        new_item = GridLayout(cols = 2, spacing = 5, size_hint_y = .15)
+        self.txt = TextInput(id = 'new_item', size_hint_y = .15)
+        new_item.add_widget(self.txt)
+        new_item.add_widget(e5_button('Add', id = 'add_button',
+                                             selected = True,
+                                             call_back = call_back,
+                                             button_height = .15))
+        pop_content.add_widget(new_item)
+
+        ncols = int(Window.width / 200)
+        if ncols < 1:
+            ncols = 1
+
+        menu = e5_scrollview_menu(menu_list, menu_selected,
+                                                 widget_id = 'menu',
+                                                 call_back = call_back, ncols = ncols)
+        pop_content.add_widget(menu)
+        menu.make_scroll_menu_item_visible()
+        
+        pop_content.add_widget(e5_button('Back', selected = True, call_back = self.dismiss))
+
+        self.content = pop_content
+        
+        self.title = title
+        self.size_hint = (.9, .9)
+        self.auto_dismiss = True
+
+    def on_open(self):
+        self.txt.focus = True
+        self.txt.select_all()
+
+class TextNumericInput(Popup):
+    def __init__(self, title, text = '', multiline = False, call_back = None, **kwargs):
+        super(TextNumericInput, self).__init__(**kwargs)
+        content = GridLayout(cols = 1, spacing = 5, padding = 10, size_hint_y = None)
+        self.txt = TextInput(text = text, size_hint_y = .135, multiline = multiline, id = 'new_item')
+        content.add_widget(self.txt)
+        content.add_widget(e5_side_by_side_buttons(['Back','Save'],
+                                                    button_height = .2,
+                                                    id = [title, 'add_button'],
+                                                    selected = [True, True],
+                                                    call_back = [self.dismiss, call_back]))
+        self.title = title
+        self.content = content
+        self.size_hint = (.8, .3)
+        self.auto_dismiss = True
+    
+    def on_open(self):
+        self.txt.focus = True
+        self.txt.select_all()
 
 class HeaderCell(Button):
     def __init__(self,**kwargs):
@@ -1889,6 +1940,8 @@ class TableData(RecycleView):
     datagrid_doc_id = None
     datagrid_background_color = None
     datagrid_widget_row = []
+
+    datatable_widget = None
 
     popup = ObjectProperty(None)
 
@@ -1948,30 +2001,31 @@ class TableData(RecycleView):
         self.tb = db
         cfg_field = e4_cfg.get(field)
         self.inputtype = cfg_field.inputtype
-        if cfg_field.inputtype == 'MENU':
-            self.popup = MenuList(field, cfg_field.menu, self.menu_selection)
+        if cfg_field.inputtype in ['MENU','BOOLEAN']:
+            self.popup = MenuList(field, cfg_field.menu, editcell_widget.text, self.menu_selection)
             self.popup.open()
-        if cfg_field.inputtype in ['TEXT','NUMERIC']:
-            self.popup = TextNumericInput(field, self.menu_selection)
+        if cfg_field.inputtype in ['TEXT','NUMERIC','NOTE']:
+            self.popup = TextNumericInput(field, editcell_widget.text, cfg_field.inputtype == 'NOTE', self.menu_selection)
             self.popup.open()
+        self.datatable_widget.popup_scrollmenu = self.datatable_widget.get_widget_by_id(self.popup, 'menu_scroll')
+        self.datatable_widget.popup_textbox = self.datatable_widget.get_widget_by_id(self.popup, 'new_item')
+        self.datatable_widget.popup_addbutton = self.datatable_widget.get_widget_by_id(self.popup, 'add_button')
+        self.datatable_widget.popup = self.popup
 
-    def menu_selection(self, value):
+    def menu_selection(self, instance):
         ### need some data validation
-        new_data = {self.field: ''}
-        if self.inputtype=='MENU':
-            new_data[self.field] = value.text
+        if self.inputtype in ['MENU','BOOLEAN']:
+            new_data = {self.field: instance.text if not instance.text == 'Add' else self.datatable_widget.popup_textbox.text}
         else:
-            for widget in self.popup.walk():
-                if widget.id == 'new_item':
-                    new_data[self.field] = widget.text
-#        self.parent.parent.parent.parent.data.update(new_data, doc_ids = [int(self.key)])
+            new_data = {self.field: self.datatable_widget.popup_textbox.text}
         self.tb.update(new_data, doc_ids = [int(self.datagrid_doc_id)])
-
         for widget in self.walk():
             if widget.id=='datacell':
                 if widget.key == self.datagrid_doc_id and widget.field == self.field:
                     widget.text = new_data[self.field]
         self.popup.dismiss()
+        self.datatable_widget.popup_scrollmenu = None
+        self.datatable_widget.popup_textbox = None
 
 class Table(BoxLayout):
 
@@ -1996,7 +2050,7 @@ class DataframePanel(BoxLayout):
     def populate_data(self, tb, tb_fields):
         self.tb = tb
         self.sort_key = None
-        self.column_names = ['doc_id'] + tb_fields
+        self.column_names = ['doc_id'] + tb_fields.fields()
         self.tb_fields = tb_fields
         self._generate_table()
 
@@ -2006,7 +2060,7 @@ class DataframePanel(BoxLayout):
         for tb_row in self.tb:
             reformatted_row = {}
             reformatted_row['doc_id'] = str(tb_row.doc_id)
-            for field in self.tb_fields:
+            for field in self.tb_fields.fields():
                 reformatted_row[field] = tb_row[field] if field in tb_row else ''
             data.append(reformatted_row)
         data = sorted(data, key=lambda k: k['doc_id'], reverse = True) 
@@ -2016,14 +2070,8 @@ class AddNewPanel(BoxLayout):
     
     def populate(self, data, fields):
         self.addnew_list.bind(minimum_height = self.addnew_list.setter('height'))
-        for col in fields:
+        for col in fields.fields():
             self.addnew_list.add_widget(AddNew(col))
-
-    def get_addnews(self):
-        result=[]
-        for opt_widget in self.addnew_list.children:
-            result.append(opt_widget.get_addnew())
-        return(result)
 
 class AddNew(BoxLayout):
 
@@ -2037,75 +2085,23 @@ class AddNew(BoxLayout):
         self.height = "30sp"
         self.size_hint = (0.9, None)
         self.spacing = 10
-        label = Label(text = col, color = e5_colors.text_color)
+        label = e5_label(text = col)
         txt = TextInput(multiline = False,
                                 size_hint=(0.75, None),
-                                font_size="15sp",
+                                font_size= e5_colors.text_font_size,
                                 id = col)
         txt.bind(minimum_height=txt.setter('height'))
         self.add_widget(label)
         self.add_widget(txt)
 
-    def text_input(self, instance, text):
-        pass
-
-    def get_addnew(self):
-        return (self.label.text, self.txt.text)
-
-    def append_data(self, instance):
-        result = {}
-        message = ''
-        for obj in instance.parent.parent.children:
-            if obj.widget_type=='data':
-                result[obj.label.text] = obj.txt.text 
-                obj.txt.text = ''
-        sorted_result = {}
-        ### this code needs one set of if/then that then sets a variable that refres
-        ### to the class that is being operated on
-        #if self.df_name == 'prisms':
-        #    for f in edm_prisms.fields():
-        #        sorted_result[f] = result[f]
-        #    if edm_prisms.duplicate(sorted_result):
-        #        message = 'Overwrite existing prism named %s' % sorted_result['name']
-        #    else:
-        #        message = edm_prisms.valid(sorted_result)
-        #        if not message:
-        #            edm_prisms.db.insert(sorted_result)
-        #if self.df_name == 'units':
-        #    for f in edm_units.fields():
-        #        sorted_result[f] = result[f]
-        #    edm_units.db.insert(sorted_result)
-        #if self.df_name == 'datums':
-        #    for f in edm_datums.fields():
-        #        sorted_result[f] = result[f]
-        #    edm_datums.db.insert(sorted_result)
-        if message:
-            self.sorted_result = sorted_result
-            self.popup = YesNo('Edit', message, self.replace, self.do_nothing)
-        else:
-            for obj in instance.parent.parent.children:
-                if obj.widget_type=='data':
-                    obj.txt.text = ''
-
-    def replace(self, value):
-        #if self.df_name == 'prisms':
-        #    edm_prisms.replace(self.sorted_result)
-        #if self.df_name == 'units':
-        #    edm_units.replace(self.sorted_result)
-        #if self.df_name == 'datums':
-        #    edm_datums.replace(self.sorted_result)
-        ### Need to clear form here as well
-        self.popup.dismiss()
-
-    def do_nothing(self, value):
-        self.popup.dismiss()
-
 class DfguiWidget(TabbedPanel):
     data = ObjectProperty(None)
     fields = ObjectProperty(None)
-    #datagrid_doc_id = None
-    #datagrid_background_color = None
-    #datagrid_widget_row = []
+    popup = None
+    popup_scrollmenu = None
+    popup_addbutton = None
+    popup_textbox = None
+    popup_field_widget = None
 
     def __init__(self, data = None, fields = [], **kwargs):
         super(DfguiWidget, self).__init__(**kwargs)
@@ -2142,6 +2138,7 @@ class DfguiWidget(TabbedPanel):
     def populate_panels(self):
         self.panel1.populate_data(self.data, self.fields)
         self.panel2.populate(self.data, self.fields)
+        self.get_widget_by_id(self.tab_list[2].content, 'datatable').datatable_widget = self
 
     def open_panel1(self):
         self.textboxes_will_update_db = False
@@ -2152,10 +2149,29 @@ class DfguiWidget(TabbedPanel):
             if datatable.datagrid_doc_id:
                 data_record = self.data.get(doc_id = int(datatable.datagrid_doc_id))
                 for widget in self.ids.add_new_panel.children[0].walk():
-                    if widget.id in self.fields:
+                    if widget.id in self.fields.fields():
                         widget.text = data_record[widget.id] if widget.id in data_record else ''
                         widget.bind(text = self.update_db)
+                        widget.bind(focus = self.show_menu)
                 self.textboxes_will_update_db = True
+
+    def show_menu(self, instance, value):
+        if instance.focus:
+            cfg_field = self.fields.get(instance.id)
+            if cfg_field:
+                self.popup_field_widget = instance
+                if cfg_field.inputtype in ['MENU','BOOLEAN']:
+                    self.popup = MenuList(instance.id, cfg_field.menu, instance.text, self.menu_selection)
+                    self.popup.open()
+                    self.popup_scrollmenu = self.get_widget_by_id(self.popup, 'menu_scroll')
+                    self.popup_textbox = self.get_widget_by_id(self.popup, 'new_item')
+                    self.popup_addbutton = self.get_widget_by_id(self.popup, 'add_button')
+
+    def menu_selection(self, instance):
+        self.popup.dismiss()
+        self.popup_field_widget.text = instance.text if not instance.id == 'add_button' else self.popup_textbox.text
+        self.popup_field_widget = None
+        self.popup_scrollmenu = None
 
     def update_db(self, instance, value):
         if self.textboxes_will_update_db:
@@ -2185,6 +2201,7 @@ class DfguiWidget(TabbedPanel):
 
 
 # End code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py
+#endregion
 
 class E5py(App):
 
