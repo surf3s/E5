@@ -1046,7 +1046,7 @@ class e5_DatagridScreen(Screen):
 
     def __init__(self,**kwargs):
         super(e5_DatagridScreen, self).__init__(**kwargs)
-        self.datagrid = DfguiWidget()
+        self.datagrid = DataGridWidget()
         self.add_widget(self.datagrid)
 
     def on_enter(self):
@@ -1845,10 +1845,10 @@ class INIScreen(InfoScreen):
 #region Data Grid
 #### Code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py
 
-class MenuList(Popup):
+class DataGridMenuList(Popup):
     
     def __init__(self, title, menu_list, menu_selected = '', call_back = None, **kwargs):
-        super(MenuList, self).__init__(**kwargs)
+        super(DataGridMenuList, self).__init__(**kwargs)
         
         pop_content = GridLayout(cols = 1, size_hint_y = 1, spacing = 5, padding = 5)
 
@@ -1883,9 +1883,9 @@ class MenuList(Popup):
         self.txt.focus = True
         self.txt.select_all()
 
-class TextNumericInput(Popup):
+class DataGridTextBox(Popup):
     def __init__(self, title, text = '', multiline = False, call_back = None, **kwargs):
-        super(TextNumericInput, self).__init__(**kwargs)
+        super(DataGridTextBox, self).__init__(**kwargs)
         content = GridLayout(cols = 1, spacing = 5, padding = 10, size_hint_y = None)
         self.txt = TextInput(text = text, size_hint_y = .135, multiline = multiline, id = 'new_item')
         content.add_widget(self.txt)
@@ -1903,36 +1903,36 @@ class TextNumericInput(Popup):
         self.txt.focus = True
         self.txt.select_all()
 
-class HeaderCell(Button):
+class DataGridHeaderCell(Button):
     def __init__(self,**kwargs):
-        super(HeaderCell, self).__init__(**kwargs)
+        super(DataGridHeaderCell, self).__init__(**kwargs)
         self.background_color = e5_colors.button_background
         self.background_normal = ''
         self.color = e5_colors.button_color
 
-class TableHeader(ScrollView):
+class DataGridTableHeader(ScrollView):
     """Fixed table header that scrolls x with the data table"""
     header = ObjectProperty(None)
 
     def __init__(self, titles = None, *args, **kwargs):
-        super(TableHeader, self).__init__(*args, **kwargs)
+        super(DataGridTableHeader, self).__init__(*args, **kwargs)
 
         for title in titles:
-            self.header.add_widget(HeaderCell(text = title))
+            self.header.add_widget(DataGridHeaderCell(text = title))
 
-class ScrollCell(Button):
+class DataGridScrollCell(Button):
     text = StringProperty(None)
     is_even = BooleanProperty(None)
     datagrid_odd = [224.0/255, 224.0/255, 224.0/255, 1]
     datagrid_even = [189.0/255, 189.0/255, 189.0/255, 1]
     def __init__(self,**kwargs):
-        super(ScrollCell, self).__init__(**kwargs)
+        super(DataGridScrollCell, self).__init__(**kwargs)
         self.color = e5_colors.make_rgb(BLACK)
         self.background_normal = ''
         self.datagrid_even = e5_colors.datagrid_even
         self.datagrid_odd = e5_colors.datagrid_odd
 
-class TableData(RecycleView):
+class DataGridTableData(RecycleView):
     nrows = NumericProperty(None)
     ncols = NumericProperty(None)
     rgrid = ObjectProperty(None)
@@ -1950,7 +1950,7 @@ class TableData(RecycleView):
         self.ncols = len(column_names) 
         self.id = 'datatable'
 
-        super(TableData, self).__init__(*args, **kwargs)
+        super(DataGridTableData, self).__init__(*args, **kwargs)
 
         self.data = []
         for i, ord_dict in enumerate(list_dicts):
@@ -2002,10 +2002,10 @@ class TableData(RecycleView):
         cfg_field = e4_cfg.get(field)
         self.inputtype = cfg_field.inputtype
         if cfg_field.inputtype in ['MENU','BOOLEAN']:
-            self.popup = MenuList(field, cfg_field.menu, editcell_widget.text, self.menu_selection)
+            self.popup = DataGridMenuList(field, cfg_field.menu, editcell_widget.text, self.menu_selection)
             self.popup.open()
         if cfg_field.inputtype in ['TEXT','NUMERIC','NOTE']:
-            self.popup = TextNumericInput(field, editcell_widget.text, cfg_field.inputtype == 'NOTE', self.menu_selection)
+            self.popup = DataGridTextBox(field, editcell_widget.text, cfg_field.inputtype == 'NOTE', self.menu_selection)
             self.popup.open()
         self.datatable_widget.popup_scrollmenu = self.datatable_widget.get_widget_by_id(self.popup, 'menu_scroll')
         self.datatable_widget.popup_textbox = self.datatable_widget.get_widget_by_id(self.popup, 'new_item')
@@ -2027,15 +2027,15 @@ class TableData(RecycleView):
         self.datatable_widget.popup_scrollmenu = None
         self.datatable_widget.popup_textbox = None
 
-class Table(BoxLayout):
+class DataGridTable(BoxLayout):
 
     def __init__(self, list_dicts=[], column_names = None, tb = None, *args, **kwargs):
 
-        super(Table, self).__init__(*args, **kwargs)
+        super(DataGridTable, self).__init__(*args, **kwargs)
         self.orientation = "vertical"
 
-        self.header = TableHeader(column_names)
-        self.table_data = TableData(list_dicts = list_dicts, column_names = column_names, tb = tb)
+        self.header = DataGridTableHeader(column_names)
+        self.table_data = DataGridTableData(list_dicts = list_dicts, column_names = column_names, tb = tb)
 
         self.table_data.fbind('scroll_x', self.scroll_with_header)
 
@@ -2045,7 +2045,7 @@ class Table(BoxLayout):
     def scroll_with_header(self, obj, value):
         self.header.scroll_x = value
 
-class DataframePanel(BoxLayout):
+class DataGridGridPanel(BoxLayout):
 
     def populate_data(self, tb, tb_fields):
         self.tb = tb
@@ -2064,22 +2064,22 @@ class DataframePanel(BoxLayout):
                 reformatted_row[field] = tb_row[field] if field in tb_row else ''
             data.append(reformatted_row)
         data = sorted(data, key=lambda k: k['doc_id'], reverse = True) 
-        self.add_widget(Table(list_dicts = data, column_names = self.column_names, tb = self.tb))
+        self.add_widget(DataGridTable(list_dicts = data, column_names = self.column_names, tb = self.tb))
 
-class AddNewPanel(BoxLayout):
+class DataGridCasePanel(BoxLayout):
     
     def populate(self, data, fields):
         self.addnew_list.bind(minimum_height = self.addnew_list.setter('height'))
         for col in fields.fields():
-            self.addnew_list.add_widget(AddNew(col))
+            self.addnew_list.add_widget(DataGridLabelAndField(col))
 
-class AddNew(BoxLayout):
+class DataGridLabelAndField(BoxLayout):
 
     popup = ObjectProperty(None)
     sorted_result = None
 
     def __init__(self, col, **kwargs):
-        super(AddNew, self).__init__(**kwargs)
+        super(DataGridLabelAndField, self).__init__(**kwargs)
         self.update_db = False
         self.widget_type = 'data'
         self.height = "30sp"
@@ -2094,7 +2094,7 @@ class AddNew(BoxLayout):
         self.add_widget(label)
         self.add_widget(txt)
 
-class DfguiWidget(TabbedPanel):
+class DataGridWidget(TabbedPanel):
     data = ObjectProperty(None)
     fields = ObjectProperty(None)
     popup = None
@@ -2104,7 +2104,7 @@ class DfguiWidget(TabbedPanel):
     popup_field_widget = None
 
     def __init__(self, data = None, fields = [], **kwargs):
-        super(DfguiWidget, self).__init__(**kwargs)
+        super(DataGridWidget, self).__init__(**kwargs)
         self.textboxes_will_update_db = False
 
         if data:
@@ -2161,7 +2161,7 @@ class DfguiWidget(TabbedPanel):
             if cfg_field:
                 self.popup_field_widget = instance
                 if cfg_field.inputtype in ['MENU','BOOLEAN']:
-                    self.popup = MenuList(instance.id, cfg_field.menu, instance.text, self.menu_selection)
+                    self.popup = DataGridMenuList(instance.id, cfg_field.menu, instance.text, self.menu_selection)
                     self.popup.open()
                     self.popup_scrollmenu = self.get_widget_by_id(self.popup, 'menu_scroll')
                     self.popup_textbox = self.get_widget_by_id(self.popup, 'new_item')

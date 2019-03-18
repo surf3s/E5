@@ -189,9 +189,9 @@ ScreenManager:
                 background_color: root.button_background
                 background_normal: ''
 
-## code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py
+#region code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py
 
-<HeaderCell>:
+<DataGridHeaderCell>:
     size_hint: (None, None)
     text_size: self.size
     halign: "center"
@@ -208,7 +208,7 @@ ScreenManager:
             size: self.size
     on_release: root.parent.parent.parent.parent._generate_table(self.text)
 
-<TableHeader>:
+<DataGridTableHeader>:
     header: header
     bar_width: 0
     do_scroll: False
@@ -222,7 +222,7 @@ ScreenManager:
         width: self.minimum_width
         height: self.minimum_height
 
-<ScrollCell>:
+<DataGridScrollCell>:
     canvas.before:
         Color:
             rgba: root.datagrid_odd if root.is_even else root.datagrid_even
@@ -241,7 +241,7 @@ ScreenManager:
     height: 60
     width: 400
 
-<TableData>:
+<DataGridTableData>:
     rgrid: rgrid
     scroll_type: ['bars', 'content']
     bar_color: [0.2, 0.7, 0.9, 1]
@@ -249,7 +249,7 @@ ScreenManager:
     do_scroll_x: True
     do_scroll_y: True
     effect_cls: "ScrollEffect"
-    viewclass: "ScrollCell"
+    viewclass: "DataGridScrollCell"
     RecycleGridLayout:
         id: rgrid
         rows: root.nrows
@@ -258,7 +258,7 @@ ScreenManager:
         width: self.minimum_width
         height: self.minimum_height
 
-<DfguiWidget>:
+<DataGridWidget>:
     panel1: data_frame_panel
     panel2: add_new_panel
     do_default_tab: False
@@ -266,23 +266,23 @@ ScreenManager:
         text: 'Data'
         on_release: root.open_panel1()
         background_normal: ''
-        DataframePanel:
+        DataGridGridPanel:
             id: data_frame_panel
     TabbedPanelItem:
         text: 'Edit Record'
         background_normal: ''
         on_release: root.open_panel2()
-        AddNewPanel:
+        DataGridCasePanel:
             id: add_new_panel
     TabbedPanelItem:
         text: 'Close'
         on_release: root.close_panels()
         background_normal: ''
 
-<DataframePanel>:
+<DataGridGridPanel>:
     orientation: 'vertical'
 
-<AddNewPanel>:
+<DataGridCasePanel>:
     addnew_list: addnew_list
     orientation: 'vertical'
     ScrollView:
@@ -299,11 +299,4 @@ ScreenManager:
             row_force_default: True
             size_hint_y: None
 
-## end code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py
-
-<YesNoCancel>:
-    cols:1
-
-<Test>:
-    Button:
-        text: "Save"
+#endregion end code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py
