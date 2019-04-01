@@ -27,8 +27,16 @@ class ColorScheme:
         else:
             self.set_to('light blue')
 
-        self.set_to_lightmode()
+        self.window_background = (1, 1, 1, 1)
+        self.text_color = (0, 0, 0, 1)
+        self.darkmode = False
         self.need_redraw = False
+
+    def set_colormode(self):
+        if self.darkmode:
+            self.set_to_darkmode()
+        else:
+            self.set_to_lightmode()
 
     def set_to_darkmode(self):
         self.need_redraw = True

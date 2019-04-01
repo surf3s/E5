@@ -1,0 +1,81 @@
+#:kivy 1.1.0
+#:set SUBMENU_COLOR (1, 1, 1, 1)
+
+<MainScreen>:
+    BoxLayout:
+        id: mainbox
+        orientation: 'vertical'
+        BoxLayout:
+            ActionView:
+                size_hint_y : .1
+                use_separator: True
+                pos_hint: {'top':1}
+                background_color: (.5, .5, .5, 1)
+                background_image: 'white-bg.png'
+                background_normal: ''
+                ActionPrevious:
+                    title: 'E5'
+                    with_previous: False
+                    background_color: (.5, .5, .5, 1)
+                    background_normal: ''
+                ActionOverflow:
+                    background_color: (.5, .5, .5, 1)
+                    background_normal: ''
+                ActionGroup:
+                    text: 'Help'
+                    color: (0,0,0,1)
+                    id: topmenu
+                    background_color: (.5, .5, .5, 1)
+                    background_normal: ''
+                    ActionButton:
+                        text: 'Status'
+                        on_press: app.root.current = 'StatusScreen'
+                        color: SUBMENU_COLOR
+                    ActionButton:
+                        text: 'Log'
+                        on_press: app.root.current = 'LogScreen'
+                        color: SUBMENU_COLOR
+                    ActionButton:
+                        text: 'CFG'
+                        on_press: app.root.current = 'CFGScreen'
+                        color: SUBMENU_COLOR
+                    ActionButton:
+                        text: 'INI'
+                        on_press: app.root.current = 'INIScreen'
+                        color: SUBMENU_COLOR
+                    ActionButton:
+                        text: 'About'
+                        on_press: app.root.current = 'AboutScreen'
+                        color: SUBMENU_COLOR
+                ActionGroup:
+                    text: 'Edit'
+                    color: (0,0,0,1)
+                    id: topmenu
+                    ActionButton:
+                        text: 'Records'
+                        on_press: app.root.current = 'EditPointsScreen'
+                        color: SUBMENU_COLOR
+                    ActionButton:
+                        text: 'CFG'
+                        on_press: app.root.current = 'EditCFGScreen'
+                        color: SUBMENU_COLOR
+                    ActionButton:
+                        text: 'Settings'
+                        on_press: app.root.current = 'E5SettingsScreen'
+                        color: SUBMENU_COLOR
+                ActionGroup:
+                    text: 'File'
+                    color: (0,0,0,1)
+                    ActionButton:
+                        text: 'Open CFG'
+                        on_release: root.show_load_cfg()
+                        color: SUBMENU_COLOR
+                    ActionButton:
+                        text: 'Export CSVs'
+                        on_release: root.show_save_csvs()
+                        color: SUBMENU_COLOR
+                    ActionButton:
+                        text: 'Exit'
+                        on_release: root.exit_program()
+                        color: SUBMENU_COLOR
+            

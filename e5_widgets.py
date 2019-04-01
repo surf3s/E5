@@ -9,10 +9,10 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.screenmanager import Screen
 from kivy.uix.recycleview import RecycleView
-from kivy.properties import ObjectProperty, NumericProperty, StringProperty, BooleanProperty
+from kivy.properties import ObjectProperty, NumericProperty, StringProperty, BooleanProperty, ListProperty
 
 from constants import BLACK, WHITE, SCROLLBAR_WIDTH, GOOGLE_COLORS
-from colorscheme import make_rgb
+from colorscheme import ColorScheme, make_rgb
 
 class e5_label(Label):
     def __init__(self, text, popup = False, colors = None, **kwargs):
@@ -182,9 +182,10 @@ class e5_DatagridScreen(Screen):
 
     datagrid = ObjectProperty(None)
 
-    def __init__(self,**kwargs):
+    def __init__(self, colors = None, **kwargs):
         super(e5_DatagridScreen, self).__init__(**kwargs)
-        self.datagrid = DataGridWidget()
+        self.colors = colors if colors else ColorScheme()
+        self.datagrid = DataGridWidget(colors = self.colors)
         self.add_widget(self.datagrid)
 
     def on_enter(self):
@@ -300,12 +301,11 @@ class DataGridTableHeader(ScrollView):
 class DataGridScrollCell(Button):
     text = StringProperty(None)
     is_even = BooleanProperty(None)
-    def __init__(self, colors, **kwargs):
+    datagrid_even = ListProperty(None)
+    datagrid_odd = ListProperty(None)
+    def __init__(self, **kwargs):
         super(DataGridScrollCell, self).__init__(**kwargs)
-        self.color = colors.make_rgb(BLACK)
         self.background_normal = ''
-        self.datagrid_even = colors.datagrid_even
-        self.datagrid_odd = colors.datagrid_odd
 
 class DataGridTableData(RecycleView):
     nrows = NumericProperty(None)
@@ -320,11 +320,12 @@ class DataGridTableData(RecycleView):
 
     popup = ObjectProperty(None)
 
-    def __init__(self, list_dicts=[], column_names = None, tb = None, colors = None, *args, **kwargs):
+    def __init__(self, list_dicts=[], column_names = None, tb = None, e5_cfg = None, colors = None, *args, **kwargs):
         self.nrows = len(list_dicts)
         self.ncols = len(column_names) 
         self.id = 'datatable'
-        self.colors = colors
+        self.colors = colors if colors else ColorScheme()
+        self.e5_cfg = e5_cfg
 
         super(DataGridTableData, self).__init__(*args, **kwargs)
 
@@ -335,7 +336,10 @@ class DataGridTableData(RecycleView):
                 self.data.append({'text': value, 'is_even': is_even,
                                     'callback': self.editcell,
                                     'key': ord_dict['doc_id'], 'field': text,
-                                    'db': tb, 'id': 'datacell' })
+                                    'db': tb, 'id': 'datacell',
+                                    'datagrid_even': self.colors.datagrid_even,
+                                    'datagrid_odd': self.colors.datagrid_odd ,
+                                    'color': make_rgb(BLACK)})
 
     def clear_highlight_row(self):
         if self.datagrid_doc_id:
@@ -375,7 +379,7 @@ class DataGridTableData(RecycleView):
         self.set_highlight_row()
         self.field = field
         self.tb = db
-        cfg_field = e4_cfg.get(field)
+        cfg_field = self.e5_cfg.get(field)
         self.inputtype = cfg_field.inputtype
         if cfg_field.inputtype in ['MENU','BOOLEAN']:
             self.popup = DataGridMenuList(field, cfg_field.menu, editcell_widget.text, self.menu_selection)
@@ -405,13 +409,14 @@ class DataGridTableData(RecycleView):
 
 class DataGridTable(BoxLayout):
 
-    def __init__(self, list_dicts=[], column_names = None, tb = None, *args, **kwargs):
+    def __init__(self, list_dicts=[], column_names = None, tb = None, e5_cfg = None, colors = None, *args, **kwargs):
 
         super(DataGridTable, self).__init__(*args, **kwargs)
         self.orientation = "vertical"
 
-        self.header = DataGridTableHeader(column_names)
-        self.table_data = DataGridTableData(list_dicts = list_dicts, column_names = column_names, tb = tb)
+        self.header = DataGridTableHeader(column_names, colors)
+        self.table_data = DataGridTableData(list_dicts = list_dicts, column_names = column_names,
+                                            tb = tb, e5_cfg = e5_cfg, colors = colors)
 
         self.table_data.fbind('scroll_x', self.scroll_with_header)
 
@@ -423,14 +428,15 @@ class DataGridTable(BoxLayout):
 
 class DataGridGridPanel(BoxLayout):
 
-    def populate_data(self, tb, tb_fields):
+    def populate_data(self, tb, tb_fields, colors = None):
+        self.colors = colors if colors else ColorScheme()
         self.tb = tb
         self.sort_key = None
         self.column_names = ['doc_id'] + tb_fields.fields()
         self.tb_fields = tb_fields
         self._generate_table()
 
-    def _generate_table(self, sort_key=None, disabled=None):
+    def _generate_table(self, sort_key = None, disabled = None):
         self.clear_widgets()
         data = []
         for tb_row in self.tb:
@@ -440,14 +446,16 @@ class DataGridGridPanel(BoxLayout):
                 reformatted_row[field] = tb_row[field] if field in tb_row else ''
             data.append(reformatted_row)
         data = sorted(data, key=lambda k: k['doc_id'], reverse = True) 
-        self.add_widget(DataGridTable(list_dicts = data, column_names = self.column_names, tb = self.tb))
+        self.add_widget(DataGridTable(list_dicts = data, column_names = self.column_names,
+                                        tb = self.tb, e5_cfg = self.tb_fields, colors = self.colors))
 
 class DataGridCasePanel(BoxLayout):
     
-    def populate(self, data, fields, colors):
+    def populate(self, data, fields, colors = None):
+        self.colors = colors if colors else ColorScheme()
         self.addnew_list.bind(minimum_height = self.addnew_list.setter('height'))
         for col in fields.fields():
-            self.addnew_list.add_widget(DataGridLabelAndField(col, colors))
+            self.addnew_list.add_widget(DataGridLabelAndField(col = col, colors = self.colors))
 
 class DataGridLabelAndField(BoxLayout):
 
@@ -493,14 +501,14 @@ class DataGridWidget(TabbedPanel):
         if data and fields:
             self.populate_panels()
 
-        self.color = colors.text_color if colors else make_rgb(BLACK)
-        self.background_color = colors.window_background if colors else make_rgb(WHITE)
+        self.colors = colors if colors else ColorScheme()
+        self.color = self.colors.text_color 
+        self.background_color = self.colors.window_background 
         self.background_image = ''
 
-        if colors:
-            for tab_no in [0,1,2]:
-                self.tab_list[tab_no].color = colors.button_color
-                self.tab_list[tab_no].background_color = colors.button_background
+        for tab_no in [0,1,2]:
+            self.tab_list[tab_no].color = self.colors.button_color
+            self.tab_list[tab_no].background_color = self.colors.button_background
 
     def record_count(self):
         datatable = self.get_widget_by_id(self.tab_list[2].content, 'datatable')
@@ -515,9 +523,10 @@ class DataGridWidget(TabbedPanel):
         self.populate_panels()
 
     def populate_panels(self):
-        self.panel1.populate_data(self.data, self.fields)
-        self.panel2.populate(self.data, self.fields)
+        self.panel1.populate_data(tb = self.data, tb_fields = self.fields, colors = self.colors)
+        self.panel2.populate(data = self.data, fields = self.fields, colors = self.colors)
         self.get_widget_by_id(self.tab_list[2].content, 'datatable').datatable_widget = self
+        pass
 
     def open_panel1(self):
         self.textboxes_will_update_db = False

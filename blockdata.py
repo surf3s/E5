@@ -4,7 +4,8 @@ import os
 class blockdata:
 
     filename = ''
-
+    blocks = []
+    
     def update_value(self, blockname, varname, vardata, append = False):
         block_exists = False
         for block in self.blocks:
@@ -54,12 +55,13 @@ class blockdata:
         return(name_list)
         
     def get_value(self, blockname, varname):
-        for block in self.blocks:
-            if block['BLOCKNAME'] == blockname.upper():
-                if varname.upper() in block.keys():
-                    return(block[varname.upper()])
-                else:
-                    return('')
+        if self.blocks:
+            for block in self.blocks:
+                if block['BLOCKNAME'] == blockname.upper():
+                    if varname.upper() in block.keys():
+                        return(block[varname.upper()])
+                    else:
+                        return('')
         return('')                
 
     def rename_block(self, oldname, newname):

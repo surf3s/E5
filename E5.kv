@@ -1,46 +1,6 @@
 #:kivy 1.1.0
 #:set SUBMENU_COLOR (1, 1, 1, 1)
 
-ScreenManager:
-    id: screen_manager
-    #transition: FadeTransition()
-    MainScreen:
-        id: main_screen
-        name: 'MainScreen'
-        manager: 'screen_manager'
-    StatusScreen:
-        id: status_screen
-        name: 'StatusScreen'
-        manager: 'screen_manager'
-    LogScreen:
-        id: log_screen
-        name: 'LogScreen'
-        manager: 'screen_manager'
-    CFGScreen:
-        id: cfg_screen
-        name: 'CFGScreen'
-        manager: 'screen_manager'
-    INIScreen:
-        id: ini_screen
-        name: 'INIScreen'
-        manager: 'screen_manager'
-    AboutScreen:
-        id: about_screen
-        name: 'AboutScreen'
-        manager: 'screen_manager'
-    EditPointsScreen:
-        id: editpoints_screen
-        name: 'EditPointsScreen'
-        manager: 'screen_manager'
-    EditCFGScreen:
-        id: editcfg_screen
-        name: 'EditCFGScreen'
-        manager: 'screen_manager'
-    E5SettingsScreen:
-        id: e5settings_screen
-        name: 'E5SettingsScreen'
-        manager: 'screen_manager'
-        
 <MainScreen>:
     BoxLayout:
         id: mainbox
@@ -118,7 +78,7 @@ ScreenManager:
                         text: 'Exit'
                         on_release: root.exit_program()
                         color: SUBMENU_COLOR
-
+            
 <StatusScreen>:
 
 <AboutScreen>:
@@ -231,6 +191,7 @@ ScreenManager:
             size: self.size
     text: root.text
     id: root.id
+    #colors: root.colors
     on_press: root.callback(root.key, root.field, root.db)
     background_color: root.datagrid_odd if root.is_even else root.datagrid_even
     font_size: "12dp"
