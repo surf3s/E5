@@ -1,6 +1,5 @@
 # Errors:
-#   Datagrid is not working
-#   DataGridScrollCell has a colors issue related to the kv file
+#   When backing up (ESC), current value is not highlighted
 
 # To Do
 # Add GPS field
@@ -724,36 +723,6 @@ class SaveDialog(FloatLayout):
 
 #endregion
 
-class YesNo(Popup):
-    def __init__(self, title, message, yes_callback, no_callback, **kwargs):
-        super(YesNo, self).__init__(**kwargs)
-        content = BoxLayout(orientation = 'vertical')
-        label = Label(text = message,
-                        size_hint=(1, 1),
-                        valign='middle',
-                        halign='center')
-        label.bind(
-            width=lambda *x: label.setter('text_size')(label, (label.width, None)),
-            texture_size=lambda *x: label.setter('height')(label, label.texture_size[1]))
-        content.add_widget(label)
-        button1 = Button(text = 'Yes', size_hint_y = .2,
-                            color = e5_colors.button_color,
-                            background_color = e5_colors.button_background,
-                            background_normal = '')
-        content.add_widget(button1)
-        button1.bind(on_press = yes_callback)
-        button2 = Button(text = 'No', size_hint_y = .2,
-                            color = e5_colors.button_color,
-                            background_color = e5_colors.button_background,
-                            background_normal = '')
-        content.add_widget(button2)
-        button2.bind(on_press = no_callback)
-        self.title = title
-        self.content = content
-        self.size_hint = (.8, .8)
-        self.size=(400, 400)
-        self.auto_dismiss = False
-
 class MessageBox(Popup):
     def __init__(self, title, message, call_back = None, button_text = 'OK', colors = None, **kwargs):
         super(MessageBox, self).__init__(**kwargs)
@@ -1176,24 +1145,28 @@ class MainScreen(Screen):
         self.parent.current = 'MainScreen'
 
     def update_mainscreen(self):
-        textbox_contents = ''
-        for widget in self.walk():
-            if widget.id=='field_prompt':
-                widget.text = self.e5_cfg.current_field.name
-            if widget.id == 'field_data':
-                widget.text = self.e5_cfg.current_record[self.e5_cfg.current_field.name] if self.e5_cfg.current_field.name in self.e5_cfg.current_record.keys() else ''
-                widget.multiline = (self.e5_cfg.current_field.inputtype == 'NOTE')
-                widget.size_hint = (1, .07 if not self.e5_cfg.current_field.inputtype == 'NOTE' else .07 * 5)
-                widget.select_all()
-                self.widget_with_focus = widget
-                self.scroll_menu = None
-                textbox_contents = widget.text 
-            if widget.id=='scroll_content':
-                #widget.size_hint = (1, .6 if not e4_cfg.current_field.inputtype == 'NOTE' else .6 - .07 * 4),
-                self.add_scroll_content(widget, textbox_contents)    
-                self.scroll_menu_setup()
-                break
-        self.widget_with_focus.focus = True
+        mainscreen = self.get_widget_by_id('mainscreen')
+        mainscreen.clear_widgets()
+        self.data_entry()
+        if 3==4:
+            textbox_contents = ''
+            for widget in self.walk():
+                if widget.id=='field_prompt':
+                    widget.text = self.e5_cfg.current_field.name
+                if widget.id == 'field_data':
+                    widget.text = self.e5_cfg.current_record[self.e5_cfg.current_field.name] if self.e5_cfg.current_field.name in self.e5_cfg.current_record.keys() else ''
+                    widget.multiline = (self.e5_cfg.current_field.inputtype == 'NOTE')
+                    widget.size_hint = (1, .07 if not self.e5_cfg.current_field.inputtype == 'NOTE' else .07 * 5)
+                    widget.select_all()
+                    self.widget_with_focus = widget
+                    self.scroll_menu = None
+                    textbox_contents = widget.text 
+                if widget.id=='scroll_content':
+                    #widget.size_hint = (1, .6 if not e4_cfg.current_field.inputtype == 'NOTE' else .6 - .07 * 4),
+                    self.add_scroll_content(widget, textbox_contents)    
+                    self.scroll_menu_setup()
+                    break
+            self.widget_with_focus.focus = True
 
     def save_field(self):
         widget = self.get_widget_by_id('field_data')
@@ -1234,7 +1207,7 @@ class MainScreen(Screen):
     def save_record(self):
         valid = self.e5_cfg.validate_current_record()
         if valid:
-            self.e5_data.db.insert(self.e5_cfg.current_record)
+            self.e5_data.db.table(self.e5_data.table).insert(self.e5_cfg.current_record)
             self.make_backup()
         else:
             self.popup = MessageBox('Save Error', valid, call_back = self.close_popup, colors = self.colors)
@@ -1656,7 +1629,8 @@ class E5App(App):
         sm.add_widget(MainScreen(name = 'MainScreen', id = 'main_screen',
                                  colors = self.e5_colors,
                                  e5_ini = self.e5_ini,
-                                 e5_cfg = self.e5_cfg))
+                                 e5_cfg = self.e5_cfg,
+                                 e5_data = self.e5_data))
         sm.add_widget(StatusScreen(name = 'StatusScreen', id = 'status_screen',
                                     colors = self.e5_colors,
                                     e5_cfg = self.e5_cfg,
