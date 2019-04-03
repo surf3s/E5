@@ -50,6 +50,7 @@ from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.tabbedpanel import TabbedPanel
+from plyer import gps
 from kivy.core.window import Window
 from kivy.graphics import Color, Rectangle
 from kivy.config import Config
@@ -508,6 +509,13 @@ class cfg(blockdata):
                     if locate_file(f.lookupfile, self.path):
                         f.lookupfile = locate_file(f.lookupfile, self.path)
 
+                if f.inputtype == 'GPS':
+                    try:
+                        gps.configure(on_location = self.gps)
+                    except NotImplementedError:
+                        self.errors.append('Warning: GPS is not implimented for this platform.  You can still use this CFG but data will not be collected from a GPS.')
+                        self.had_warnings = True
+
                 if f.inputtype == 'MENU' and (len(f.menu)==0 and f.menufile == ''):
                     self.errors.append('Error: The field %s is listed a menu, but no menu list or menu file was provided with a MENU or MENUFILE option.' % field_name)
                     self.has_errors = True
@@ -557,6 +565,9 @@ class cfg(blockdata):
 
         return(self.has_errors)
 
+    def gps(self):
+        pass
+        
     def save(self):
         self.write_blocks()
 
