@@ -1,5 +1,6 @@
 # Errors:
 #   When backing up (ESC), current value is not highlighted
+#  If TYPE is missing from CFG provide a default of text
 
 # To Do
 # Add GPS field
@@ -230,6 +231,12 @@ class field:
         self.lookupfile = ''
         self.lookupdb = None
 
+class condition:
+    match_list = []
+    match_field = ''
+    negate_it = False
+    use_or = False
+    
 class cfg(blockdata):
 
     def __init__(self, filename = ''):
@@ -249,6 +256,7 @@ class cfg(blockdata):
         self.has_warnings = False
         self.key_field = None   # not implimented yet
         self.description = ''   # not implimented yet
+        self.gps = False
 
     def open(self, filename = ''):
         if filename:
@@ -481,7 +489,7 @@ class cfg(blockdata):
 
                 f.inputtype = f.inputtype.upper()
                 if not f.inputtype in ['TEXT','NOTE','NUMERIC','MENU','DATETIME','BOOLEAN','CAMERA','GPS','INSTRUMENT']:
-                    self.errors.append('Error: The value %s for the field %s is not a valid input type.  Valid input types include Text, Note, Numeric, Instrument, Menu, Datetime, Boolean, Camera and GPS.' % (f.inputtype, field_name))
+                    self.errors.append("Error: The value '%s' for the field %s is not a valid TYPE.  Valid TYPES include Text, Note, Numeric, Instrument, Menu, Datetime, Boolean, Camera and GPS." % (f.inputtype, field_name))
                     self.has_errors = True
 
                 if f.infofile:
@@ -511,7 +519,8 @@ class cfg(blockdata):
 
                 if f.inputtype == 'GPS':
                     try:
-                        gps.configure(on_location = self.gps)
+                        gps.configure(on_location = self.gps_location)
+                        self.gps = True
                     except NotImplementedError:
                         self.errors.append('Warning: GPS is not implimented for this platform.  You can still use this CFG but data will not be collected from a GPS.')
                         self.had_warnings = True
@@ -531,43 +540,61 @@ class cfg(blockdata):
                     self.errors.append('Warning: The field %s has non-standard characters in it.  E5 will attempt to work with it, but it is highly recommended that you rename it as it will likely cause problems elsewhere.' % field_name)
                     self.has_warnings = True
 
-                if len(f.conditions)>0:
+                if len(f.conditions) > 0:
+                    conditions = self.format_conditions(f.conditions)
                     n = 0
-                    for condition in f.conditions:
+                    for condition in conditions:
                         n += 1
-                        condition_parsed = condition.split(' ')
-                        condition_parsed = self.clean_menu(condition_parsed)
-                        if len(condition_parsed)<2 or len(condition_parsed)>3:
+                        if condition.match_field == '' or not condition.match_list:
                             self.errors.append('Error: Condition number %s for the field %s is not correctly formatted.  A condition requires a target field and a matching value.' % (n, field_name))
                             self.has_errors = True
                         else:
-                            condition_fieldname = condition_parsed[0]
-                            if not condition_fieldname.upper() in prior_fieldnames:
-                                self.errors.append('Error: Condition number %s for the field %s references field %s which has not been defined prior to this.' % (n, field_name, condition_fieldname))
+                            if not condition.match_field in prior_fieldnames:
+                                self.errors.append('Error: Condition number %s for the field %s references field %s which has not been defined prior to this.' % (n, field_name, condition.match_field))
                                 self.has_errors = True
                             else:
-                                condition_field = self.get(condition_fieldname)
+                                condition_field = self.get(condition.match_field)
                                 if condition_field.inputtype == 'MENU':
-                                    if condition_parsed[1] == 'NOT':
-                                        condition_matches = condition_parsed[2].split(',')
-                                    else:
-                                        condition_matches = condition_parsed[1].split(',')
-                                    condition_matches = self.clean_menu(condition_matches)
-                                    condition_matches = list(filter(("''").__ne__, condition_matches))
+                                    condition_matches = list(filter(("''").__ne__, condition.match_list))
                                     condition_matches = list(filter(('""').__ne__, condition_matches))
                                     for condition_match in condition_matches:
                                         if condition_match.upper() not in [x.upper() for x in condition_field.menu]:
-                                            self.errors.append('Warning: Condition number %s for the field %s tries to match the value "%s" to the menulist in field %s, but field %s does not contain this value.' % (n, field_name, condition_match, condition_fieldname, condition_fieldname))
+                                            self.errors.append('Warning: Condition number %s for the field %s tries to match the value "%s" to the menulist in field %s, but field %s does not contain this value.' % (n, field_name, condition_match, condition.match_field, condition.match_field))
                                             self.has_warnings = True
-
+#Add the formatted conditions to the blockdata for this cfg
                 self.put(field_name, f)
                 prior_fieldnames.append(field_name.upper())
 
         return(self.has_errors)
 
-    def gps(self):
+    def format_conditions(self, conditions):
+        formatted_conditions = []
+        for condition in conditions:
+            condition_parsed = condition.split(' ')
+            condition_parsed = self.clean_menu(condition_parsed)
+            formatted_condition = condition()
+            if len(condition_parsed) > 1:
+                formatted_condition.match_field = condition_parsed[0].upper()
+                if condition_parsed[1].upper() == 'NOT':
+                    formatted_condition.negate = True
+                    if len(condition_parsed) > 2:
+                        formatted_condition.match_list = condition_parsed[2].split[',']
+                else:
+                    formatted_condition.match_list = condition_parsed[1].split[',']
+                if formatted_condition.negate and len(condition_parsed) == 4:
+                    if condition_parsed[3].upper() == 'OR':
+                        formatted_condition.use_or = True
+                elif not formatted_condition.negate and len(condition_parsed) == 3:
+                    if condition_parsed[2].upper() == 'OR':
+                        formatted_condition.use_or = True
+                if formatted_condition.match_list:
+                    formatted_condition.match_list = self.clean_menu(formatted_condition.match_list)
+            formatted_conditions.append(formatted_condition)
+        return(formatted_conditions)    
+
+    def gps_location(self):
         pass
-        
+
     def save(self):
         self.write_blocks()
 
@@ -760,6 +787,9 @@ class MainScreen(Screen):
     widget_with_focus = ObjectProperty(None)
     text_color = (0, 0, 0, 1)
 
+    gps_location = StringProperty(None)
+    gps_status = StringProperty('Click Start to get GPS location updates')
+
     def __init__(self, e5_data = None, e5_cfg = None, e5_ini = None, colors = None, **kwargs):
         super(MainScreen, self).__init__(**kwargs)
 
@@ -782,6 +812,25 @@ class MainScreen(Screen):
                                 spacing = 20))
 
         self.fpath = ''
+
+        if self.e5_cfg.gps:
+            try:
+                gps.configure(on_location = self.on_gps_location,
+                              on_status = self.on_gps_status)
+            except NotImplementedError:
+                self.gps_status = 'GPS is not implemented for your platform'
+
+    def on_gps_location(self, **kwargs):
+        self.gps_location = '\n'.join(['{}={}'.format(k, v) for k, v in kwargs.items()])
+        location = self.get_widget_by_id('gps_location')
+        if location:
+            location.text = self.gps_location
+
+    def on_gps_status(self, stype, status):
+        self.gps_status = 'type={}\n{}'.format(stype, status)
+        status = self.get_widget_by_id('gps_status')
+        if status:
+            status.text = self.gps_status
 
     def on_enter(self):
         self.build_mainscreen()
@@ -1029,15 +1078,28 @@ class MainScreen(Screen):
         info_exists = self.e5_cfg.current_field.info or self.e5_cfg.current_field.infofile
         menu_exists = self.e5_cfg.current_field.inputtype == 'BOOLEAN' or (not self.e5_cfg.current_field.menu == [])
         camera_exists = self.e5_cfg.current_field.inputtype == 'CAMERA'
+        gps_exists = self.e5_cfg.current_field.inputtype == 'GPS'
 
-        if menu_exists or info_exists or camera_exists:
+        if menu_exists or info_exists or camera_exists or gps_exists:
 
             if camera_exists:
                 bx = BoxLayout(orientation = 'vertical')
-                bx.add_widget(Camera(play=True, size_hint_y = .8,
+                bx.add_widget(Camera(play = True, size_hint_y = .8,
                                          resolution = (320,160)))
                 bx.add_widget(e5_button(text = "Snap",
-                                        id = "snap", selected = True))                
+                                        id = "snap", selected = True,
+                                        colors = self.colors,
+                                        callback = self.take_photo))                
+                content_area.add_widget(bx)
+
+            if gps_exists:
+                bx = BoxLayout(orientation = 'vertical')
+                bx.add_widget(e5_label(text = 'Waiting for location' if self.e5_cfg.gps else 'No Location available.',
+                                        id = 'gps_location'))
+                bx.add_widget(e5_label(text = 'Waiting for status' if self.e5_cfg.gps else 'GPS not on or available.',
+                                        id = 'gps_status'))
+                if self.e5_cfg.gps:
+                    gps.start()
                 content_area.add_widget(bx)
 
             if menu_exists:
@@ -1069,6 +1131,15 @@ class MainScreen(Screen):
 
             if info_exists:
                 content_area.add_widget(e5_scrollview_label(self.get_info(), colors = self.colors))
+
+    def take_photo(self):
+        if camera.play:
+            camera = self.get_widget_by_id['camera']
+            try:
+                camera.export_to_png("IMG_%s.png" % self.time_stamp())
+            except:
+                print('camera file save error')
+        camera.play = not camera.play
 
     def get_info(self):
         if self.e5_cfg.current_field.infofile:
@@ -1610,7 +1681,6 @@ class E5App(App):
                 self.e5_colors.darkmode = True
             else:
                 self.e5_colors.darkmode = False
-            self.e5_colors.set_colormode()
 
             if self.e5_ini.get_value("E5", "CFG"):
                 self.e5_cfg.open(self.e5_ini.get_value("E5", "CFG"))
@@ -1632,6 +1702,7 @@ class E5App(App):
                     self.e5_cfg.save()
             self.e5_ini.update(self.e5_colors, self.e5_cfg)
             self.e5_ini.save()
+        self.e5_colors.set_colormode()
         self.e5_colors.need_redraw = False    
         self.e5_ini.update_value('E5','APP_PATH', self.user_data_dir)
 

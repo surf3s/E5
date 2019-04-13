@@ -7,7 +7,7 @@ class dbs:
         self.prisms.to_csv(self.filename, index=False)
 
     def __len__(self):
-        return(len(self.db))
+        return(len(self.db) if self.db else 0)
 
     def names(self):
         return([row['name'] for row in self.db])

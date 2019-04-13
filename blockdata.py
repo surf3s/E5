@@ -1,3 +1,6 @@
+# To Do
+#   Consider implications of not writing the block data after each update
+
 import logging
 import os
 
@@ -82,7 +85,7 @@ class blockdata:
                 for block in self.blocks:
                     f.write("[%s]\n" % block['BLOCKNAME'])
                     for item in block.keys():
-                        if not item=='BLOCKNAME':
+                        if not item == 'BLOCKNAME' and not item[:2] == "__":
                             if block[item]:
                                 f.write(item + "=%s\n" % block[item])
                     f.write("\n")
