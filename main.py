@@ -215,6 +215,7 @@ class field:
         self.menu = ''
         self.menufile = ''
         self.conditions = []
+        self.conditions_clean = []
         self.increment = False
         self.carry = False 
         self.unique = False
@@ -231,11 +232,11 @@ class field:
         self.lookupfile = ''
         self.lookupdb = None
 
-class condition:
+class a_condition:
     match_list = []
     match_field = ''
     negate_it = False
-    use_or = False
+    or_it = False
     
 class cfg(blockdata):
 
@@ -348,6 +349,9 @@ class cfg(blockdata):
             for condition_no in range(1, 6):
                 if self.get_value(field_name, "CONDITION%s" % condition_no):
                     f.conditions.append(self.get_value(field_name, "CONDITION%s" % condition_no))
+            
+            f.conditions_clean = self.get_value(field_name, "__CONDITIONS_CLEAN")
+            
             return(f)
 
     # Remove leading and trailing spaces
@@ -367,6 +371,7 @@ class cfg(blockdata):
         self.update_value(field_name, 'VALID FILE', f.invalidfile)
         self.update_value(field_name, 'INVALID FILE', f.validfile)
         self.update_value(field_name, 'LOOKUP FILE', f.lookupfile)
+        self.update_value(field_name, '__CONDITIONS_CLEAN', f.conditions_clean)
 
     def get_field_data(self, field_name = None):
         f = field_name
@@ -561,32 +566,34 @@ class cfg(blockdata):
                                         if condition_match.upper() not in [x.upper() for x in condition_field.menu]:
                                             self.errors.append('Warning: Condition number %s for the field %s tries to match the value "%s" to the menulist in field %s, but field %s does not contain this value.' % (n, field_name, condition_match, condition.match_field, condition.match_field))
                                             self.has_warnings = True
-#Add the formatted conditions to the blockdata for this cfg
+                                f.conditions_clean = conditions
                 self.put(field_name, f)
                 prior_fieldnames.append(field_name.upper())
 
         return(self.has_errors)
 
+    # Pull the conditions appart into a list of objects
+    # that make it easier to evaluate.
     def format_conditions(self, conditions):
         formatted_conditions = []
         for condition in conditions:
             condition_parsed = condition.split(' ')
             condition_parsed = self.clean_menu(condition_parsed)
-            formatted_condition = condition()
+            formatted_condition = a_condition()
             if len(condition_parsed) > 1:
                 formatted_condition.match_field = condition_parsed[0].upper()
                 if condition_parsed[1].upper() == 'NOT':
-                    formatted_condition.negate = True
+                    formatted_condition.negate_it = True
                     if len(condition_parsed) > 2:
-                        formatted_condition.match_list = condition_parsed[2].split[',']
+                        formatted_condition.match_list = condition_parsed[2].upper().split(',')
                 else:
-                    formatted_condition.match_list = condition_parsed[1].split[',']
-                if formatted_condition.negate and len(condition_parsed) == 4:
+                    formatted_condition.match_list = condition_parsed[1].upper().split(',')
+                if formatted_condition.negate_it and len(condition_parsed) == 4:
                     if condition_parsed[3].upper() == 'OR':
-                        formatted_condition.use_or = True
-                elif not formatted_condition.negate and len(condition_parsed) == 3:
+                        formatted_condition.or_it = True
+                elif not formatted_condition.negate_it and len(condition_parsed) == 3:
                     if condition_parsed[2].upper() == 'OR':
-                        formatted_condition.use_or = True
+                        formatted_condition.or_it = True
                 if formatted_condition.match_list:
                     formatted_condition.match_list = self.clean_menu(formatted_condition.match_list)
             formatted_conditions.append(formatted_condition)
@@ -686,30 +693,23 @@ class cfg(blockdata):
         return(self.current_field)
 
     def condition_test(self):
-        if len(self.current_field.conditions) == 0:
-            return(True)
-        condition_value = True
-        for condition in self.current_field.conditions:
-            condition = condition.split(" ")
-            condition_field = condition[0]
-            if len(condition) == 2:
-                condition_matches = condition[1].upper().split(',')
-                condition_not = False
-            else:
-                condition_matches = condition[2].upper().split(',')
-                condition_not = True
-            if condition_field in self.current_record.keys():
-                if not self.current_record[condition_field].upper() in condition_matches:
-                    if not condition_not:
-                        condition_value = False 
+        if len(self.current_field.conditions_clean) > 0:
+            condition_expression = ''
+            for condition in self.current_field.conditions_clean:
+                if condition.match_field in self.current_record.keys():
+                    if self.current_record[condition.match_field].upper() in condition.match_list:
+                        condition_value = 'True'
+                    else:
+                        condition_value = 'False'
                 else:
-                    condition_value = False
-            else:
-                if not condition_not:
-                    condition_value = False
-            if not condition_value:
-                break
-        return(condition_value)
+                    condition_value = 'False'
+                if condition.negate_it:
+                    condition_value = 'False' if condition_value == 'True' else 'True'
+                condition_expression += condition_value + ' and ' if not condition.or_it else condition_value + '  or ' 
+            condition_expression = condition_expression[:-4]
+            return(eval(condition_expression))
+        else:
+            return(True)
 
     def write_csvs(self, filename, table):
         try:
@@ -1042,15 +1042,6 @@ class MainScreen(Screen):
                     self.go_back(None)
             if ascii_code == 13:
                 if self.e5_cfg.filename:
-                    if self.e5_cfg.current_field.inputtype in ['MENU','BOOLEAN']:
-                        textbox = self.get_widget_by_id('field_data').text
-                        menubox = self.scroll_menu.scroll_menu_get_selected().text if self.scroll_menu.scroll_menu_get_selected() else ''
-                        if textbox == '' and not menubox == '':
-                            self.get_widget_by_id('field_data').text = menubox
-                        elif not textbox == '' and not menubox == '':
-                            if not textbox.upper() == menubox.upper():
-                                if textbox.upper() == menubox.upper()[0:len(textbox)]:
-                                    self.get_widget_by_id('field_data').text = menubox
                     self.go_next(None)
                 else:
                     self.cfg_selected(self.scroll_menu.scroll_menu_get_selected())
@@ -1070,6 +1061,17 @@ class MainScreen(Screen):
                 self.widget_with_focus.focus = True
                 return False
         return True # return True to accept the key. Otherwise, it will be used by the system.
+
+    def copy_from_menu_to_textbox(self):
+        if self.e5_cfg.current_field.inputtype in ['MENU','BOOLEAN']:
+            textbox = self.get_widget_by_id('field_data').text
+            menubox = self.scroll_menu.scroll_menu_get_selected().text if self.scroll_menu.scroll_menu_get_selected() else ''
+            if textbox == '' and not menubox == '':
+                self.get_widget_by_id('field_data').text = menubox
+            elif not textbox == '' and not menubox == '':
+                if not textbox.upper() == menubox.upper():
+                    if textbox.upper() == menubox.upper()[0:len(textbox)]:
+                        self.get_widget_by_id('field_data').text = menubox
 
     def add_scroll_content(self, content_area, menu_filter = ''):
     
@@ -1266,6 +1268,7 @@ class MainScreen(Screen):
                 self.update_mainscreen()
 
     def go_next(self, *args):
+        self.copy_from_menu_to_textbox()
         self.save_field()
         valid_data = self.e5_cfg.data_is_valid(db = self.e5_data.db)
         if valid_data == True:
