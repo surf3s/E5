@@ -94,7 +94,7 @@
 
 <EditCFGScreen>:
 
-<LoadDialog>:
+<e5_LoadDialog>:
     BoxLayout:
         size: root.size
         pos: root.pos
@@ -120,7 +120,7 @@
                 background_color: root.button_background
                 background_normal: ''
 
-<SaveDialog>:
+<e5_SaveDialog>:
     #text_input: text_input
     BoxLayout:
         size: root.size
@@ -191,16 +191,15 @@
             size: self.size
     text: root.text
     id: root.id
-    #colors: root.colors
     on_press: root.callback(root.key, root.field, root.db)
     background_color: root.datagrid_odd if root.is_even else root.datagrid_even
-    font_size: "12dp"
     halign: "center"
     valign: "middle"
-    text_size: self.size
+    # This setting determines if text wraps in the grid cell box
+    text_size: self.size 
     size_hint: 1, 1
-    height: 60
-    width: 400
+    #height: 60
+    #width: 400
 
 <DataGridTableData>:
     rgrid: rgrid
@@ -256,7 +255,7 @@
             padding: "10sp"
             spacing: "5sp"
             cols:1
-            row_default_height: '55dp'
+            row_default_height: '35dp'
             row_force_default: True
             size_hint_y: None
 

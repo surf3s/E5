@@ -10,6 +10,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.screenmanager import Screen
 from kivy.uix.recycleview import RecycleView
 from kivy.properties import ObjectProperty, NumericProperty, StringProperty, BooleanProperty, ListProperty
+from kivy.uix.floatlayout import FloatLayout
 
 from constants import BLACK, WHITE, SCROLLBAR_WIDTH, GOOGLE_COLORS
 from colorscheme import ColorScheme, make_rgb
@@ -22,7 +23,9 @@ class e5_label(Label):
             self.color = colors.text_color if colors else make_rgb(BLACK)
         else:
             self.color = colors.popup_text_color if colors else make_rgb(WHITE)
-        self.font_size = colors.text_font_size if colors else '15sp'
+        if colors:
+            if colors.text_font_size:
+                self.font_size = colors.text_font_size 
 
 class e5_side_by_side_buttons(GridLayout):
     def __init__(self, text, id = ['',''], selected = [False, False],
@@ -40,7 +43,9 @@ class e5_button(Button):
         self.text = text
         self.size_hint_y = button_height
         self.id = id
-        self.font_size = colors.button_font_size if colors else '15sp'
+        if colors:
+            if colors.button_font_size:
+                self.font_size = colors.button_font_size 
         self.color = colors.button_color if colors else make_rgb(WHITE)
         if colors:
             self.background_color = colors.button_background if selected else colors.optionbutton_background
@@ -164,8 +169,10 @@ class e5_scrollview_label(ScrollView):
                     size_hint_y = None,
                     color = colors.text_color if not popup else colors.popup_text_color,
                     id = widget_id + '_label',
-                    text_size = (self.width, None),
-                    font_size = colors.text_font_size)
+                    text_size = (self.width, None))
+        if colors:
+            if colors.text_font_size:
+                info.font_size = colors.text_font_size 
 
         info.bind(texture_size=lambda instance, value: setattr(instance, 'height', value[1]))
         info.bind(width=lambda instance, value: setattr(instance, 'text_size', (value * .95, None)))
@@ -177,6 +184,93 @@ class e5_scrollview_label(ScrollView):
         self.size_hint = (1,1)
         self.id = widget_id + '_scroll'
         self.add_widget(scrollbox)
+
+class e5_InfoScreen(Screen):
+
+    content = ObjectProperty(None)
+    back_button = ObjectProperty(None)
+
+    def __init__(self, colors = None, **kwargs):
+        super(e5_InfoScreen, self).__init__(**kwargs)
+        self.colors = colors if colors else ColorScheme()
+        layout = GridLayout(cols = 1, size_hint_y = 1, spacing = 5, padding = 5)
+        layout.add_widget(e5_scrollview_label(text = '', widget_id = 'content', colors = self.colors))
+        layout.add_widget(e5_button('Back', id = 'back_button', 
+                                    selected = True, call_back = self.go_back,
+                                    colors = self.colors))
+        self.add_widget(layout)
+        for widget in self.walk():
+            if widget.id == 'content_label':
+                self.content = widget
+            if widget.id == 'back_button':
+                self.back_button = widget
+
+    def go_back(self, *args):
+        self.parent.current = 'MainScreen'
+
+class e5_LogScreen(e5_InfoScreen):
+
+    def __init__(self, logger = None, **kwargs):
+        super(e5_LogScreen, self).__init__(**kwargs)
+        self.logger = logger
+    
+    def on_pre_enter(self):
+        self.content.text = 'The last 150 lines:\n\n'
+        try:
+            with open(self.logger.handlers[0].baseFilename,'r') as f:
+                content = f.readlines()
+            self.content.text += ''.join(list(reversed(content))[0:150])
+        except:
+            self.content.text = "\nAn error occurred when reading the log file '%s'." % (self.logger.handlers[0].baseFilename)
+        self.content.color = self.colors.text_color
+        self.back_button.background_color = self.colors.button_background
+        self.back_button.color = self.colors.button_color
+
+class e5_INIScreen(e5_InfoScreen):
+
+    def __init__(self, ini = None, **kwargs):
+        super(e5_INIScreen, self).__init__(**kwargs)
+        self.ini = ini
+
+    def on_pre_enter(self):
+        with open(self.ini.filename, 'r') as f:
+            self.content.text = f.read()
+        self.content.color = self.colors.text_color
+        self.back_button.background_color = self.colors.button_background
+        self.back_button.color = self.colors.button_color
+
+class e5_CFGScreen(e5_InfoScreen):
+
+    def __init__(self, cfg = None, **kwargs):
+        super(e5_CFGScreen, self).__init__(**kwargs)
+        self.cfg = cfg
+
+    def on_pre_enter(self):
+        if self.cfg.filename:
+            try:
+                with open(self.cfg.filename,'r') as f:
+                    self.content.text = f.read()
+            except:
+                self.content.text = "There was an error reading from the CFG file '%s'" % self.cfg.filename
+        else:
+            self.content.text = '\nOpen a CFG file before trying to view it.'
+        self.content.color = self.colors.text_color
+        self.back_button.background_color = self.colors.button_background
+        self.back_button.color = self.colors.button_color
+
+class e5_LoadDialog(FloatLayout):
+    start_path =  ObjectProperty(None)
+    load = ObjectProperty(None)
+    cancel = ObjectProperty(None)
+    button_color = ObjectProperty(None)
+    button_background = ObjectProperty(None)
+
+class e5_SaveDialog(FloatLayout):
+    save = ObjectProperty(None)
+    cancel = ObjectProperty(None)
+    button_color = ObjectProperty(None)
+    button_background = ObjectProperty(None)
+    start_path = ObjectProperty(None)
 
 class e5_DatagridScreen(Screen):
 
@@ -218,6 +312,24 @@ class e5_DatagridScreen(Screen):
 
     def on_leave(self):
         Window.unbind(on_key_down = self._on_keyboard_down)
+
+class e5_MessageBox(Popup):
+    def __init__(self, title, message, call_back = None, button_text = 'OK', colors = None, **kwargs):
+        super(e5_MessageBox, self).__init__(**kwargs)
+        popup_contents = GridLayout(cols = 1, spacing = 5)
+        popup_contents.add_widget(e5_scrollview_label(message, popup = True, colors = colors))
+        if not call_back:
+            call_back = self.dismiss
+        popup_contents.add_widget(e5_button(button_text,
+                                            call_back = call_back,
+                                            selected = True,
+                                            button_height = .2,
+                                            colors = colors))
+        self.title = title
+        self.content = popup_contents
+        self.size_hint = (.8, .8)
+        self.size = (400, 400)
+        self.auto_dismiss = False
 
 #region Data Grid
 #### Code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py
@@ -287,6 +399,8 @@ class DataGridHeaderCell(Button):
         self.background_normal = ''
         self.color = colors.button_color
         self.text = text
+        if colors.datagrid_font_size:
+            self.font_size = colors.datagrid_font_size
 
 class DataGridTableHeader(ScrollView):
     """Fixed table header that scrolls x with the data table"""
@@ -306,7 +420,7 @@ class DataGridScrollCell(Button):
     def __init__(self, **kwargs):
         super(DataGridScrollCell, self).__init__(**kwargs)
         self.background_normal = ''
-
+        
 class DataGridTableData(RecycleView):
     nrows = NumericProperty(None)
     ncols = NumericProperty(None)
@@ -333,13 +447,19 @@ class DataGridTableData(RecycleView):
         for i, ord_dict in enumerate(list_dicts):
             is_even = i % 2 == 0
             for text, value in ord_dict.items():
-                self.data.append({'text': value, 'is_even': is_even,
-                                    'callback': self.editcell,
-                                    'key': ord_dict['doc_id'], 'field': text,
-                                    'db': tb, 'id': 'datacell',
-                                    'datagrid_even': self.colors.datagrid_even,
-                                    'datagrid_odd': self.colors.datagrid_odd ,
-                                    'color': make_rgb(BLACK)})
+                content = { 'text': value,
+                            'is_even': is_even,
+                            'callback': self.editcell,
+                            'key': ord_dict['doc_id'],
+                            'field': text,
+                            'db': tb,
+                            'id': 'datacell',
+                            'datagrid_even': self.colors.datagrid_even,
+                            'datagrid_odd': self.colors.datagrid_odd ,
+                            'color': make_rgb(BLACK)}
+                if self.colors.datagrid_font_size:
+                    content['font_size'] = self.colors.datagrid_font_size
+                self.data.append(content)
 
     def clear_highlight_row(self):
         if self.datagrid_doc_id:
@@ -471,9 +591,11 @@ class DataGridLabelAndField(BoxLayout):
         self.spacing = 10
         label = e5_label(text = col)
         txt = TextInput(multiline = False,
-                                size_hint=(0.75, None),
-                                font_size= colors.text_font_size,
-                                id = col)
+                        size_hint = (0.75, None),
+                        id = col)
+        if colors:
+            if colors.text_font_size:
+                txt.font_size = colors.text_font_size 
         txt.bind(minimum_height=txt.setter('height'))
         self.add_widget(label)
         self.add_widget(txt)
@@ -506,9 +628,11 @@ class DataGridWidget(TabbedPanel):
         self.background_color = self.colors.window_background 
         self.background_image = ''
 
-        for tab_no in [0,1,2]:
-            self.tab_list[tab_no].color = self.colors.button_color
-            self.tab_list[tab_no].background_color = self.colors.button_background
+        for tab in self.tab_list:
+            tab.color = self.colors.button_color
+            tab.background_color = self.colors.button_background
+            if self.colors.datagrid_font_size:
+                tab.font_size = self.colors.datagrid_font_size
 
     def record_count(self):
         datatable = self.get_widget_by_id(self.tab_list[2].content, 'datatable')

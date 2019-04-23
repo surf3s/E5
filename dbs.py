@@ -1,4 +1,10 @@
 class dbs:
+    
+    db = None
+    filename = None
+    db_name = 'data'
+    table = '_default'
+
     def status(self):
         txt = '%s %s are defined\n' % (self.db_name, len(self.db))
         return(txt)

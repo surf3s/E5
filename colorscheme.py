@@ -1,5 +1,6 @@
 from constants import WHITE, BLACK, GOOGLE_COLORS
 from kivy.core.window import Window
+from misc import platform_name
 
 def make_rgb(hex_color):
     return([(( hex_color >> 16 ) & 0xFF)/255.0,
@@ -10,9 +11,16 @@ def make_rgb(hex_color):
 class ColorScheme:
 
     def __init__(self, color_name = 'light blue'):
-        self.optionbutton_font_size = "15sp"
-        self.button_font_size = "15sp"
-        self.text_font_size = "15sp"
+        if not platform_name() == 'Windows':
+            self.optionbutton_font_size = "15sp"
+            self.button_font_size = "15sp"
+            self.text_font_size = "15sp"
+            self.datagrid_font_size = "15sp"
+        else:
+            self.optionbutton_font_size = None
+            self.button_font_size = None
+            self.text_font_size = None
+            self.datagrid_font_size = None
 
         self.popup_background = (0, 0, 0, 1)
         self.popup_text_color = (1, 1, 1, 1)
