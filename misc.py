@@ -1,5 +1,6 @@
 from os import path
 from kivy.utils import platform
+from kivy.core.window import Window
 
 # See if the file as given can be found.
 # If not, try to find it in the same folder as the CFG file.
@@ -16,3 +17,21 @@ def locate_file(filename, cfg_path = None):
 
 def platform_name():
     return(['Windows','Linux','Android','MacOSX','IOS','Unknown'][['win', 'linux', 'android', 'macosx', 'ios', 'unknown'].index(platform)])
+
+def restore_window_size_position(main_name, main_ini):
+    Window.minimum_width = 450
+    Window.minimum_height = 450
+    if main_ini.get_value(main_name, "TOP"):
+        temp = max(int(main_ini.get_value(main_name, "TOP")), 0)
+        Window.top = temp
+    if not main_ini.get_value(main_name,"LEFT") == '':
+        temp = max(int(main_ini.get_value(main_name, "LEFT")), 0)
+        Window.left = temp
+    window_width = None
+    window_height = None
+    if not main_ini.get_value(main_name, "WIDTH") == '':
+        window_width = max(int(main_ini.get_value(main_name, "WIDTH")), 450)
+    if not main_ini.get_value(main_name,"HEIGHT") == '':
+        window_height = max(int(main_ini.get_value(main_name, "HEIGHT")), 450)
+    if window_width and window_height:
+        Window.size = (window_width, window_height)

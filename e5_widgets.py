@@ -276,11 +276,26 @@ class e5_DatagridScreen(Screen):
 
     datagrid = ObjectProperty(None)
 
-    def __init__(self, colors = None, **kwargs):
+    def __init__(self, main_data = None, main_tablename = '_default', main_cfg = None, colors = None, **kwargs):
         super(e5_DatagridScreen, self).__init__(**kwargs)
         self.colors = colors if colors else ColorScheme()
         self.datagrid = DataGridWidget(colors = self.colors)
         self.add_widget(self.datagrid)
+        if main_data:
+            if main_data.db:
+                self.datagrid.data = main_data.db.table(main_tablename)
+                self.datagrid.fields = main_cfg
+        self.e5_data = main_data
+        self.e5_cfg = main_cfg
+        self.tablename = main_tablename
+
+    def on_pre_enter(self):
+        if self.e5_data:
+            if self.datagrid.data == None and not self.e5_data.db == None:
+                self.datagrid.load_data(self.e5_data.db.table(self.tablename), self.e5_cfg)
+            elif not self.datagrid.data == None and not self.e5_data.db == None:
+                if not self.datagrid.record_count() == len(self.e5_data.db):
+                    self.datagrid.reload_data()
 
     def on_enter(self):
         Window.bind(on_key_down = self._on_keyboard_down)

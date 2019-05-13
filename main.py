@@ -1322,23 +1322,7 @@ class MainScreen(Screen):
 #region Edit Screens
 
 class EditPointsScreen(e5_DatagridScreen):
-
-    def __init__(self, e5_data = None, e5_cfg = None, **kwargs):
-        super(EditPointsScreen, self).__init__(**kwargs)
-        if e5_data:
-            if e5_data.db:
-                self.datagrid.data = e5_data.db.table(e5_data.table)
-                self.datagrid.fields = e5_cfg
-        self.e5_data = e5_data
-        self.e5_cfg = e5_cfg
-
-    def on_pre_enter(self):
-        if self.e5_data:
-            if self.datagrid.data == None and not self.e5_data.db == None:
-                self.datagrid.load_data(self.e5_data.db.table(self.e5_data.table), self.e5_cfg)
-            elif not self.datagrid.data == None and not self.e5_data.db == None:
-                if not self.datagrid.record_count() == len(self.e5_data.db):
-                    self.datagrid.reload_data()
+    pass
 
 class TextLabel(Label):
     def __init__(self, text, **kwargs):
@@ -1652,8 +1636,8 @@ class E5App(App):
                                     colors = self.e5_colors))
         sm.add_widget(EditPointsScreen(name = 'EditPointsScreen', id = 'editpoints_screen',
                                         colors = self.e5_colors,
-                                        e5_data = self.e5_data,
-                                        e5_cfg = self.e5_cfg))
+                                        main_data = self.e5_data,
+                                        main_cfg = self.e5_cfg))
         sm.add_widget(EditCFGScreen(name = 'EditCFGScreen', id = 'editcfg_screen',
                                     colors = self.e5_colors,
                                     e5_cfg = self.e5_cfg))
@@ -1662,23 +1646,8 @@ class E5App(App):
                                         e5_ini = self.e5_ini,
                                         e5_cfg = self.e5_cfg))
 
-        Window.minimum_width = 450
-        Window.minimum_height = 450
-        if self.e5_ini.get_value("E5","TOP"):
-            temp = max(int(self.e5_ini.get_value("E5","TOP")), 0)
-            Window.top = temp
-        if not self.e5_ini.get_value("E5","LEFT") == '':
-            temp = max(int(self.e5_ini.get_value("E5","LEFT")), 0)
-            Window.left = temp
-        window_width = None
-        window_height = None
-        if not self.e5_ini.get_value("E5","WIDTH") == '':
-            window_width = max(int(self.e5_ini.get_value("E5","WIDTH")), 450)
-        if not self.e5_ini.get_value("E5","HEIGHT") == '':
-            window_height = max(int(self.e5_ini.get_value("E5","HEIGHT")), 450)
-        if window_width and window_height:
-            Window.size = (window_width, window_height)
-
+        restore_window_size_position('E5', self.e5_ini)
+        
         self.title = "E5 " + __version__
 
         logger.info('E5 started, logger initialized, and application built.')
