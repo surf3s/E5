@@ -1,7 +1,7 @@
 # Errors:
 #   When backing up (ESC), current value is not highlighted
 #  If TYPE is missing from CFG provide a default of text
-#  Pressing enter on start-up with no cfg crashes
+#  Why is File Exit so slow
 
 # To Do
 # Test species menu
@@ -91,38 +91,6 @@ class db(dbs):
     MAX_FIELDS = 300
     datagrid_doc_id = None
 
-    def __init__(self, filename = ''):
-        if filename:
-            self.filename = filename
-        self.filename = filename
-
-    def open(self, filename = ''):
-        if filename:
-            self.filename = filename
-        try:
-            self.db = TinyDB(self.filename)
-        except:
-            self.db = None
-            self.filename = ''
-
-    def status(self):
-        if self.filename:
-            txt = '\nThe JSON data file is %s.\n\n' % self.filename
-            if self.db:
-                if len(self.db.tables()) > 0:
-                    txt += 'There are %s tables in this data file as follows:\n' % len(self.db.tables())
-                    for table_name in self.db.tables():
-                        txt += "  A table named '%s' with %s records.\n" % (table_name, len(self.db.table(table_name)))
-                    txt += '\nIn total there are %s records in the data file.\n' % len(self.db)
-                    txt += "The current table is '%s'.\n\n" % self.table
-                else:
-                    txt += 'There are no tables in this data file.\n\n'
-            else:
-                txt += 'The data file is empty or has not been initialized.\n'
-        else:
-            txt = '\nA data file has not been opened.\n'
-        return(txt)
-
     def get(self, name):
         unit, id = name.split('-')
         p = self.db.search( (where('unit')==unit) & (where('id')==id) )
@@ -138,20 +106,6 @@ class db(dbs):
             name_list.append(row['unit'] + '-' + row['id'])
         return(name_list)
 
-    def fields(self, tablename = ''):
-        if not tablename:
-            table = self.db.table(tablename)
-        else:
-            table = self.db.table('_default')
-        fieldnames = []
-        for row in table:
-            for fieldname in row.keys():
-                if not fieldname in fieldnames:
-                    fieldnames.append(fieldname) 
-        return(fieldnames)
-
-    def delete_all(self):
-        self.db.purge()
 
 class ini(blockdata):
     
@@ -807,6 +761,7 @@ class MainScreen(Screen):
 
         mainscreen = self.get_widget_by_id('mainscreen')
         mainscreen.clear_widgets()
+        self.scroll_menu = None
 
         if self.e5_cfg.filename:
             self.e5_cfg.start()
@@ -1029,7 +984,7 @@ class MainScreen(Screen):
             if ascii_code == 13:
                 if self.e5_cfg.filename:
                     self.go_next(None)
-                else:
+                elif self.cfg_files:
                     self.cfg_selected(self.scroll_menu.scroll_menu_get_selected())
             if ascii_code == 51:
                 return True 
@@ -1278,8 +1233,10 @@ class MainScreen(Screen):
     def save_record(self):
         valid = self.e5_cfg.validate_current_record()
         if valid:
-            self.e5_data.db.table(self.e5_data.table).insert(self.e5_cfg.current_record)
-            self.make_backup()
+            if self.save(self.e5_cfg.current_record):
+                self.make_backup()
+            else:
+                pass
         else:
             self.popup = e5_MessageBox('Save Error', valid, call_back = self.close_popup, colors = self.colors)
             self.popup.open()
@@ -1637,6 +1594,7 @@ class E5App(App):
         sm.add_widget(EditPointsScreen(name = 'EditPointsScreen', id = 'editpoints_screen',
                                         colors = self.e5_colors,
                                         main_data = self.e5_data,
+                                        main_tablename = self.e5_data.table if self.e5_data else '_default',
                                         main_cfg = self.e5_cfg))
         sm.add_widget(EditCFGScreen(name = 'EditCFGScreen', id = 'editcfg_screen',
                                     colors = self.e5_colors,

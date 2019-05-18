@@ -291,12 +291,12 @@ class e5_DatagridScreen(Screen):
 
     def on_pre_enter(self):
         if self.e5_data:
-            if self.datagrid.data == None and not self.e5_data.db == None:
-                self.datagrid.load_data(self.e5_data.db.table(self.tablename), self.e5_cfg)
-            elif not self.datagrid.data == None and not self.e5_data.db == None:
-                if not self.datagrid.record_count() == len(self.e5_data.db):
-                    self.datagrid.reload_data()
-
+            if self.e5_data.new_data:
+                self.datagrid.data = self.e5_data.db.table(self.e5_data.table)
+                self.datagrid.fields = self.e5_cfg
+                self.datagrid.reload_data()
+                self.e5_data.new_data = False
+                
     def on_enter(self):
         Window.bind(on_key_down = self._on_keyboard_down)
         if self.datagrid:
@@ -580,7 +580,7 @@ class DataGridGridPanel(BoxLayout):
             for field in self.tb_fields.fields():
                 reformatted_row[field] = tb_row[field] if field in tb_row else ''
             data.append(reformatted_row)
-        data = sorted(data, key=lambda k: k['doc_id'], reverse = True) 
+        data = sorted(data, key=lambda k: int(k['doc_id']), reverse = True) 
         self.add_widget(DataGridTable(list_dicts = data, column_names = self.column_names,
                                         tb = self.tb, e5_cfg = self.tb_fields, colors = self.colors))
 
