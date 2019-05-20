@@ -1,7 +1,9 @@
 # Errors:
 #   When backing up (ESC), current value is not highlighted
 #  If TYPE is missing from CFG provide a default of text
-#  Why is File Exit so slow
+# Add delete last record 
+# Add delete any record
+# Add delete all records
 
 # To Do
 # Test species menu
@@ -90,22 +92,6 @@ from collections import OrderedDict
 class db(dbs):
     MAX_FIELDS = 300
     datagrid_doc_id = None
-
-    def get(self, name):
-        unit, id = name.split('-')
-        p = self.db.search( (where('unit')==unit) & (where('id')==id) )
-        if p:
-            return(p)
-        else:
-            return(None)
-
-    # Can likely delete this or use a DB key or the first unique field
-    def names(self):
-        name_list = []
-        for row in self.db:
-            name_list.append(row['unit'] + '-' + row['id'])
-        return(name_list)
-
 
 class ini(blockdata):
     
@@ -1275,6 +1261,49 @@ class MainScreen(Screen):
 
     def set_focus(self, value):
         self.widget_with_focus.focus = True
+
+    def show_delete_last_record(self):
+        last_record = self.e5_data.last_record()
+        if last_record:
+            message_text = '\n'
+            for field in self.e5_cfg.fields():
+                if field in last_record:
+                    message_text += field + " : " + last_record[field] + '\n'
+            self.popup = e5_MessageBox('Delete Last Record', message_text, response_type = "YESNO",
+                                        call_back = [self.delete_last_record, self.close_popup],
+                                        colors = self.colors)
+        else:
+            self.popup = e5_MessageBox('Delete Last Record', 'No records in table to delete.',
+                                        call_back = self.close_popup,
+                                        colors = self.colors)
+        self.popup.open()
+        self.popup_open = True
+
+    def delete_last_record(self, value):
+        last_record = self.e5_data.last_record()
+        self.e5_data.delete(last_record.doc_id)
+        self.close_popup(value)
+
+    def show_delete_all_records(self):
+        message_text = '\nYou are asking to delete all of the records in the current database table. Are you sure you want to do this?'
+        self.popup = e5_MessageBox('Delete All Records', message_text, response_type = "YESNO",
+                                    call_back = [self.delete_all_records1, self.close_popup],
+                                    colors = self.colors)
+        self.popup.open()
+        self.popup_open = True
+
+    def delete_all_records1(self, value):
+        self.close_popup(value)
+        message_text = '\nThis is your last chance.  All records will be deleted when you press Yes.'
+        self.popup = e5_MessageBox('Delete All Records', message_text, response_type = "YESNO",
+                                    call_back = [self.delete_all_records2, self.close_popup],
+                                    colors = self.colors)
+        self.popup.open()
+        self.popup_open = True
+        
+    def delete_all_records2(self, value):
+        self.e5_data.delete_all()
+        self.close_popup(value)
 
 #region Edit Screens
 

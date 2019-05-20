@@ -8,10 +8,9 @@ class dbs:
     table = '_default'
     new_data = False
 
-    def __init__(self, filename = ''):
+    def __init__(self, filename = None):
         if filename:
             self.filename = filename
-        self.filename = filename
 
     def open(self, filename = ''):
         if filename:
@@ -44,12 +43,8 @@ class dbs:
         return(txt)
 
     def fields(self, tablename = ''):
-        if not tablename:
-            table = self.db.table(tablename)
-        else:
-            table = self.db.table('_default')
         fieldnames = []
-        for row in table:
+        for row in self.db.table(tablename if tablename else self.table):
             for fieldname in row.keys():
                 if not fieldname in fieldnames:
                     fieldnames.append(fieldname) 
@@ -62,11 +57,11 @@ class dbs:
         except:
             return(False)
 
-    def __len__(self):
-        return(len(self.db) if self.db else 0)
+    #def __len__(self):
+    #    return(len(self.db) if self.db else 0)
 
-    def names(self):
-        return([row['name'] for row in self.db])
+    def names(self, fieldname):
+        return([row[fieldname] for row in self.db.table(self.table)])
 
     def replace(self, data_record):
         pass
@@ -74,5 +69,25 @@ class dbs:
     def duplicate(self, data_record):
         pass
 
+    def delete(self, doc_id):
+        self.db.table(self.table).remove(doc_ids = [doc_id])
+        self.new_data = True
+
     def delete_all(self):
-        self.db.purge()
+        self.db.table(self.table).purge()
+        self.new_data = True
+        
+    def get_unitid(self, name):
+        unit, idno = name.split('-')
+        p = self.db.table(self.table).search( (where('unit') == unit.strip()) & (where('id') == idno.strip()) )
+        if p:
+            return(p)
+        else:
+            return(None)
+
+    def last_record(self):
+        try:
+            last = self.db.table(self.table).all()[-1]
+        except:
+            last = None
+        return(last)

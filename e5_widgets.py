@@ -29,13 +29,14 @@ class e5_label(Label):
 
 class e5_side_by_side_buttons(GridLayout):
     def __init__(self, text, id = ['',''], selected = [False, False],
-                     call_back = [None,None], button_height = None, colors = None, **kwargs):
+                     call_back = [None, None], button_height = None, colors = None, **kwargs):
         super(e5_side_by_side_buttons, self).__init__(**kwargs)
-        self.cols = 2
+        self.cols = len(id)
         self.spacing = 5
         self.size_hint_y = button_height
-        self.add_widget(e5_button(text[0], id = id[0], selected = selected[0], call_back = call_back[0], button_height=button_height, colors = colors))
-        self.add_widget(e5_button(text[1], id = id[1], selected = selected[1], call_back = call_back[1], button_height=button_height, colors = colors))
+        for i in range(len(id)):
+            self.add_widget(e5_button(text[i], id = id[i], selected = selected[i], call_back = call_back[i],
+                            button_height = button_height, colors = colors))
 
 class e5_button(Button):
     def __init__(self, text, id = '', selected = False, call_back = None, button_height = None, colors = None, **kwargs):
@@ -329,17 +330,41 @@ class e5_DatagridScreen(Screen):
         Window.unbind(on_key_down = self._on_keyboard_down)
 
 class e5_MessageBox(Popup):
-    def __init__(self, title, message, call_back = None, button_text = 'OK', colors = None, **kwargs):
+    def __init__(self, title, message, 
+                    response_type = 'OK',
+                    response_text = None,
+                    call_back = None,
+                    colors = None, **kwargs):
         super(e5_MessageBox, self).__init__(**kwargs)
         popup_contents = GridLayout(cols = 1, spacing = 5)
         popup_contents.add_widget(e5_scrollview_label(message, popup = True, colors = colors))
         if not call_back:
             call_back = self.dismiss
-        popup_contents.add_widget(e5_button(button_text,
-                                            call_back = call_back,
-                                            selected = True,
-                                            button_height = .2,
-                                            colors = colors))
+        if response_type == 'OK':
+            popup_contents.add_widget(e5_button('OK',
+                                                call_back = call_back,
+                                                selected = True,
+                                                button_height = .2,
+                                                colors = colors))
+        elif response_type == 'YESNO':
+            popup_contents.add_widget(e5_side_by_side_buttons(text = ['Yes', 'No'],
+                                                call_back = call_back,
+                                                selected = [True, True],
+                                                button_height = .2,
+                                                colors = colors))
+        elif response_type == 'YESNOCANCEL':
+            popup_contents.add_widget(e5_side_by_side_buttons(text = ['Yes', 'No', 'Cancel'],
+                                                call_back = call_back,
+                                                selected = [True, True, True],
+                                                button_height = .2,
+                                                colors = colors))
+        else:
+            popup_contents.add_widget(e5_side_by_side_buttons(text = response_text,
+                                                call_back = call_back,
+                                                selected = [True, True, True],
+                                                button_height = .2,
+                                                colors = colors))
+
         self.title = title
         self.content = popup_contents
         self.size_hint = (.8, .8)
@@ -650,7 +675,7 @@ class DataGridWidget(TabbedPanel):
                 tab.font_size = self.colors.datagrid_font_size
 
     def record_count(self):
-        datatable = self.get_widget_by_id(self.tab_list[2].content, 'datatable')
+        datatable = self.get_widget_by_id(self.tab_list[3].content, 'datatable')
         return(datatable.nrows if datatable else 0)
 
     def reload_data(self):
@@ -664,14 +689,13 @@ class DataGridWidget(TabbedPanel):
     def populate_panels(self):
         self.panel1.populate_data(tb = self.data, tb_fields = self.fields, colors = self.colors)
         self.panel2.populate(data = self.data, fields = self.fields, colors = self.colors)
-        self.get_widget_by_id(self.tab_list[2].content, 'datatable').datatable_widget = self
-        pass
+        self.get_widget_by_id(self.tab_list[3].content, 'datatable').datatable_widget = self
 
     def open_panel1(self):
         self.textboxes_will_update_db = False
 
     def open_panel2(self):
-        datatable = self.get_widget_by_id(self.tab_list[2].content, 'datatable')
+        datatable = self.get_widget_by_id(self.tab_list[3].content, 'datatable')
         if datatable:
             if datatable.datagrid_doc_id:
                 data_record = self.data.get(doc_id = int(datatable.datagrid_doc_id))
@@ -681,6 +705,12 @@ class DataGridWidget(TabbedPanel):
                         widget.bind(text = self.update_db)
                         widget.bind(focus = self.show_menu)
                 self.textboxes_will_update_db = True
+
+    def open_panel3(self):
+        datatable = self.get_widget_by_id(self.tab_list[2].content, 'datatable')
+        if datatable:
+            if datatable.datagrid_doc_id:
+                data_record = self.data.get(doc_id = int(datatable.datagrid_doc_id))
 
     def show_menu(self, instance, value):
         if instance.focus:

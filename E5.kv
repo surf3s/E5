@@ -52,8 +52,16 @@
                     color: root.text_color
                     id: topmenu
                     ActionButton:
-                        text: 'Records'
+                        text: 'All Records'
                         on_press: app.root.current = 'EditPointsScreen'
+                        color: SUBMENU_COLOR
+                    ActionButton:
+                        text: 'Delete Last'
+                        on_press: app.root.current = root.show_delete_last_record()
+                        color: SUBMENU_COLOR
+                    ActionButton:
+                        text: 'Delete All'
+                        on_press: app.root.current = root.show_delete_all_records()
                         color: SUBMENU_COLOR
                     ActionButton:
                         text: 'CFG'
@@ -221,6 +229,7 @@
 <DataGridWidget>:
     panel1: data_frame_panel
     panel2: add_new_panel
+    panel3: delete_panel
     do_default_tab: False
     TabbedPanelItem:
         text: 'Data'
@@ -235,6 +244,12 @@
         DataGridCasePanel:
             id: add_new_panel
     TabbedPanelItem:
+        text: 'Delete Record'
+        background_normal: ''
+        on_release: root.open_panel3()
+        DataGridCasePanel:
+            id: delete_panel
+    TabbedPanelItem:
         text: 'Close'
         on_release: root.close_panels()
         background_normal: ''
@@ -244,6 +259,22 @@
 
 <DataGridCasePanel>:
     addnew_list: addnew_list
+    orientation: 'vertical'
+    ScrollView:
+        do_scroll_x: False
+        do_scroll_y: True
+        size_hint: 1, 1
+        scroll_timeout: 150
+        GridLayout:
+            id: addnew_list
+            padding: "10sp"
+            spacing: "5sp"
+            cols:1
+            row_default_height: '35dp'
+            row_force_default: True
+            size_hint_y: None
+
+<DataGridDeletePanel>:
     orientation: 'vertical'
     ScrollView:
         do_scroll_x: False
