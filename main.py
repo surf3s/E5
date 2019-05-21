@@ -1,9 +1,6 @@
 # Errors:
 #   When backing up (ESC), current value is not highlighted
 #  If TYPE is missing from CFG provide a default of text
-# Add delete last record 
-# Add delete any record
-# Add delete all records
 
 # To Do
 # Test species menu
@@ -656,25 +653,24 @@ class cfg(blockdata):
 
     def write_csvs(self, filename, table):
         try:
+            cfg_fields = self.fields()
             f = open(filename, 'w')
+            csv_row = ''
+            for fieldname in cfg_fields:
+                csv_row += ',"%s"' % fieldname if csv_row else '"%s"' % fieldname 
+            f.write(csv_row + '\n')
             for row in table:
                 csv_row = ''
-                for fieldname in self.fields():
+                for fieldname in cfg_fields:
                     if fieldname in row.keys():
                         if self.get(fieldname).inputtype in ['NUMERIC','INSTRUMENT']:
-                            if csv_row:
-                                csv_row = csv_row + ',%s' % row[fieldname] 
-                            else:
-                                csv_row = "%s" % row[fieldname] 
+                            csv_row += ',%s' % row[fieldname] if csv_row else "%s" % row[fieldname]   
                         else:
-                            if csv_row:
-                                csv_row = csv_row + ',"%s"' % row[fieldname]
-                            else: 
-                                csv_row = '"%s"' % row[fieldname]
+                            csv_row += ',"%s"' % row[fieldname] if csv_row else '"%s"' % row[fieldname]
                     else:
                         if self.get(fieldname).inputtype in ['NUMERIC','INSTRUMENT']:
                             if csv_row:
-                                csv_row = csv_row + ','
+                                csv_row = csv_row + ','     # Not sure this works if there is an entirely empty row of numeric values
                         else:
                             if csv_row:
                                 csv_row = csv_row + ',""'
@@ -684,7 +680,7 @@ class cfg(blockdata):
             f.close()
             return(None)
         except:
-            return('Could not write data to %s.' % (filename))
+            return('\nCould not write data to %s.' % (filename))
 #endregion
 
 class MainScreen(Screen):
@@ -1128,7 +1124,7 @@ class MainScreen(Screen):
         if errors:
             self.popup = e5_MessageBox(title, errors, call_back = self.close_popup, colors = self.colors)
         else:
-            self.popup = e5_MessageBox(title, '%s successfully written.' % filename, call_back = self.close_popup, colors = self.colors)
+            self.popup = e5_MessageBox(title, '\n%s successfully written.' % filename, call_back = self.close_popup, colors = self.colors)
         self.popup.open()
         self.popup_open = True
 
@@ -1243,7 +1239,7 @@ class MainScreen(Screen):
                     record_counter = self.e5_ini.backup_interval
                 self.e5_cfg.update_value('E5','RECORDS UNTIL BACKUP',str(record_counter))
             except:
-                self.popup = e5_MessageBox('Backup Error', "An error occurred while attempting to make a backup.  Check the backup settings and that the disk has enough space for a backup.", call_back = self.close_popup, colors = self.colors)
+                self.popup = e5_MessageBox('Backup Error', "\nAn error occurred while attempting to make a backup.  Check the backup settings and that the disk has enough space for a backup.", call_back = self.close_popup, colors = self.colors)
                 self.popup.open()
                 self.popup_open = True
 
@@ -1309,14 +1305,6 @@ class MainScreen(Screen):
 
 class EditPointsScreen(e5_DatagridScreen):
     pass
-
-class TextLabel(Label):
-    def __init__(self, text, **kwargs):
-        super(TextLabel, self).__init__(**kwargs)
-        self.text = text
-        self.color = e5_colors.text_color
-        self.font_size = e5_colors.text_font_size
-        self.size_hint_y = None
 
 class EditCFGScreen(Screen):
 
@@ -1460,7 +1448,7 @@ class E5SettingsScreen(Screen):
                         value_track = True, value_track_color= self.colors.button_background)
         backups.add_widget(slide)
         slide.bind(value = self.update_backup_interval)
-        backups.add_widget(e5_label('Use incremental backups?', self.colors))
+        backups.add_widget(e5_label('Use incremental backups?', colors = self.colors))
         backups_switch = Switch(active = self.e5_ini.incremental_backups)
         backups_switch.bind(active = self.incremental_backups)
         backups.add_widget(backups_switch)
