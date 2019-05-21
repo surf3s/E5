@@ -39,7 +39,8 @@ class e5_side_by_side_buttons(GridLayout):
                             button_height = button_height, colors = colors))
 
 class e5_button(Button):
-    def __init__(self, text, id = '', selected = False, call_back = None, button_height = None, colors = None, **kwargs):
+    def __init__(self, text, id = '', selected = False, call_back = None,
+                 button_height = None, colors = None, **kwargs):
         super(e5_button, self).__init__(**kwargs)
         self.text = text
         self.size_hint_y = button_height
@@ -301,7 +302,7 @@ class e5_DatagridScreen(Screen):
     def on_enter(self):
         Window.bind(on_key_down = self._on_keyboard_down)
         if self.datagrid:
-            self.datagrid.switch_to(self.datagrid.tab_list[2])
+            self.datagrid.switch_to(self.datagrid.tab_list[3])
 
     def _on_keyboard_down(self, *args):
         ascii_code = args[1]
@@ -614,9 +615,10 @@ class DataGridCasePanel(BoxLayout):
     def populate(self, data, fields, colors = None):
         self.colors = colors if colors else ColorScheme()
         self.addnew_list.bind(minimum_height = self.addnew_list.setter('height'))
+        self.addnew_list.clear_widgets()
         for col in fields.fields():
             self.addnew_list.add_widget(DataGridLabelAndField(col = col, colors = self.colors))
-
+    
 class DataGridLabelAndField(BoxLayout):
 
     popup = ObjectProperty(None)
@@ -639,6 +641,21 @@ class DataGridLabelAndField(BoxLayout):
         txt.bind(minimum_height=txt.setter('height'))
         self.add_widget(label)
         self.add_widget(txt)
+
+class DataGridDeletePanel(GridLayout):
+
+    def populate(self, message = None, call_back = None, colors = None):
+        self.colors = colors if colors else ColorScheme()
+        self.clear_widgets()
+        self.cols = 1
+        self.spacing = 5
+        if message:
+            self.add_widget(e5_scrollview_label(message, popup = False, colors = self.colors))
+            self.add_widget(e5_button('Delete', id = 'delete', selected = True,
+                                        call_back = call_back, colors = self.colors))
+        else:
+            self.add_widget(e5_scrollview_label('\nSelect a record in the grid view first, and then delete that record here.',
+                                                 popup = False, colors = self.colors))
 
 class DataGridWidget(TabbedPanel):
     data = ObjectProperty(None)
@@ -689,6 +706,7 @@ class DataGridWidget(TabbedPanel):
     def populate_panels(self):
         self.panel1.populate_data(tb = self.data, tb_fields = self.fields, colors = self.colors)
         self.panel2.populate(data = self.data, fields = self.fields, colors = self.colors)
+        self.panel3.populate(colors = self.colors)
         self.get_widget_by_id(self.tab_list[3].content, 'datatable').datatable_widget = self
 
     def open_panel1(self):
@@ -705,12 +723,24 @@ class DataGridWidget(TabbedPanel):
                         widget.bind(text = self.update_db)
                         widget.bind(focus = self.show_menu)
                 self.textboxes_will_update_db = True
+            else:
+                cfg_fields = self.fields.fields()
+                for widget in self.ids.add_new_panel.children[0].walk():
+                    if widget.id in cfg_fields:
+                        widget.text = ''
+                self.textboxes_will_update_db = False
 
     def open_panel3(self):
-        datatable = self.get_widget_by_id(self.tab_list[2].content, 'datatable')
+        datatable = self.get_widget_by_id(self.tab_list[3].content, 'datatable')
         if datatable:
             if datatable.datagrid_doc_id:
                 data_record = self.data.get(doc_id = int(datatable.datagrid_doc_id))
+                serialize_record = '\nDelete this record?\n\n'
+                for field in data_record:
+                    serialize_record += field + " : " + data_record[field] + '\n'
+                self.panel3.populate(message = serialize_record,
+                                        call_back = self.delete_record1, 
+                                        colors = self.colors)
 
     def show_menu(self, instance, value):
         if instance.focus:
@@ -732,7 +762,7 @@ class DataGridWidget(TabbedPanel):
 
     def update_db(self, instance, value):
         if self.textboxes_will_update_db:
-            datatable = self.get_widget_by_id(self.tab_list[2].content, 'datatable')
+            datatable = self.get_widget_by_id(self.tab_list[3].content, 'datatable')
             if datatable:
                 for widget in datatable.datagrid_widget_row:
                     if widget.field == instance.id and widget.key == datatable.datagrid_doc_id:
@@ -740,6 +770,28 @@ class DataGridWidget(TabbedPanel):
                         update = {widget.field: value}
                         self.data.update(update, doc_ids = [int(datatable.datagrid_doc_id)])
                         break
+
+    def delete_record1(self, instance):
+        self.popup = e5_MessageBox('Delete record', '\nAre you sure you want to delete this record?',
+                                    response_type = "YESNO",
+                                    call_back = [self.delete_record2, self.close_popup],
+                                    colors = self.colors)
+        self.popup.open()
+        self.popup_open = True
+
+    def delete_record2(self, value):
+        self.close_popup(value)
+        datatable = self.get_widget_by_id(self.tab_list[3].content, 'datatable')
+        if datatable:
+            doc_id = int(datatable.datagrid_doc_id)
+            self.data.remove(doc_ids = [doc_id])
+            datatable.datagrid_doc_id = None
+            datatable.datagrid_widget_row = None
+            self.populate_panels()
+
+    def close_popup(self, value):
+        self.popup.dismiss()
+        self.popup_open = False
 
     # repeats code above - could be put into a general functions package
     def get_widget_by_id(self, start = None, id = ''):
