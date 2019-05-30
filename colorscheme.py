@@ -10,8 +10,15 @@ def make_rgb(hex_color):
 
 class ColorScheme:
 
+
     def __init__(self, color_name = 'light blue'):
-        if not platform_name() == 'Windows':
+
+        if platform_name() == 'Android':
+            self.optionbutton_font_size = "10sp"
+            self.button_font_size = "5dp"
+            self.text_font_size = "15sp"
+            self.datagrid_font_size = "10sp"
+        if platform_name() == 'Linux':
             self.optionbutton_font_size = "15sp"
             self.button_font_size = "15sp"
             self.text_font_size = "15sp"
