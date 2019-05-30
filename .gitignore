@@ -115,10 +115,10 @@ dmypy.json
 
 
 # My stuff
-*.cfg
-CFGs/
 *.json
+*.txt
 backup/
 *.pptx
 *.apk
-*.apk
+test*.*
+
