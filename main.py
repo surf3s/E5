@@ -726,33 +726,17 @@ class MainScreen(Screen):
                 gps.configure(on_location = self.on_gps_location,
                               on_status = self.on_gps_status)
             except (NotImplementedError, ModuleNotFoundError):
-                logger.info('Configuring GPS in mainscreen')
                 logger.info('Error configuring GPS in mainscreen')
-                logger.info('Configuring GPS in mainscreen')
                 self.gps_status = 'GPS is not implemented for your platform'
-                logger.info('Configuring GPS in mainscreen')
 
-                logger.info('Configuring GPS in mainscreen')
     def on_gps_location(self, **kwargs):
-                logger.info('Configuring GPS in mainscreen')
-        logger.info('GPS have a location')        
-                logger.info('Configuring GPS in mainscreen')
         self.gps_location = '\n'.join(['{}={}'.format(k, v) for k, v in kwargs.items()])
-                logger.info('Configuring GPS in mainscreen')
         location = self.get_widget_by_id('gps_location')
-                logger.info('Configuring GPS in mainscreen')
         if location:
-                logger.info('Configuring GPS in mainscreen')
             location.text = self.gps_location
-                logger.info('Configuring GPS in mainscreen')
 
-                logger.info('Configuring GPS in mainscreen')
     def on_gps_status(self, stype, status):
-                logger.info('Configuring GPS in mainscreen')
-        logger.info('GPS have a status')        
-                logger.info('Configuring GPS in mainscreen')
         self.gps_status = 'type={}\n{}'.format(stype, status)
-                logger.info('Configuring GPS in mainscreen')
         status = self.get_widget_by_id('gps_status')
         if status:
             status.text = self.gps_status
