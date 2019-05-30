@@ -120,5 +120,8 @@ dmypy.json
 backup/
 *.pptx
 *.apk
+/test*.*
+bin/
+/temp*.*
 test*.*
-
+temp*.8
