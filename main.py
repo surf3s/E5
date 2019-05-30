@@ -17,8 +17,8 @@
 #   Consider putting a dropdown menu into the grid view for sorting and maybe searching
 #   Think about whether to allow editing of CFG in the program
 
-__version__ = '1.0.2'
-__date__ = 'April, 2019'
+__version__ = '1.0.4'
+__date__ = 'May, 2019'
 
 #region Imports
 from kivy.utils import platform
@@ -463,12 +463,15 @@ class cfg(blockdata):
                         f.lookupfile = locate_file(f.lookupfile, self.path)
 
                 if f.inputtype == 'GPS':
+                    logger.info('About to start GPS in cfg.is_valid')
                     try:
                         gps.configure(on_location = self.gps_location)
                         self.gps = True
-                    except (NotImplementedError, ModuleNotFoundError):
+                        logger.info('GPS started in cfg.is_valid')
+                    except (NotImplementedError, ImportError):
                         self.errors.append('Warning: GPS is not implimented for this platform.  You can still use this CFG but data will not be collected from a GPS.')
                         self.had_warnings = True
+                        logger.info('GPS Errors in cfg.is_valid')
 
                 if f.inputtype == 'MENU' and (len(f.menu)==0 and f.menufile == ''):
                     self.errors.append('Error: The field %s is listed a menu, but no menu list or menu file was provided with a MENU or MENUFILE option.' % field_name)
@@ -719,19 +722,37 @@ class MainScreen(Screen):
 
         if self.e5_cfg.gps:
             try:
+                logger.info('Configuring GPS in mainscreen')
                 gps.configure(on_location = self.on_gps_location,
                               on_status = self.on_gps_status)
             except (NotImplementedError, ModuleNotFoundError):
+                logger.info('Configuring GPS in mainscreen')
+                logger.info('Error configuring GPS in mainscreen')
+                logger.info('Configuring GPS in mainscreen')
                 self.gps_status = 'GPS is not implemented for your platform'
+                logger.info('Configuring GPS in mainscreen')
 
+                logger.info('Configuring GPS in mainscreen')
     def on_gps_location(self, **kwargs):
+                logger.info('Configuring GPS in mainscreen')
+        logger.info('GPS have a location')        
+                logger.info('Configuring GPS in mainscreen')
         self.gps_location = '\n'.join(['{}={}'.format(k, v) for k, v in kwargs.items()])
+                logger.info('Configuring GPS in mainscreen')
         location = self.get_widget_by_id('gps_location')
+                logger.info('Configuring GPS in mainscreen')
         if location:
+                logger.info('Configuring GPS in mainscreen')
             location.text = self.gps_location
+                logger.info('Configuring GPS in mainscreen')
 
+                logger.info('Configuring GPS in mainscreen')
     def on_gps_status(self, stype, status):
+                logger.info('Configuring GPS in mainscreen')
+        logger.info('GPS have a status')        
+                logger.info('Configuring GPS in mainscreen')
         self.gps_status = 'type={}\n{}'.format(stype, status)
+                logger.info('Configuring GPS in mainscreen')
         status = self.get_widget_by_id('gps_status')
         if status:
             status.text = self.gps_status
@@ -1024,6 +1045,7 @@ class MainScreen(Screen):
                 bx.add_widget(e5_label(text = 'Waiting for status' if self.e5_cfg.gps else 'GPS not on or available.',
                                         id = 'gps_status'))
                 if self.e5_cfg.gps:
+                    logger.info('GPS started')
                     gps.start()
                 content_area.add_widget(bx)
 
@@ -1215,7 +1237,7 @@ class MainScreen(Screen):
     def save_record(self):
         valid = self.e5_cfg.validate_current_record()
         if valid:
-            if self.save(self.e5_cfg.current_record):
+            if self.e5_data.save(self.e5_cfg.current_record):
                 self.make_backup()
             else:
                 pass
