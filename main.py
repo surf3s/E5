@@ -1643,6 +1643,9 @@ Factory.register('E5', cls=E5App)
 
 if __name__ == '__main__':
 
+
+    asdfadfadsf
+
     # Initialize a set of classes that are global
     logger = logging.getLogger('E5')
     E5App().run()
