@@ -2,6 +2,9 @@
 #   When backing up (ESC), current value is not highlighted
 #  If TYPE is missing from CFG provide a default of text
 
+
+# Hi Jonathan
+
 # To Do
 # Test species menu
 # Handle database and table names in the CFG and program better
