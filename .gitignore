@@ -125,3 +125,5 @@ bin/
 /temp*.*
 test*.*
 temp*.*
+*.xml
+*.iml
