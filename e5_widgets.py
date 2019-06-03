@@ -62,7 +62,7 @@ class e5_scrollview_menu(ScrollView):
     scrollbox = ObjectProperty(None)
     menu_selected_widget = None
 
-    def __init__(self, menu_list, menu_selected, widget_id = '', call_back = None, ncols = 1, colors = None, **kwargs):
+    def __init__(self, menu_list, menu_selected, widget_id = '', call_back = [None], ncols = 1, colors = None, **kwargs):
         super(e5_scrollview_menu, self).__init__(**kwargs)
         self.colors = colors
         self.scrollbox = GridLayout(cols = ncols,
@@ -73,10 +73,12 @@ class e5_scrollview_menu(ScrollView):
         
         self.menu_selected_widget = None
         if menu_list:
+            if len(call_back) == 1:
+                call_back = call_back * len(menu_list)
             for menu_item in menu_list:
                 menu_button = e5_button(menu_item, menu_item,
                                         selected = (menu_item == menu_selected),
-                                        call_back = call_back, colors = colors)
+                                        call_back = call_back[menu_list.index(menu_item)], colors = colors)
                 self.scrollbox.add_widget(menu_button)
                 if menu_item == menu_selected:
                     self.menu_selected_widget = menu_button

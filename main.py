@@ -20,8 +20,8 @@
 #   Consider putting a dropdown menu into the grid view for sorting and maybe searching
 #   Think about whether to allow editing of CFG in the program
 
-__version__ = '1.0.4'
-__date__ = 'May, 2019'
+__version__ = '1.0.5'
+__date__ = 'June, 2019'
 
 #region Imports
 from kivy.utils import platform
@@ -807,7 +807,7 @@ class MainScreen(Screen):
             mainscreen.add_widget(e5_scrollview_menu(self.cfg_files,
                                                      self.cfg_file_selected,
                                                      widget_id = 'cfg',
-                                                     call_back = self.cfg_selected,
+                                                     call_back = [self.cfg_selected],
                                                      colors = self.colors))
             self.scroll_menu = self.get_widget_by_id('cfg_scroll')
             self.scroll_menu.make_scroll_menu_item_visible()
@@ -1026,14 +1026,15 @@ class MainScreen(Screen):
                 content_area.add_widget(bx)
 
             if gps_exists:
-                bx = BoxLayout(orientation = 'vertical')
-                bx.add_widget(e5_label(text = 'Waiting for location' if self.e5_cfg.gps else 'No Location available.',
+                bx = BoxLayout(orientation = 'horizontal')
+                bx.add_widget(e5_scrollview_menu(['Start','Stop','Clear'],
+                                                'Start',
+                                                widget_id = 'menu',
+                                                call_back = [self.gps],
+                                                ncols = 1,
+                                                colors = self.colors))
+                bx.add_widget(e5_label(text = 'Waiting for location' if self.e5_cfg.gps else 'No GPS available.',
                                         id = 'gps_location'))
-                bx.add_widget(e5_label(text = 'Waiting for status' if self.e5_cfg.gps else 'GPS not on or available.',
-                                        id = 'gps_status'))
-                if self.e5_cfg.gps:
-                    logger.info('GPS started')
-                    gps.start()
                 content_area.add_widget(bx)
 
             if menu_exists:
@@ -1059,12 +1060,24 @@ class MainScreen(Screen):
                 content_area.add_widget(e5_scrollview_menu(menu_list,
                                                            selected_menu,
                                                            widget_id = 'menu',
-                                                           call_back = self.menu_selection,
+                                                           call_back = [self.menu_selection],
                                                            ncols = ncols,
                                                            colors = self.colors))
 
             if info_exists:
                 content_area.add_widget(e5_scrollview_label(self.get_info(), colors = self.colors))
+
+    def gps(self, value):
+        if self.e5_cfg.gps:
+            if value.text == 'Start':        
+                logger.info('GPS started')
+                gps.start()
+            elif value.text == 'Stop':
+                logger.info('GPS stopped')
+                gps.stop()
+            elif value.text == 'Clear':
+                pass
+        print(value.text)
 
     def take_photo(self):
         if camera.play:
@@ -1439,7 +1452,7 @@ class E5SettingsScreen(Screen):
         colorscheme.add_widget(e5_label('Color Scheme', colors = self.colors))
         colorscheme.add_widget(e5_scrollview_menu(self.colors.color_names(),
                                                   menu_selected = '',
-                                                  call_back = self.color_scheme_selected))
+                                                  call_back = [self.color_scheme_selected]))
         temp = ColorScheme()
         for widget in colorscheme.walk():
             if widget.id in self.colors.color_names():
@@ -1642,9 +1655,6 @@ class E5App(App):
 Factory.register('E5', cls=E5App)
 
 if __name__ == '__main__':
-
-
-    asdfadfadsf
 
     # Initialize a set of classes that are global
     logger = logging.getLogger('E5')
