@@ -3,8 +3,6 @@
 #  If TYPE is missing from CFG provide a default of text
 
 
-# Hi Jonathan again
-
 # To Do
 # Test species menu
 # Handle database and table names in the CFG and program better
@@ -69,6 +67,7 @@ from datetime import datetime
 import ntpath
 from string import ascii_uppercase
 from shutil import copyfile
+from random import random
 
 import logging
 import logging.handlers as handlers
@@ -102,6 +101,7 @@ class ini(blockdata):
         self.incremental_backups = False
         self.backup_interval = 0
         self.first_time = True
+        self.debug = False
 
     def open(self, filename = ''):
         if filename:
@@ -111,6 +111,7 @@ class ini(blockdata):
         self.is_valid()
         self.incremental_backups = self.get_value('E5','IncrementalBackups').upper() == 'TRUE'
         self.backup_interval = int(self.get_value('E5','BackupInterval'))
+        self.debug = self.get_value('E5','Debug').upper() == 'TRUE'
 
     def is_valid(self):
         for field_option in ['DARKMODE','INCREMENTALBACKUPS']:
@@ -698,6 +699,7 @@ class MainScreen(Screen):
     text_color = (0, 0, 0, 1)
 
     gps_location = StringProperty(None)
+    gps_location_widget = ObjectProperty(None)
     gps_status = StringProperty('Click Start to get GPS location updates')
 
     def __init__(self, e5_data = None, e5_cfg = None, e5_ini = None, colors = None, **kwargs):
@@ -733,10 +735,18 @@ class MainScreen(Screen):
                 self.gps_status = 'GPS is not implemented for your platform'
 
     def on_gps_location(self, **kwargs):
-        self.gps_location = '\n'.join(['{}={}'.format(k, v) for k, v in kwargs.items()])
-        location = self.get_widget_by_id('gps_location')
-        if location:
-            location.text = self.gps_location
+        results = ''
+        for k, v in kwargs.items():
+            if results:
+                results += '\n'
+            results += k.capitalize() + ' = '
+            if k != 'accuracy':
+                results += '%s' % v
+            else:
+                results += '%s' % round(v, 3)
+        #self.gps_location = '\n'.join(['{} = {}'.format(k, v) for k, v in kwargs.items()])
+        self.gps_location = results
+        self.gps_location_widget.text = self.gps_location
 
     def on_gps_status(self, stype, status):
         self.gps_status = 'type={}\n{}'.format(stype, status)
@@ -1004,6 +1014,11 @@ class MainScreen(Screen):
                     if textbox.upper() == menubox.upper()[0:len(textbox)]:
                         self.get_widget_by_id('field_data').text = menubox
 
+    def copy_from_gps_to_textbox(self):
+        if self.e5_cfg.current_field.inputtype in ['GPS']:
+            textbox = self.get_widget_by_id('field_data')
+            textbox.text = self.gps_location_widget.text.replace('\n',',')
+
     def add_scroll_content(self, content_area, menu_filter = ''):
     
         content_area.clear_widgets()
@@ -1026,15 +1041,22 @@ class MainScreen(Screen):
                 content_area.add_widget(bx)
 
             if gps_exists:
-                bx = BoxLayout(orientation = 'horizontal')
-                bx.add_widget(e5_scrollview_menu(['Start','Stop','Clear'],
-                                                'Start',
-                                                widget_id = 'menu',
-                                                call_back = [self.gps],
-                                                ncols = 1,
+                bx = BoxLayout(orientation = 'vertical')
+                if self.e5_cfg.gps:
+                    gps_label_text = 'Press start to begin.'
+                elif self.e5_ini.debug:
+                    gps_label_text = 'Press start to begin [Debug mode].'
+                else:
+                    gps_label_text = 'No GPS available.'
+                gps_label = e5_label(text = gps_label_text,
+                                        id = 'gps_location')
+                bx.add_widget(gps_label)
+                bx.add_widget(e5_side_by_side_buttons(text = ['Start','Stop','Clear'],
+                                                id = [''] * 3,
+                                                selected = [False] * 3,
+                                                call_back = [self.gps] * 3,
                                                 colors = self.colors))
-                bx.add_widget(e5_label(text = 'Waiting for location' if self.e5_cfg.gps else 'No GPS available.',
-                                        id = 'gps_location'))
+                self.gps_location_widget = gps_label
                 content_area.add_widget(bx)
 
             if menu_exists:
@@ -1072,12 +1094,29 @@ class MainScreen(Screen):
             if value.text == 'Start':        
                 logger.info('GPS started')
                 gps.start()
+                self.gps_location_widget.text = "Waiting for GPS."
             elif value.text == 'Stop':
                 logger.info('GPS stopped')
                 gps.stop()
+                self.gps_location_widget.text = "GPS stopped."
             elif value.text == 'Clear':
+                self.gps_location_widget.text = ''
+        elif self.e5_ini.debug:
+            if value.text == 'Start':
+                self.gps_location_widget.text = self.gps_random_point()
+            elif value.text == 'Stop':
                 pass
-        print(value.text)
+            elif value.text == 'Clear':
+                self.gps_location_widget.text = ''
+
+    def gps_random_point(self):
+        point = "Bearing = %s\n" % round(random() * 360,2)
+        point += "Altitude = %s\n" % round(random() * 10, 3)
+        point += "Lon = %s\n" % round(12.3912015 + random()/10, 3)
+        point += "Lat = %s\n" % round(51.3220704 + random()/10, 3)
+        point += "Speed = %s\n" % round(random() * 10, 3)
+        point += "Accuracy = %s" % round(random() * 5 + 3, 3)
+        return(point)
 
     def take_photo(self):
         if camera.play:
@@ -1214,6 +1253,7 @@ class MainScreen(Screen):
 
     def go_next(self, *args):
         self.copy_from_menu_to_textbox()
+        self.copy_from_gps_to_textbox()
         self.save_field()
         valid_data = self.e5_cfg.data_is_valid(db = self.e5_data.db)
         if valid_data == True:
@@ -1532,6 +1572,8 @@ class StatusScreen(e5_InfoScreen):
         txt += self.e5_ini.status() if self.e5_ini else 'An INI file is not available.\n\n'
         txt += '\nThe default user path is %s.\n' % self.e5_ini.get_value("E5","APP_PATH")
         txt += '\nThe operating system is %s.\n' % platform_name()
+        if self.e5_ini.debug:
+             txt += '\nProgram is running in debug mode.\n'
         self.content.text = txt
         self.content.color = self.colors.text_color
         self.back_button.background_color = self.colors.button_background
