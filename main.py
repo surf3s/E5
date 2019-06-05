@@ -466,7 +466,7 @@ class cfg(blockdata):
                     if locate_file(f.lookupfile, self.path):
                         f.lookupfile = locate_file(f.lookupfile, self.path)
 
-                if f.inputtype == 'GPS':
+                if f.inputtype in ['GPS']:
                     logger.info('About to start GPS in cfg.is_valid')
                     try:
                         gps.configure(on_location = self.gps_location)
@@ -688,6 +688,65 @@ class cfg(blockdata):
             return(None)
         except:
             return('\nCould not write data to %s.' % (filename))
+   
+    def write_geojson(self, filename, table):
+        try:
+            cfg_fields = self.fields()
+            basename = os.path.basename(filename)
+            basename = os.path.splitext(basename)[0]
+            f = open(filename, 'w')
+            geojson_header = '{\n'
+            geojson_header += '"type": "FeatureCollection",\n'
+            geojson_header += '"name": "%s",\n' % basename
+            geojson_header += '"features": [\n'
+            f.write(geojson_header)
+            for row in table:
+                geojson_row = '{ "type": "Feature", "properties": {'
+                comma = ' '
+                for fieldname in cfg_fields:
+                    if fieldname in row.keys():
+                        geojson_row += comma + '"%s": '
+                        if self.get(fieldname).inputtype in ['NUMERIC','INSTRUMENT']:
+                            geojson_row += '%s' % row[fieldname]   
+                        else:
+                            geojson_row += '"%s"' % row[fieldname]
+                    comma = ', '
+                geojson_row += ' },\n'
+                geojson_row += '"geometry": { "type": "Point", "coordinates": [ '
+                geojson_row += '%s , %s' % self.get_XY(row)
+                geojson_row += '] } },\n'
+                f.write(geojson_row)
+            f.close()
+            return(None)
+        except:
+            return('\nCould not write data to %s.' % (filename))
+    
+    def get_XY(self, row):
+        cfg_fields = self.fields()
+        if 'X' in cfg_fields and 'Y' in cfg_fields:
+            return((row['X'], row['Y']))
+        elif 'LATITUDE' in cfg_fields and 'LONGITUDE' in cfg_fields:
+            return((row['LONGITUDE'], row['LATITUDE']))
+        elif self.gps_field(row):
+            gps_data = self.gps_to_dict(self.gps_field(row))
+            return((gps_data['Longitude', 'Latitude']))
+        else:
+            return((0, 0))
+
+    def gps_field(self, row):
+        for fieldname in self.fields():
+            field = self.get(fieldname)
+            if field.type in ['GPS']:
+                return(row[fieldname])
+        return('') 
+
+    def gps_to_dict(delimited_data):
+        dict_data = {} 
+        for item in delimited_data.split(','):
+            dict_item = item.split('=')
+            dict_data[dict_item[0]] = dict_item[1]
+        return(dict_data)
+        
 #endregion
 
 class MainScreen(Screen):
@@ -1176,16 +1235,69 @@ class MainScreen(Screen):
         self.popup.dismiss()
 
         filename = ntpath.split(self.e5_cfg.filename)[1].split(".")[0]
-        filename = os.path.join(path, filename + '.csv' )
+        filename = os.path.join(path, filename + "_" + self.e5_data.table + '.csv' )
 
-        table = self.e5_data.db.table('_default')
+        table = self.e5_data.db.table(self.e5_data.table)
 
         errors = self.e5_cfg.write_csvs(filename, table)
         title = 'CSV Export'
         if errors:
             self.popup = e5_MessageBox(title, errors, call_back = self.close_popup, colors = self.colors)
         else:
-            self.popup = e5_MessageBox(title, '\n%s successfully written.' % filename, call_back = self.close_popup, colors = self.colors)
+            self.popup = e5_MessageBox(title, '\nThe table %s was successfully written as the file %s.' % (self.e5_data.table, filename),
+                call_back = self.close_popup, colors = self.colors)
+        self.popup.open()
+        self.popup_open = True
+
+    def show_save_geojson(self):
+        if self.e5_cfg.filename and self.e5_data.filename:
+            geojson_compatible = 0
+            for fieldname in self.e5_cfg.fields():
+                if fieldname in ['X','Y','Z']:
+                    geojson_compatible += 1
+                elif fieldname in ['LATITUDE','LONGITUDE','ELEVATION']:
+                    geojson_compatible += 1
+                else:
+                    field = self.e5_cfg.get_field(fieldname)
+                    if field.type in ['GPS']:
+                        geojson_compatible = 2
+                if geojson_compatible > 1:
+                        exit for
+            if geojson_compatible:
+                content = e5_SaveDialog(start_path = self.e5_cfg.path,
+                                    save = self.save_geojson, 
+                                    cancel = self.dismiss_popup,
+                                    button_color = self.colors.button_color,
+                                    button_background = self.colors.button_background)
+                self.popup = Popup(title = "Select a folder for the geoJSON files",
+                                    content = content,
+                                    size_hint = (0.9, 0.9))
+            else:
+                self.popup = e5_MessageBox('E5', '\nA geoJSON file requires a GPS type field or fields named XY(Z) or Latitude, Longitude and optionally Elevation.',
+                                        call_back = self.dismiss_popup,
+                                        colors = self.colors)
+        else:
+            self.popup = e5_MessageBox('E5', '\nOpen a CFG before exporting to geoJSON.',
+                                    call_back = self.dismiss_popup,
+                                    colors = self.colors)
+        self.popup.open()
+        self.popup_open = True
+        
+    def save_geojson(self, path):
+        self.popup.dismiss()
+
+        filename = ntpath.split(self.e5_cfg.filename)[1].split(".")[0]
+        filename = os.path.join(path, filename + '_' + self.e5_data.table + '.csv' )
+
+        table = self.e5_data.db.table(self.e5_data.table)
+
+        errors = self.e5_cfg.write_geojson(filename, table)
+        title = 'geoJSON Export'
+        if errors:
+            self.popup = e5_MessageBox(title, errors, call_back = self.close_popup, colors = self.colors)
+        else:
+            self.popup = e5_MessageBox(title, '\nThe table %s was successfully written as geoJSON to the file %s.' % (self.e5_data.table, filename),
+                call_back = self.close_popup, colors = self.colors)
         self.popup.open()
         self.popup_open = True
 
