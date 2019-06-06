@@ -700,12 +700,13 @@ class cfg(blockdata):
             geojson_header += '"name": "%s",\n' % basename
             geojson_header += '"features": [\n'
             f.write(geojson_header)
+            row_comma = ''
             for row in table:
-                geojson_row = '{ "type": "Feature", "properties": {'
+                geojson_row = row_comma + '{ "type": "Feature", "properties": {'
                 comma = ' '
                 for fieldname in cfg_fields:
                     if fieldname in row.keys():
-                        geojson_row += comma + '"%s": '
+                        geojson_row += comma + '"%s": ' % fieldname
                         if self.get(fieldname).inputtype in ['NUMERIC','INSTRUMENT']:
                             geojson_row += '%s' % row[fieldname]   
                         else:
@@ -714,8 +715,10 @@ class cfg(blockdata):
                 geojson_row += ' },\n'
                 geojson_row += '"geometry": { "type": "Point", "coordinates": [ '
                 geojson_row += '%s , %s' % self.get_XY(row)
-                geojson_row += '] } },\n'
+                geojson_row += '] } }'
                 f.write(geojson_row)
+                row_comma = ',\n'
+            f.write('\n]\n}')
             f.close()
             return(None)
         except:
@@ -729,22 +732,22 @@ class cfg(blockdata):
             return((row['LONGITUDE'], row['LATITUDE']))
         elif self.gps_field(row):
             gps_data = self.gps_to_dict(self.gps_field(row))
-            return((gps_data['Longitude', 'Latitude']))
+            return((gps_data['Lon'], gps_data['Lat']))
         else:
             return((0, 0))
 
     def gps_field(self, row):
         for fieldname in self.fields():
             field = self.get(fieldname)
-            if field.type in ['GPS']:
+            if field.inputtype in ['GPS']:
                 return(row[fieldname])
         return('') 
 
-    def gps_to_dict(delimited_data):
+    def gps_to_dict(self, delimited_data):
         dict_data = {} 
         for item in delimited_data.split(','):
             dict_item = item.split('=')
-            dict_data[dict_item[0]] = dict_item[1]
+            dict_data[dict_item[0].strip()] = dict_item[1].strip()
         return(dict_data)
         
 #endregion
@@ -1258,11 +1261,11 @@ class MainScreen(Screen):
                 elif fieldname in ['LATITUDE','LONGITUDE','ELEVATION']:
                     geojson_compatible += 1
                 else:
-                    field = self.e5_cfg.get_field(fieldname)
-                    if field.type in ['GPS']:
+                    field = self.e5_cfg.get(fieldname)
+                    if field.inputtype in ['GPS']:
                         geojson_compatible = 2
                 if geojson_compatible > 1:
-                        exit for
+                        break
             if geojson_compatible:
                 content = e5_SaveDialog(start_path = self.e5_cfg.path,
                                     save = self.save_geojson, 
@@ -1287,7 +1290,7 @@ class MainScreen(Screen):
         self.popup.dismiss()
 
         filename = ntpath.split(self.e5_cfg.filename)[1].split(".")[0]
-        filename = os.path.join(path, filename + '_' + self.e5_data.table + '.csv' )
+        filename = os.path.join(path, filename + '_' + self.e5_data.table + '.geojson' )
 
         table = self.e5_data.db.table(self.e5_data.table)
 
