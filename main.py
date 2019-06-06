@@ -3,8 +3,6 @@
 #  If TYPE is missing from CFG provide a default of text
 
 
-# Hi Jonathan again
-
 # To Do
 # Test species menu
 # Handle database and table names in the CFG and program better
@@ -20,8 +18,8 @@
 #   Consider putting a dropdown menu into the grid view for sorting and maybe searching
 #   Think about whether to allow editing of CFG in the program
 
-__version__ = '1.0.4'
-__date__ = 'May, 2019'
+__version__ = '1.0.5'
+__date__ = 'June, 2019'
 
 #region Imports
 from kivy.utils import platform
@@ -69,6 +67,7 @@ from datetime import datetime
 import ntpath
 from string import ascii_uppercase
 from shutil import copyfile
+from random import random
 
 import logging
 import logging.handlers as handlers
@@ -102,6 +101,7 @@ class ini(blockdata):
         self.incremental_backups = False
         self.backup_interval = 0
         self.first_time = True
+        self.debug = False
 
     def open(self, filename = ''):
         if filename:
@@ -111,6 +111,7 @@ class ini(blockdata):
         self.is_valid()
         self.incremental_backups = self.get_value('E5','IncrementalBackups').upper() == 'TRUE'
         self.backup_interval = int(self.get_value('E5','BackupInterval'))
+        self.debug = self.get_value('E5','Debug').upper() == 'TRUE'
 
     def is_valid(self):
         for field_option in ['DARKMODE','INCREMENTALBACKUPS']:
@@ -465,7 +466,7 @@ class cfg(blockdata):
                     if locate_file(f.lookupfile, self.path):
                         f.lookupfile = locate_file(f.lookupfile, self.path)
 
-                if f.inputtype == 'GPS':
+                if f.inputtype in ['GPS']:
                     logger.info('About to start GPS in cfg.is_valid')
                     try:
                         gps.configure(on_location = self.gps_location)
@@ -687,6 +688,68 @@ class cfg(blockdata):
             return(None)
         except:
             return('\nCould not write data to %s.' % (filename))
+   
+    def write_geojson(self, filename, table):
+        try:
+            cfg_fields = self.fields()
+            basename = os.path.basename(filename)
+            basename = os.path.splitext(basename)[0]
+            f = open(filename, 'w')
+            geojson_header = '{\n'
+            geojson_header += '"type": "FeatureCollection",\n'
+            geojson_header += '"name": "%s",\n' % basename
+            geojson_header += '"features": [\n'
+            f.write(geojson_header)
+            row_comma = ''
+            for row in table:
+                geojson_row = row_comma + '{ "type": "Feature", "properties": {'
+                comma = ' '
+                for fieldname in cfg_fields:
+                    if fieldname in row.keys():
+                        geojson_row += comma + '"%s": ' % fieldname
+                        if self.get(fieldname).inputtype in ['NUMERIC','INSTRUMENT']:
+                            geojson_row += '%s' % row[fieldname]   
+                        else:
+                            geojson_row += '"%s"' % row[fieldname]
+                    comma = ', '
+                geojson_row += ' },\n'
+                geojson_row += '"geometry": { "type": "Point", "coordinates": [ '
+                geojson_row += '%s , %s' % self.get_XY(row)
+                geojson_row += '] } }'
+                f.write(geojson_row)
+                row_comma = ',\n'
+            f.write('\n]\n}')
+            f.close()
+            return(None)
+        except:
+            return('\nCould not write data to %s.' % (filename))
+    
+    def get_XY(self, row):
+        cfg_fields = self.fields()
+        if 'X' in cfg_fields and 'Y' in cfg_fields:
+            return((row['X'], row['Y']))
+        elif 'LATITUDE' in cfg_fields and 'LONGITUDE' in cfg_fields:
+            return((row['LONGITUDE'], row['LATITUDE']))
+        elif self.gps_field(row):
+            gps_data = self.gps_to_dict(self.gps_field(row))
+            return((gps_data['Lon'], gps_data['Lat']))
+        else:
+            return((0, 0))
+
+    def gps_field(self, row):
+        for fieldname in self.fields():
+            field = self.get(fieldname)
+            if field.inputtype in ['GPS']:
+                return(row[fieldname])
+        return('') 
+
+    def gps_to_dict(self, delimited_data):
+        dict_data = {} 
+        for item in delimited_data.split(','):
+            dict_item = item.split('=')
+            dict_data[dict_item[0].strip()] = dict_item[1].strip()
+        return(dict_data)
+        
 #endregion
 
 class MainScreen(Screen):
@@ -698,6 +761,7 @@ class MainScreen(Screen):
     text_color = (0, 0, 0, 1)
 
     gps_location = StringProperty(None)
+    gps_location_widget = ObjectProperty(None)
     gps_status = StringProperty('Click Start to get GPS location updates')
 
     def __init__(self, e5_data = None, e5_cfg = None, e5_ini = None, colors = None, **kwargs):
@@ -733,10 +797,18 @@ class MainScreen(Screen):
                 self.gps_status = 'GPS is not implemented for your platform'
 
     def on_gps_location(self, **kwargs):
-        self.gps_location = '\n'.join(['{}={}'.format(k, v) for k, v in kwargs.items()])
-        location = self.get_widget_by_id('gps_location')
-        if location:
-            location.text = self.gps_location
+        results = ''
+        for k, v in kwargs.items():
+            if results:
+                results += '\n'
+            results += k.capitalize() + ' = '
+            if k != 'accuracy':
+                results += '%s' % v
+            else:
+                results += '%s' % round(v, 3)
+        #self.gps_location = '\n'.join(['{} = {}'.format(k, v) for k, v in kwargs.items()])
+        self.gps_location = results
+        self.gps_location_widget.text = self.gps_location
 
     def on_gps_status(self, stype, status):
         self.gps_status = 'type={}\n{}'.format(stype, status)
@@ -807,7 +879,7 @@ class MainScreen(Screen):
             mainscreen.add_widget(e5_scrollview_menu(self.cfg_files,
                                                      self.cfg_file_selected,
                                                      widget_id = 'cfg',
-                                                     call_back = self.cfg_selected,
+                                                     call_back = [self.cfg_selected],
                                                      colors = self.colors))
             self.scroll_menu = self.get_widget_by_id('cfg_scroll')
             self.scroll_menu.make_scroll_menu_item_visible()
@@ -1004,6 +1076,11 @@ class MainScreen(Screen):
                     if textbox.upper() == menubox.upper()[0:len(textbox)]:
                         self.get_widget_by_id('field_data').text = menubox
 
+    def copy_from_gps_to_textbox(self):
+        if self.e5_cfg.current_field.inputtype in ['GPS']:
+            textbox = self.get_widget_by_id('field_data')
+            textbox.text = self.gps_location_widget.text.replace('\n',',')
+
     def add_scroll_content(self, content_area, menu_filter = ''):
     
         content_area.clear_widgets()
@@ -1027,13 +1104,21 @@ class MainScreen(Screen):
 
             if gps_exists:
                 bx = BoxLayout(orientation = 'vertical')
-                bx.add_widget(e5_label(text = 'Waiting for location' if self.e5_cfg.gps else 'No Location available.',
-                                        id = 'gps_location'))
-                bx.add_widget(e5_label(text = 'Waiting for status' if self.e5_cfg.gps else 'GPS not on or available.',
-                                        id = 'gps_status'))
                 if self.e5_cfg.gps:
-                    logger.info('GPS started')
-                    gps.start()
+                    gps_label_text = 'Press start to begin.'
+                elif self.e5_ini.debug:
+                    gps_label_text = 'Press start to begin [Debug mode].'
+                else:
+                    gps_label_text = 'No GPS available.'
+                gps_label = e5_label(text = gps_label_text,
+                                        id = 'gps_location')
+                bx.add_widget(gps_label)
+                bx.add_widget(e5_side_by_side_buttons(text = ['Start','Stop','Clear'],
+                                                id = [''] * 3,
+                                                selected = [False] * 3,
+                                                call_back = [self.gps] * 3,
+                                                colors = self.colors))
+                self.gps_location_widget = gps_label
                 content_area.add_widget(bx)
 
             if menu_exists:
@@ -1059,12 +1144,41 @@ class MainScreen(Screen):
                 content_area.add_widget(e5_scrollview_menu(menu_list,
                                                            selected_menu,
                                                            widget_id = 'menu',
-                                                           call_back = self.menu_selection,
+                                                           call_back = [self.menu_selection],
                                                            ncols = ncols,
                                                            colors = self.colors))
 
             if info_exists:
                 content_area.add_widget(e5_scrollview_label(self.get_info(), colors = self.colors))
+
+    def gps(self, value):
+        if self.e5_cfg.gps:
+            if value.text == 'Start':        
+                logger.info('GPS started')
+                gps.start()
+                self.gps_location_widget.text = "Waiting for GPS."
+            elif value.text == 'Stop':
+                logger.info('GPS stopped')
+                gps.stop()
+                self.gps_location_widget.text = "GPS stopped."
+            elif value.text == 'Clear':
+                self.gps_location_widget.text = ''
+        elif self.e5_ini.debug:
+            if value.text == 'Start':
+                self.gps_location_widget.text = self.gps_random_point()
+            elif value.text == 'Stop':
+                pass
+            elif value.text == 'Clear':
+                self.gps_location_widget.text = ''
+
+    def gps_random_point(self):
+        point = "Bearing = %s\n" % round(random() * 360,2)
+        point += "Altitude = %s\n" % round(random() * 10, 3)
+        point += "Lon = %s\n" % round(12.3912015 + random()/10, 3)
+        point += "Lat = %s\n" % round(51.3220704 + random()/10, 3)
+        point += "Speed = %s\n" % round(random() * 10, 3)
+        point += "Accuracy = %s" % round(random() * 5 + 3, 3)
+        return(point)
 
     def take_photo(self):
         if camera.play:
@@ -1124,16 +1238,69 @@ class MainScreen(Screen):
         self.popup.dismiss()
 
         filename = ntpath.split(self.e5_cfg.filename)[1].split(".")[0]
-        filename = os.path.join(path, filename + '.csv' )
+        filename = os.path.join(path, filename + "_" + self.e5_data.table + '.csv' )
 
-        table = self.e5_data.db.table('_default')
+        table = self.e5_data.db.table(self.e5_data.table)
 
         errors = self.e5_cfg.write_csvs(filename, table)
         title = 'CSV Export'
         if errors:
             self.popup = e5_MessageBox(title, errors, call_back = self.close_popup, colors = self.colors)
         else:
-            self.popup = e5_MessageBox(title, '\n%s successfully written.' % filename, call_back = self.close_popup, colors = self.colors)
+            self.popup = e5_MessageBox(title, '\nThe table %s was successfully written as the file %s.' % (self.e5_data.table, filename),
+                call_back = self.close_popup, colors = self.colors)
+        self.popup.open()
+        self.popup_open = True
+
+    def show_save_geojson(self):
+        if self.e5_cfg.filename and self.e5_data.filename:
+            geojson_compatible = 0
+            for fieldname in self.e5_cfg.fields():
+                if fieldname in ['X','Y','Z']:
+                    geojson_compatible += 1
+                elif fieldname in ['LATITUDE','LONGITUDE','ELEVATION']:
+                    geojson_compatible += 1
+                else:
+                    field = self.e5_cfg.get(fieldname)
+                    if field.inputtype in ['GPS']:
+                        geojson_compatible = 2
+                if geojson_compatible > 1:
+                        break
+            if geojson_compatible:
+                content = e5_SaveDialog(start_path = self.e5_cfg.path,
+                                    save = self.save_geojson, 
+                                    cancel = self.dismiss_popup,
+                                    button_color = self.colors.button_color,
+                                    button_background = self.colors.button_background)
+                self.popup = Popup(title = "Select a folder for the geoJSON files",
+                                    content = content,
+                                    size_hint = (0.9, 0.9))
+            else:
+                self.popup = e5_MessageBox('E5', '\nA geoJSON file requires a GPS type field or fields named XY(Z) or Latitude, Longitude and optionally Elevation.',
+                                        call_back = self.dismiss_popup,
+                                        colors = self.colors)
+        else:
+            self.popup = e5_MessageBox('E5', '\nOpen a CFG before exporting to geoJSON.',
+                                    call_back = self.dismiss_popup,
+                                    colors = self.colors)
+        self.popup.open()
+        self.popup_open = True
+        
+    def save_geojson(self, path):
+        self.popup.dismiss()
+
+        filename = ntpath.split(self.e5_cfg.filename)[1].split(".")[0]
+        filename = os.path.join(path, filename + '_' + self.e5_data.table + '.geojson' )
+
+        table = self.e5_data.db.table(self.e5_data.table)
+
+        errors = self.e5_cfg.write_geojson(filename, table)
+        title = 'geoJSON Export'
+        if errors:
+            self.popup = e5_MessageBox(title, errors, call_back = self.close_popup, colors = self.colors)
+        else:
+            self.popup = e5_MessageBox(title, '\nThe table %s was successfully written as geoJSON to the file %s.' % (self.e5_data.table, filename),
+                call_back = self.close_popup, colors = self.colors)
         self.popup.open()
         self.popup_open = True
 
@@ -1201,6 +1368,7 @@ class MainScreen(Screen):
 
     def go_next(self, *args):
         self.copy_from_menu_to_textbox()
+        self.copy_from_gps_to_textbox()
         self.save_field()
         valid_data = self.e5_cfg.data_is_valid(db = self.e5_data.db)
         if valid_data == True:
@@ -1439,7 +1607,7 @@ class E5SettingsScreen(Screen):
         colorscheme.add_widget(e5_label('Color Scheme', colors = self.colors))
         colorscheme.add_widget(e5_scrollview_menu(self.colors.color_names(),
                                                   menu_selected = '',
-                                                  call_back = self.color_scheme_selected))
+                                                  call_back = [self.color_scheme_selected]))
         temp = ColorScheme()
         for widget in colorscheme.walk():
             if widget.id in self.colors.color_names():
@@ -1519,6 +1687,8 @@ class StatusScreen(e5_InfoScreen):
         txt += self.e5_ini.status() if self.e5_ini else 'An INI file is not available.\n\n'
         txt += '\nThe default user path is %s.\n' % self.e5_ini.get_value("E5","APP_PATH")
         txt += '\nThe operating system is %s.\n' % platform_name()
+        if self.e5_ini.debug:
+             txt += '\nProgram is running in debug mode.\n'
         self.content.text = txt
         self.content.color = self.colors.text_color
         self.back_button.background_color = self.colors.button_background
@@ -1642,9 +1812,6 @@ class E5App(App):
 Factory.register('E5', cls=E5App)
 
 if __name__ == '__main__':
-
-
-    asdfadfadsf
 
     # Initialize a set of classes that are global
     logger = logging.getLogger('E5')
