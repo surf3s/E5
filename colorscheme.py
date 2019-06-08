@@ -10,7 +10,6 @@ def make_rgb(hex_color):
 
 class ColorScheme:
 
-
     def __init__(self, color_name = 'light blue'):
 
         if platform_name() == 'Android':
@@ -68,7 +67,7 @@ class ColorScheme:
         Window.clearcolor = self.window_background
 
     def color_names(self):
-        return(self.valid_colors.keys())
+        return(list(self.valid_colors.keys()))
 
     def set_to(self, name):
         self.need_redraw = True
