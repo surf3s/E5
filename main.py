@@ -23,7 +23,7 @@ __date__ = 'June, 2019'
 
 #region Imports
 from kivy.utils import platform
-from kivy.clock import Clock
+from kivy.clock import Clock, mainthread
 from kivy.app import App
 from kivy.uix.camera import Camera
 from kivy.uix.floatlayout import FloatLayout
@@ -49,10 +49,10 @@ from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.tabbedpanel import TabbedPanel
-from plyer import gps
 from kivy.core.window import Window
 from kivy.graphics import Color, Rectangle
 from kivy.config import Config
+from kivy import __version__ as __kivy_version__
 
 # The explicit mention of this package here
 # triggers its inclusions in the pyinstaller spec file.
@@ -68,6 +68,10 @@ import ntpath
 from string import ascii_uppercase
 from shutil import copyfile
 from random import random
+from platform import python_version
+
+from plyer import gps
+from plyer import __version__ as __plyer_version__
 
 import logging
 import logging.handlers as handlers
@@ -82,6 +86,7 @@ from misc import *
 
 # The database - pure Python
 from tinydb import TinyDB, Query, where
+from tinydb import __version__ as __tinydb_version__
 
 from collections import OrderedDict
 #endregion
@@ -301,8 +306,7 @@ class cfg(blockdata):
     # Remove leading and trailing spaces
     # and remove empty items once this is done.
     def clean_menu(self, menulist):
-        for menu_item in menulist:
-            menu_item = menu_item.strip()
+        menulist = [item.strip() for item in menulist]
         menulist = list(filter(('').__ne__, menulist))
         return(menulist)
 
@@ -324,17 +328,18 @@ class cfg(blockdata):
                 f = self.current_field.name
             else:
                 return(None)
-        if f in self.current_record.keys():
-            return(self.current_record[f])
-        else:
-            return(None)
+        return(self.current_record[f] if f in self.current_record.keys() else None)
+        #if f in self.current_record.keys():
+        #    return(self.current_record[f])
+        #else:
+        #    return(None)
 
     def fields(self):
-        field_names = self.names()
-        del_fields = ['E5']
-        for del_field in del_fields:
-            if del_field in field_names:
-                field_names.remove(del_field)
+        field_names = [field for field in self.names() if field not in ['E5']]
+        #del_fields = ['E5']
+        #for del_field in del_fields:
+        #    if del_field in field_names:
+        #        field_names.remove(del_field)
         return(field_names)
 
     def data_is_valid(self, db = None):
@@ -488,7 +493,7 @@ class cfg(blockdata):
                         self.has_warnings = True
                         self.errors.append("Warning: Could not locate the menu file '%s' for the field %s." % (f.menufile, field_name))
                 
-                if any((c in set(r' !@#$%^&*()?/\{}<.,.|+=_-~`')) for c in field_name):
+                if any((c in set(r' !@#$%^&*()?/\{}<.,.|+=-~`')) for c in field_name):
                     self.errors.append('Warning: The field %s has non-standard characters in it.  E5 will attempt to work with it, but it is highly recommended that you rename it as it will likely cause problems elsewhere.' % field_name)
                     self.has_warnings = True
 
@@ -547,7 +552,7 @@ class cfg(blockdata):
         return(formatted_conditions)    
 
     def gps_location(self):
-        pass
+        logger.info('Have location in cfg.is_valid')
 
     def save(self):
         self.write_blocks()
@@ -563,10 +568,7 @@ class cfg(blockdata):
         else:
             self.filename = ''
         self.BOF = True
-        if len(self.blocks)>0:
-            self.EOF = False
-        else:
-            self.EOF = True
+        self.EOF = False if len(self.blocks) > 0 else True
         self.current_field = None
         self.is_valid()
 
@@ -627,7 +629,7 @@ class cfg(blockdata):
         return(self.current_field)
 
     def start(self):
-        if len(self.fields())>0 and not self.has_errors:
+        if len(self.fields()) > 0 and not self.has_errors:
             self.BOF = False
             self.EOF = False
             self.current_field = self.get(self.fields()[0])
@@ -772,6 +774,9 @@ class MainScreen(Screen):
         self.e5_ini = e5_ini if e5_ini else ini()
         self.e5_data = e5_data if e5_data else db()
 
+        if platform_name() == 'Android':
+            self.colors.button_font_size = "14sp"
+
         # Used for KV file settings
         self.text_color = self.colors.text_color
         self.button_color = self.colors.button_color
@@ -796,21 +801,19 @@ class MainScreen(Screen):
                 logger.info('Error configuring GPS in mainscreen')
                 self.gps_status = 'GPS is not implemented for your platform'
 
+    @mainthread
     def on_gps_location(self, **kwargs):
-        results = ''
+        results, linefeed = '', ''
         for k, v in kwargs.items():
-            if results:
-                results += '\n'
-            results += k.capitalize() + ' = '
-            if k != 'accuracy':
-                results += '%s' % v
-            else:
-                results += '%s' % round(v, 3)
-        #self.gps_location = '\n'.join(['{} = {}'.format(k, v) for k, v in kwargs.items()])
-        self.gps_location = results
-        self.gps_location_widget.text = self.gps_location
+            results += linefeed + k.capitalize() + ' = '
+            results += '%s' % (v if k != 'accuracy' else round(float(v), 3) )
+            linefeed = '\n'
+        #self.gps_location = results
+        self.gps_location_widget.text = results
 
+    @mainthread
     def on_gps_status(self, stype, status):
+        logger.info('GPS status updated.')
         self.gps_status = 'type={}\n{}'.format(stype, status)
         status = self.get_widget_by_id('gps_status')
         if status:
@@ -1116,15 +1119,12 @@ class MainScreen(Screen):
                 bx.add_widget(e5_side_by_side_buttons(text = ['Start','Stop','Clear'],
                                                 id = [''] * 3,
                                                 selected = [False] * 3,
-                                                call_back = [self.gps] * 3,
+                                                call_back = [self.gps_manage] * 3,
                                                 colors = self.colors))
                 self.gps_location_widget = gps_label
                 content_area.add_widget(bx)
 
             if menu_exists:
-                no_cols = int(content_area.width/2/150) if info_exists else int(content_area.width/150)
-                no_cols = max(no_cols, 1)
-
                 menu_list = ['True','False'] if self.e5_cfg.current_field.inputtype == 'BOOLEAN' else self.e5_cfg.current_field.menu
 
                 if menu_filter:
@@ -1134,12 +1134,11 @@ class MainScreen(Screen):
                 if not selected_menu and menu_list:
                     selected_menu = menu_list[0]
 
-                if info_exists:
-                    ncols = int(content_area.width / 400)
+                if platform_name() == 'Android':
+                    ncols = 1 if info_exists else 2
                 else:
-                    ncols = int(content_area.width / 200)
-                if ncols < 1:
-                    ncols = 1
+                    ncols = int(content_area.width / 400) if info_exists else int(content_area.width / 200)
+                    ncols = max(ncols, 1)
 
                 content_area.add_widget(e5_scrollview_menu(menu_list,
                                                            selected_menu,
@@ -1151,7 +1150,7 @@ class MainScreen(Screen):
             if info_exists:
                 content_area.add_widget(e5_scrollview_label(self.get_info(), colors = self.colors))
 
-    def gps(self, value):
+    def gps_manage(self, value):
         if self.e5_cfg.gps:
             if value.text == 'Start':        
                 logger.info('GPS started')
@@ -1687,6 +1686,9 @@ class StatusScreen(e5_InfoScreen):
         txt += self.e5_ini.status() if self.e5_ini else 'An INI file is not available.\n\n'
         txt += '\nThe default user path is %s.\n' % self.e5_ini.get_value("E5","APP_PATH")
         txt += '\nThe operating system is %s.\n' % platform_name()
+        txt += '\nPython buid is %s.\n' % (python_version())
+        txt += '\nLibraries installed include Kivy %s, TinyDB %s and Plyer %s.\n' % (__kivy_version__, __tinydb_version__, __plyer_version__)
+        txt += '\nE5 was tested and distributed on Python 3.6, Kivy 1.10.1, TinyDB 3.11.1 and Plyer 1.4.0.\n'
         if self.e5_ini.debug:
              txt += '\nProgram is running in debug mode.\n'
         self.content.text = txt
@@ -1697,7 +1699,7 @@ class StatusScreen(e5_InfoScreen):
 class AboutScreen(e5_InfoScreen):
     def on_pre_enter(self):
         self.content.text = '\n\nE5 by Shannon P. McPherron\n\nVersion ' + __version__ + ' Alpha\nApple Pie\n\n'
-        self.content.text += 'Build using Python 3.6, Kivy 1.10.1 and TinyDB 3.11.1\n\n'
+        self.content.text += 'Built on Python 3.6, Kivy 1.10.1, TinyDB 3.11.1 and Plyer 1.4.0.\n\n'
         self.content.text += 'An OldStoneAge.Com Production\n\n' + __date__ 
         self.content.halign = 'center'
         self.content.valign = 'middle'

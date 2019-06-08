@@ -55,6 +55,7 @@
                         text: 'All Records'
                         on_press: app.root.current = 'EditPointsScreen'
                         color: SUBMENU_COLOR
+                        minimum_width: '140sp'
                     ActionButton:
                         text: 'Delete Last'
                         on_press: app.root.current = root.show_delete_last_record()
@@ -83,9 +84,10 @@
                         on_release: root.show_save_csvs()
                         color: SUBMENU_COLOR
                     ActionButton:
-                        text: 'Exp. geoJSON'
+                        text: 'Export geoJSON'
                         on_release: root.show_save_geojson()
                         color: SUBMENU_COLOR
+                        minimum_width: '140sp'
                     ActionButton:
                         text: 'Exit'
                         on_release: root.exit_program()
@@ -196,8 +198,8 @@
 
 <DataGridScrollCell>:
     canvas.before:
-        Color:
-            rgba: root.datagrid_odd if root.is_even else root.datagrid_even
+        #Color:
+        #    rgba: root.datagrid_odd if root.is_even else root.datagrid_even
         Rectangle:
             pos: self.pos
             size: self.size

@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 210 297"
+   version="1.1"
+   id="svg8"
+   inkscape:version="0.92.2 (5c3e80d, 2017-08-06)"
+   sodipodi:docname="icon.svg"
+   inkscape:export-filename="C:\Users\mcpherro\mpiCloud\Source\Python3\E4\Icon\e512x512.png"
+   inkscape:export-xdpi="1095.22"
+   inkscape:export-ydpi="1095.22">
+  <defs
+     id="defs2" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="7.919596"
+     inkscape:cx="106.90503"
+     inkscape:cy="749.72882"
+     inkscape:document-units="mm"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="1920"
+     inkscape:window-height="1000"
+     inkscape:window-x="-11"
+     inkscape:window-y="-11"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata5">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       id="g851"
+       transform="translate(-0.87621106)">
+      <g
+         transform="translate(0,-0.00936264)"
+         id="g842">
+        <text
+           xml:space="preserve"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.65353584px;line-height:1.25;font-family:Consolas;-inkscape-font-specification:'Consolas, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#2979ff;fill-opacity:1;stroke:none;stroke-width:0.26458332"
+           x="19.105623"
+           y="104.3322"
+           id="text12"><tspan
+             sodipodi:role="line"
+             id="tspan10"
+             x="19.105623"
+             y="104.3322"
+             style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.65353584px;font-family:Consolas;-inkscape-font-specification:'Consolas, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#2979ff;fill-opacity:1;stroke-width:0.26458332">E</tspan></text>
+        <text
+           xml:space="preserve"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:7.35957241px;line-height:1.25;font-family:Consolas;-inkscape-font-specification:'Consolas, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#2979ff;fill-opacity:1;stroke:none;stroke-width:0.2796436"
+           x="23.561611"
+           y="105.31667"
+           id="text16"
+           transform="scale(1.0101211,0.98998031)"><tspan
+             sodipodi:role="line"
+             id="tspan14"
+             x="23.561611"
+             y="105.31667"
+             style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:7.35957241px;font-family:Consolas;-inkscape-font-specification:'Consolas, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#2979ff;fill-opacity:1;stroke-width:0.2796436">5</tspan></text>
+      </g>
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.46944451px;line-height:1.25;font-family:Consolas;-inkscape-font-specification:'Consolas, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#2979ff;fill-opacity:1;stroke:none;stroke-width:0.2796436"
+         x="-103.21781"
+         y="29.603006"
+         id="text828"
+         transform="matrix(0,-1.0101211,0.98998031,0,0,0)"><tspan
+           sodipodi:role="line"
+           id="tspan830"
+           x="-103.21781"
+           y="29.603006">Alpha</tspan></text>
+    </g>
+    <rect
+       y="95.125069"
+       x="17.994322"
+       height="11.615343"
+       width="11.615343"
+       id="rect4522"
+       style="fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.25875902" />
+  </g>
+</svg>

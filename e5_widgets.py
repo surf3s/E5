@@ -14,6 +14,7 @@ from kivy.uix.floatlayout import FloatLayout
 
 from constants import BLACK, WHITE, SCROLLBAR_WIDTH, GOOGLE_COLORS
 from colorscheme import ColorScheme, make_rgb
+from misc import platform_name
 
 class e5_label(Label):
     def __init__(self, text, popup = False, colors = None, **kwargs):
@@ -283,6 +284,10 @@ class e5_DatagridScreen(Screen):
     def __init__(self, main_data = None, main_tablename = '_default', main_cfg = None, colors = None, **kwargs):
         super(e5_DatagridScreen, self).__init__(**kwargs)
         self.colors = colors if colors else ColorScheme()
+
+        if platform_name() == 'Android':
+            self.colors.datagrid_font_size = "11sp"
+
         self.datagrid = DataGridWidget(colors = self.colors)
         self.add_widget(self.datagrid)
         if main_data:
@@ -399,7 +404,7 @@ class DataGridMenuList(Popup):
 
         menu = e5_scrollview_menu(menu_list, menu_selected,
                                                  widget_id = 'menu',
-                                                 call_back = call_back, ncols = ncols)
+                                                 call_back = [call_back], ncols = ncols)
         pop_content.add_widget(menu)
         menu.make_scroll_menu_item_visible()
         
@@ -458,8 +463,10 @@ class DataGridTableHeader(ScrollView):
 class DataGridScrollCell(Button):
     text = StringProperty(None)
     is_even = BooleanProperty(None)
-    datagrid_even = ListProperty(None)
-    datagrid_odd = ListProperty(None)
+    #datagrid_even = ListProperty(None)
+    #datagrid_odd = ListProperty(None)
+    datagrid_even = []
+    datagrid_odd = []
     def __init__(self, **kwargs):
         super(DataGridScrollCell, self).__init__(**kwargs)
         self.background_normal = ''
