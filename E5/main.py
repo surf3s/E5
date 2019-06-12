@@ -2,6 +2,8 @@
 #   When backing up (ESC), current value is not highlighted
 #  If TYPE is missing from CFG provide a default of text
 
+# Fix box on icon
+# Make a loading icon
 
 # To Do
 # Test species menu
@@ -18,7 +20,7 @@
 #   Consider putting a dropdown menu into the grid view for sorting and maybe searching
 #   Think about whether to allow editing of CFG in the program
 
-__version__ = '1.0.5'
+__version__ = '1.0.6'
 __date__ = 'June, 2019'
 
 #region Imports
@@ -355,7 +357,7 @@ class cfg(blockdata):
                             return('\nError: This field is marked as unique and you are trying to add a duplicate entry.')
         if self.current_field.inputtype == 'NUMERIC':
             try:
-                val = int(self.current_record[self.current_field.name])
+                val = float(self.current_record[self.current_field.name])
             except ValueError:
                 return('\nError: This field is marked as numeric but a non-numeric value was provided.')
         if self.current_field.valid:
@@ -969,7 +971,8 @@ class MainScreen(Screen):
         label.bind(texture_size = label.setter('size'))
         label.bind(size_hint_min_x = label.setter('width'))
 
-        kb = TextInput(size_hint = (1, size_hints['field_input']),
+        kb = TextInput(text = self.e5_cfg.current_record[self.e5_cfg.current_field.name] if self.e5_cfg.current_field.name in self.e5_cfg.current_record.keys() else '',
+                            size_hint = (1, size_hints['field_input']),
                             multiline = (self.e5_cfg.current_field.inputtype == 'NOTE'),
                             input_filter = None if not self.e5_cfg.current_field.inputtype in ['NUMERIC','INSTRUMENT'] else 'float',
                             write_tab = False,
@@ -980,14 +983,14 @@ class MainScreen(Screen):
         mainscreen.add_widget(kb)
         kb.bind(text = self.textbox_changed)
         self.widget_with_focus = kb
-        self.scroll_menu = None
         kb.focus = True
 
+        self.scroll_menu = None
         scroll_content = BoxLayout(orientation = 'horizontal',
                                     size_hint = (1, size_hints['scroll_content']),
                                     id = 'scroll_content',
                                     spacing = 20)
-        self.add_scroll_content(scroll_content)
+        self.add_scroll_content(scroll_content, kb.text)
 
         if self.e5_cfg.current_field.inputtype in ['BOOLEAN','MENU']:
             self.scroll_menu_setup()
@@ -1006,9 +1009,11 @@ class MainScreen(Screen):
         else:
             mainscreen.add_widget(scroll_content)
             mainscreen.add_widget(buttons)
-        
+
+        self.get_widget_by_id('field_data').select_all()
+
     def scroll_menu_setup(self):
-        self.scroll_menu = self.get_widget_by_id('menu_scroll')
+        #self.scroll_menu = self.get_widget_by_id('menu_scroll')
         if self.scroll_menu:
             self.scroll_menu.make_scroll_menu_item_visible()
         self.widget_with_focus = self.scroll_menu if self.scroll_menu else self
@@ -1039,7 +1044,7 @@ class MainScreen(Screen):
                 if self.widget_with_focus.id == 'menu_scroll':
                     self.widget_with_focus = self.get_widget_by_id('field_data')
                     self.widget_with_focus.focus = True
-                elif self.widget_with_focus.id == 'field_data' and e4_cfg.current_field.inputtype in ['MENU','BOOLEAN']:
+                elif self.widget_with_focus.id == 'field_data' and self.e5_cfg.current_field.inputtype in ['MENU','BOOLEAN']:
                     self.widget_with_focus.focus = False
                     self.widget_with_focus = self.get_widget_by_id('menu_scroll')
                 return False
@@ -1056,6 +1061,8 @@ class MainScreen(Screen):
             if ascii_code in [273, 274, 275, 276, 278, 279] and self.scroll_menu:
                 self.scroll_menu.move_scroll_menu_item(ascii_code)
                 return False 
+            if ascii_code in [276, 275, 278, 279] and not self.scroll_menu:
+                return False
             #if text_str:
             #    if text_str.upper() in ascii_uppercase:
             #        self.add_scroll_content(self.get_widget_by_id('scroll_content'), 
@@ -1140,12 +1147,13 @@ class MainScreen(Screen):
                     ncols = int(content_area.width / 400) if info_exists else int(content_area.width / 200)
                     ncols = max(ncols, 1)
 
-                content_area.add_widget(e5_scrollview_menu(menu_list,
+                self.scroll_menu = e5_scrollview_menu(menu_list,
                                                            selected_menu,
                                                            widget_id = 'menu',
                                                            call_back = [self.menu_selection],
                                                            ncols = ncols,
-                                                           colors = self.colors))
+                                                           colors = self.colors)
+                content_area.add_widget(self.scroll_menu)
 
             if info_exists:
                 content_area.add_widget(e5_scrollview_label(self.get_info(), colors = self.colors))

@@ -1,4 +1,5 @@
 from os import path
+import ntpath
 from kivy.utils import platform
 from kivy.core.window import Window
 
@@ -10,7 +11,7 @@ def locate_file(filename, cfg_path = None):
     if path.isfile(filename):
         return(filename)
     if cfg_path:
-        p, f = path.split(filename)
+        p, f = ntpath.split(filename)
         if path.isfile(path.join(cfg_path, f)):
             return(path.join(cfg_path, f))
     return('')

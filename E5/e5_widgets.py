@@ -465,8 +465,8 @@ class DataGridScrollCell(Button):
     is_even = BooleanProperty(None)
     #datagrid_even = ListProperty(None)
     #datagrid_odd = ListProperty(None)
-    datagrid_even = []
-    datagrid_odd = []
+    datagrid_even = [189.0/255, 189.0/255, 189.0/255, 1]
+    datagrid_odd = [224.0/255, 224.0/255, 224.0/255, 1]
     def __init__(self, **kwargs):
         super(DataGridScrollCell, self).__init__(**kwargs)
         self.background_normal = ''
@@ -494,19 +494,21 @@ class DataGridTableData(RecycleView):
         super(DataGridTableData, self).__init__(*args, **kwargs)
 
         self.data = []
+        black = make_rgb(BLACK)         
         for i, ord_dict in enumerate(list_dicts):
             is_even = i % 2 == 0
-            for text, value in ord_dict.items():
+            for column in column_names:
+                value = ord_dict[column] if column in ord_dict.keys() else ''
                 content = { 'text': value,
                             'is_even': is_even,
                             'callback': self.editcell,
                             'key': ord_dict['doc_id'],
-                            'field': text,
+                            'field': column,
                             'db': tb,
                             'id': 'datacell',
                             'datagrid_even': self.colors.datagrid_even,
-                            'datagrid_odd': self.colors.datagrid_odd ,
-                            'color': make_rgb(BLACK)}
+                            'datagrid_odd': self.colors.datagrid_odd,
+                            'color': black}
                 if self.colors.datagrid_font_size:
                     content['font_size'] = self.colors.datagrid_font_size
                 self.data.append(content)
