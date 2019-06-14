@@ -1487,6 +1487,17 @@ class MainScreen(Screen):
 
 #region Edit Screens
 
+class EditLastRecordScreen(e5_RecordEditScreen):
+
+    def on_pre_enter(self):
+        if self.data_table and self.e5_cfg:
+            try:
+                last = self.data_table.all()[-1]
+                self.doc_id = last.doc_id
+            except:
+                self.doc_id = None
+        self.put_data_in_frame()
+        
 class EditPointsScreen(e5_DatagridScreen):
     pass
 
@@ -1797,6 +1808,10 @@ class E5App(App):
                                 ini = self.e5_ini))
         sm.add_widget(AboutScreen(name = 'AboutScreen', id = 'about_screen',
                                     colors = self.e5_colors))
+        sm.add_widget(EditLastRecordScreen(name = 'EditLastRecordScreen', id = 'editlastrecord_screen',
+                                        data_table = self.e5_data.db,
+                                        doc_id = None,
+                                        e5_cfg = self.e5_cfg))
         sm.add_widget(EditPointsScreen(name = 'EditPointsScreen', id = 'editpoints_screen',
                                         colors = self.e5_colors,
                                         main_data = self.e5_data,

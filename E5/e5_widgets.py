@@ -277,6 +277,103 @@ class e5_SaveDialog(FloatLayout):
     button_background = ObjectProperty(None)
     start_path = ObjectProperty(None)
 
+class e5_RecordEditScreen(Screen):
+
+    can_update_data_table = False
+
+    def __init__(self, data_table = None, doc_id = None, e5_cfg = None, colors = None, **kwargs):
+        super(e5_RecordEditScreen, self).__init__(**kwargs)
+        self.colors = colors if colors else ColorScheme()
+        self.e5_cfg = e5_cfg
+        self.data_table = data_table
+        self.doc_id = doc_id
+        self.can_update_data_table = False
+        self.layout = GridLayout(cols = 1, size_hint_y = 1, spacing = 5, padding = 5)
+        self.data_fields = GridLayout(cols = 1, size_hint_y = None, spacing = 5, padding = 5)
+        self.make_empty_frame()
+        scroll = ScrollView(size_hint = (1, 1))
+        scroll.add_widget(self.data_fields)
+        self.layout.add_widget(scroll)
+        self.layout.add_widget(e5_side_by_side_buttons(text = ['Previous record','Next record'],
+                                                        id = ['previous','next'],
+                                                        call_back = [self.previous_record, self.next_record],
+                                                        selected = [True, True]))
+        self.layout.add_widget(e5_button('Back', id = 'back', selected = True,
+                                    call_back = self.call_back, colors = self.colors))
+        self.add_widget(self.layout)
+
+    def make_empty_frame(self):
+        self.data_fields.bind(minimum_height = self.data_fields.setter('height'))
+        self.data_fields.clear_widgets()
+        for col in self.e5_cfg.fields():
+            self.data_fields.add_widget(DataGridLabelAndField(col = col, colors = self.colors))
+
+    def previous_record(self, value):
+        if self.doc_id:
+            self.doc_id = max(1, self.doc_id - 1)
+            self.put_data_in_frame()
+
+    def next_record(self, value):
+        if self.doc_id and self.data_table:
+            self.doc_id = min(len(self.data_table), self.doc_id + 1)
+            self.put_data_in_frame()
+
+    def clear_the_frame(self):
+        self.can_update_data_table = False
+        if self.e5_cfg:
+            fields = self.e5_cfg.fields()
+            for widget in self.layout.walk():
+                if widget.id in fields:
+                    widget.text = ''
+
+    def put_data_in_frame(self):
+        self.clear_the_frame()  
+        if self.doc_id and self.data_table and self.e5_cfg:
+            data_record = self.data_table.get(doc_id = self.doc_id)
+            if data_record:
+                for field in self.e5_cfg.fields():
+                    for widget in self.layout.walk():
+                        if widget.id == field:
+                            widget.text = data_record[field] if field in data_record.keys() else ''
+                            widget.bind(text = self.update_db)
+                            widget.bind(focus = self.show_menu)
+                            break
+        self.can_update_data_table = True
+
+    def update_db(self, instance, value):
+        if self.data_table and self.can_update_data_table:
+            update = {instance.id: value}
+            self.data_table.update(update, doc_ids = [self.doc_id])
+    
+    def show_menu(self, instance, ValueError):
+        if instance.focus:
+            cfg_field = self.e5_cfg.get(instance.id)
+            if cfg_field:
+                self.popup_field_widget = instance
+                if cfg_field.inputtype in ['MENU','BOOLEAN']:
+                    self.popup = DataGridMenuList(instance.id, cfg_field.menu, instance.text, self.menu_selection)
+                    self.popup.open()
+                    self.popup_scrollmenu = self.get_widget_by_id(self.popup, 'menu_scroll')
+                    self.popup_textbox = self.get_widget_by_id(self.popup, 'new_item')
+                    self.popup_addbutton = self.get_widget_by_id(self.popup, 'add_button')
+
+    def menu_selection(self, instance):
+        self.popup.dismiss()
+        self.popup_field_widget.text = instance.text if not instance.id == 'add_button' else self.popup_textbox.text
+        self.popup_field_widget = None
+        self.popup_scrollmenu = None
+
+    def get_widget_by_id(self, start = None, id = ''):
+        if not start:
+            start = self
+        for widget in start.walk():
+            if widget.id == id:
+                return(widget)
+        return(None)
+
+    def call_back(self, value):
+        self.parent.current = 'MainScreen'
+
 class e5_DatagridScreen(Screen):
 
     datagrid = ObjectProperty(None)
@@ -642,7 +739,7 @@ class DataGridLabelAndField(BoxLayout):
         self.height = "30sp"
         self.size_hint = (0.9, None)
         self.spacing = 10
-        label = e5_label(text = col)
+        label = e5_label(text = col, id = '__label')
         txt = TextInput(multiline = False,
                         size_hint = (0.75, None),
                         id = col)

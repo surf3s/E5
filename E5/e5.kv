@@ -52,6 +52,10 @@
                     color: root.text_color
                     id: topmenu
                     ActionButton:
+                        text: 'Last Record'
+                        on_press: app.root.current = 'EditLastRecordScreen'
+                        color: SUBMENU_COLOR
+                    ActionButton:
                         text: 'All Records'
                         on_press: app.root.current = 'EditPointsScreen'
                         color: SUBMENU_COLOR
