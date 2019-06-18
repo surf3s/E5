@@ -1,11 +1,17 @@
 # Errors:
-#   When backing up (ESC), current value is not highlighted
 #  If TYPE is missing from CFG provide a default of text
 
 # Fix box on icon
 # Make a loading icon
+# Set icon on program main screen
+# Add better formatted note and GPS fields to edit last record and data grid
+
 
 # To Do
+# Find a way to note when you are on the first field
+# Ask whether to add to menulist when new item is entered
+# Somehow show info from last record entered on first screen
+# Look into letting user set CSV file save name
 # Test species menu
 # Handle database and table names in the CFG and program better
 # On unique fields, give a warning but let data entry continue
@@ -32,7 +38,6 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.switch import Switch
 from kivy.uix.slider import Slider
 from kivy.factory import Factory
-from kivy.properties import ObjectProperty
 from kivy.uix.popup import Popup
 from kivy.uix.recycleview import RecycleView
 from kivy.uix.recycleboxlayout import RecycleBoxLayout
@@ -355,11 +360,6 @@ class cfg(blockdata):
                     if self.current_field.name in data_row:
                         if data_row[self.current_field.name] == self.current_record[self.current_field.name]:
                             return('\nError: This field is marked as unique and you are trying to add a duplicate entry.')
-        if self.current_field.inputtype == 'NUMERIC':
-            try:
-                val = float(self.current_record[self.current_field.name])
-            except ValueError:
-                return('\nError: This field is marked as numeric but a non-numeric value was provided.')
         if self.current_field.valid:
             if not any(s.upper() == self.current_record[self.current_field.name].upper() for s in self.current_field.valid):
                 return("\nError: The entry '%s' does not appear in the list of valid entries found in '%s'." %
@@ -415,7 +415,7 @@ class cfg(blockdata):
                                     data_record = {}
                                     for field in fieldnames:
                                         data_record[field] = data[field]
-                                    e4_data.db.insert(e4_cfg.current_record)
+                                    e5_data.db.insert(e5_cfg.current_record)
 
                         except:
                             pass
@@ -810,7 +810,6 @@ class MainScreen(Screen):
             results += linefeed + k.capitalize() + ' = '
             results += '%s' % (v if k != 'accuracy' else round(float(v), 3) )
             linefeed = '\n'
-        #self.gps_location = results
         self.gps_location_widget.text = results
 
     @mainthread
@@ -971,7 +970,7 @@ class MainScreen(Screen):
         label.bind(texture_size = label.setter('size'))
         label.bind(size_hint_min_x = label.setter('width'))
 
-        kb = TextInput(text = self.e5_cfg.current_record[self.e5_cfg.current_field.name] if self.e5_cfg.current_field.name in self.e5_cfg.current_record.keys() else '',
+        self.field_data = TextInput(text = self.e5_cfg.current_record[self.e5_cfg.current_field.name] if self.e5_cfg.current_field.name in self.e5_cfg.current_record.keys() else '',
                             size_hint = (1, size_hints['field_input']),
                             multiline = (self.e5_cfg.current_field.inputtype == 'NOTE'),
                             input_filter = None if not self.e5_cfg.current_field.inputtype in ['NUMERIC','INSTRUMENT'] else 'float',
@@ -979,18 +978,18 @@ class MainScreen(Screen):
                             id = 'field_data')
         if self.colors:
             if self.colors.text_font_size:
-                kb.font_size = self.colors.text_font_size 
-        mainscreen.add_widget(kb)
-        kb.bind(text = self.textbox_changed)
-        self.widget_with_focus = kb
-        kb.focus = True
+                self.field_data.font_size = self.colors.text_font_size 
+        mainscreen.add_widget(self.field_data)
+        self.field_data.bind(text = self.textbox_changed)
+        self.widget_with_focus = self.field_data
+        self.field_data.focus = True
 
         self.scroll_menu = None
         scroll_content = BoxLayout(orientation = 'horizontal',
                                     size_hint = (1, size_hints['scroll_content']),
                                     id = 'scroll_content',
                                     spacing = 20)
-        self.add_scroll_content(scroll_content, kb.text)
+        self.add_scroll_content(scroll_content, self.field_data.text)
 
         if self.e5_cfg.current_field.inputtype in ['BOOLEAN','MENU']:
             self.scroll_menu_setup()
@@ -1010,10 +1009,14 @@ class MainScreen(Screen):
             mainscreen.add_widget(scroll_content)
             mainscreen.add_widget(buttons)
 
-        self.get_widget_by_id('field_data').select_all()
+        self.field_data.select_all()
+        self.event = Clock.schedule_once(self.field_data_set_focus, .2)
+
+    def field_data_set_focus(self, dt):
+        self.field_data.focus = True
+        self.field_data.select_all()
 
     def scroll_menu_setup(self):
-        #self.scroll_menu = self.get_widget_by_id('menu_scroll')
         if self.scroll_menu:
             self.scroll_menu.make_scroll_menu_item_visible()
         self.widget_with_focus = self.scroll_menu if self.scroll_menu else self
@@ -1023,9 +1026,9 @@ class MainScreen(Screen):
             self.add_scroll_content(self.get_widget_by_id('scroll_content'), value)
             self.scroll_menu_setup()
 
-    def _keyboard_closed(self):
-        self._keyboard.unbind(on_key_down = self._on_keyboard_down)
-        self._keyboard = None
+    #def _keyboard_closed(self):
+    #    self._keyboard.unbind(on_key_down = self._on_keyboard_down)
+    #    self._keyboard = None
 
     def get_widget_by_id(self, id):
         for widget in self.walk():
@@ -1042,7 +1045,7 @@ class MainScreen(Screen):
                 return False
             if ascii_code == 9:
                 if self.widget_with_focus.id == 'menu_scroll':
-                    self.widget_with_focus = self.get_widget_by_id('field_data')
+                    self.widget_with_focus = self.field_data
                     self.widget_with_focus.focus = True
                 elif self.widget_with_focus.id == 'field_data' and self.e5_cfg.current_field.inputtype in ['MENU','BOOLEAN']:
                     self.widget_with_focus.focus = False
@@ -1077,18 +1080,18 @@ class MainScreen(Screen):
 
     def copy_from_menu_to_textbox(self):
         if self.e5_cfg.current_field.inputtype in ['MENU','BOOLEAN']:
-            textbox = self.get_widget_by_id('field_data').text
+            textbox = self.field_data.text
             menubox = self.scroll_menu.scroll_menu_get_selected().text if self.scroll_menu.scroll_menu_get_selected() else ''
             if textbox == '' and not menubox == '':
-                self.get_widget_by_id('field_data').text = menubox
+                self.field_data.text = menubox
             elif not textbox == '' and not menubox == '':
                 if not textbox.upper() == menubox.upper():
                     if textbox.upper() == menubox.upper()[0:len(textbox)]:
-                        self.get_widget_by_id('field_data').text = menubox
+                        self.field_data.text = menubox
 
     def copy_from_gps_to_textbox(self):
         if self.e5_cfg.current_field.inputtype in ['GPS']:
-            textbox = self.get_widget_by_id('field_data')
+            textbox = self.field_data
             textbox.text = self.gps_location_widget.text.replace('\n',',')
 
     def add_scroll_content(self, content_area, menu_filter = ''):
@@ -1188,8 +1191,8 @@ class MainScreen(Screen):
         return(point)
 
     def take_photo(self):
+        camera = self.get_widget_by_id('camera')
         if camera.play:
-            camera = self.get_widget_by_id['camera']
             try:
                 camera.export_to_png("IMG_%s.png" % self.time_stamp())
             except:
@@ -1230,7 +1233,7 @@ class MainScreen(Screen):
                                 cancel = self.dismiss_popup,
                                 button_color = self.colors.button_color,
                                 button_background = self.colors.button_background)
-            self.popup = Popup(title = "Select a folder for the  CSV files",
+            self.popup = Popup(title = "Select a folder for the CSV files",
                                 content = content,
                                 size_hint = (0.9, 0.9))
         else:
@@ -1338,28 +1341,9 @@ class MainScreen(Screen):
         mainscreen = self.get_widget_by_id('mainscreen')
         mainscreen.clear_widgets()
         self.data_entry()
-        if 3==4:
-            textbox_contents = ''
-            for widget in self.walk():
-                if widget.id=='field_prompt':
-                    widget.text = self.e5_cfg.current_field.name
-                if widget.id == 'field_data':
-                    widget.text = self.e5_cfg.current_record[self.e5_cfg.current_field.name] if self.e5_cfg.current_field.name in self.e5_cfg.current_record.keys() else ''
-                    widget.multiline = (self.e5_cfg.current_field.inputtype == 'NOTE')
-                    widget.size_hint = (1, .07 if not self.e5_cfg.current_field.inputtype == 'NOTE' else .07 * 5)
-                    widget.select_all()
-                    self.widget_with_focus = widget
-                    self.scroll_menu = None
-                    textbox_contents = widget.text 
-                if widget.id=='scroll_content':
-                    #widget.size_hint = (1, .6 if not e4_cfg.current_field.inputtype == 'NOTE' else .6 - .07 * 4),
-                    self.add_scroll_content(widget, textbox_contents)    
-                    self.scroll_menu_setup()
-                    break
-            self.widget_with_focus.focus = True
 
     def save_field(self):
-        widget = self.get_widget_by_id('field_data')
+        widget = self.field_data
         self.e5_cfg.current_record[self.e5_cfg.current_field.name] = widget.text 
         widget.text = ''
 
@@ -1385,15 +1369,15 @@ class MainScreen(Screen):
                 self.e5_cfg.start()
             self.update_mainscreen()
         else:
-            widget = self.get_widget_by_id('field_data')
+            widget = self.field_data
             widget.text = self.e5_cfg.current_record[self.e5_cfg.current_field.name] 
             widget.focus = True
             self.popup = e5_MessageBox(self.e5_cfg.current_field.name, valid_data, call_back = self.close_popup, colors = self.colors)
             self.popup.open()
             self.popup_open = True
-
+        
     def menu_selection(self, value):
-        self.get_widget_by_id('field_data').text = value.text
+        self.field_data.text = value.text
         self.go_next(value)
 
     def save_record(self):

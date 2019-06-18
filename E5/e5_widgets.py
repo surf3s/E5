@@ -410,7 +410,7 @@ class e5_DatagridScreen(Screen):
 
     def _on_keyboard_down(self, *args):
         ascii_code = args[1]
-        text_str = args[3]  
+        #text_str = args[3]  
         if ascii_code in [273, 274, 275, 276, 278, 279] and self.datagrid.popup_scrollmenu:
             self.datagrid.popup_scrollmenu.move_scroll_menu_item(ascii_code)
             return False 
