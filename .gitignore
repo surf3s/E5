@@ -127,3 +127,5 @@ test*.*
 temp*.*
 *.xml
 *.iml
+*.csv
+*.csv

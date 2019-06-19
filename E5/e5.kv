@@ -97,10 +97,6 @@
                         on_release: root.exit_program()
                         color: SUBMENU_COLOR
             
-<StatusScreen>:
-
-<AboutScreen>:
-
 <SelectableButton>:
     # Draw a background to indicate selection
     canvas.before:
@@ -109,8 +105,6 @@
         Rectangle:
             pos: self.pos
             size: self.size
-
-<EditCFGScreen>:
 
 <e5_LoadDialog>:
     BoxLayout:
@@ -134,35 +128,6 @@
             Button:
                 text: "Open"
                 on_release: root.load(filechooser.path, filechooser.selection)
-                color: root.button_color
-                background_color: root.button_background
-                background_normal: ''
-
-<e5_SaveDialog>:
-    #text_input: text_input
-    BoxLayout:
-        size: root.size
-        pos: root.pos
-        orientation: "vertical"
-        FileChooserListView:
-            id: filechooser
-            #on_selection: text_input.text = self.selection and self.selection[0] or ''
-            path: root.start_path
-
-        BoxLayout:
-            size_hint_y: None
-            spacing: 5
-            padding: 5
-            Button:
-                text: "Cancel"
-                on_release: root.cancel()
-                color: root.button_color
-                background_color: root.button_background
-                background_normal: ''
-
-            Button:
-                text: "Save"
-                on_release: root.save(filechooser.path)
                 color: root.button_color
                 background_color: root.button_background
                 background_normal: ''
