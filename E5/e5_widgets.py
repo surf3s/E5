@@ -8,6 +8,7 @@ from kivy.uix.popup import Popup
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.screenmanager import Screen
+from kivy.uix.filechooser import FileChooser, FileChooserListView
 from kivy.uix.recycleview import RecycleView
 from kivy.properties import ObjectProperty, NumericProperty, StringProperty, BooleanProperty, ListProperty
 from kivy.uix.floatlayout import FloatLayout
@@ -15,6 +16,8 @@ from kivy.uix.floatlayout import FloatLayout
 from constants import BLACK, WHITE, SCROLLBAR_WIDTH, GOOGLE_COLORS
 from colorscheme import ColorScheme, make_rgb
 from misc import platform_name
+import ntpath
+import os
 
 class e5_label(Label):
     def __init__(self, text, popup = False, colors = None, **kwargs):
@@ -190,6 +193,103 @@ class e5_scrollview_label(ScrollView):
         self.id = widget_id + '_scroll'
         self.add_widget(scrollbox)
 
+class e5_MainScreen(Screen):
+
+    def show_save_csvs(self):
+        if self.e5_cfg.filename and self.e5_data.filename:
+            filename = ntpath.split(self.e5_cfg.filename)[1].split(".")[0]
+            filename = filename + "_" + self.e5_data.table + '.csv' 
+            content = e5_SaveDialog(filename = filename,
+                                start_path = self.e5_cfg.path,
+                                save = self.save_csvs, 
+                                cancel = self.dismiss_popup)
+            self.popup = Popup(title = "Export CSV file",
+                                content = content,
+                                size_hint = (0.9, 0.9))
+        else:
+            self.popup = e5_MessageBox('E5', '\nOpen a CFG before exporting to CSV',
+                                    call_back = self.dismiss_popup,
+                                    colors = self.colors)
+        self.popup.open()
+        self.popup_open = True
+
+    def save_csvs(self, instance):
+
+        path = self.popup.content.filesaver.path
+        filename = self.popup.content.filename
+
+        self.popup.dismiss()
+
+        filename = os.path.join(path, filename)
+
+        table = self.e5_data.db.table(self.e5_data.table)
+
+        errors = self.e5_cfg.write_csvs(filename, table)
+        title = 'CSV Export'
+        if errors:
+            self.popup = e5_MessageBox(title, errors, call_back = self.close_popup, colors = self.colors)
+        else:
+            self.popup = e5_MessageBox(title, '\nThe table %s was successfully written as the file %s.' % (self.e5_data.table, filename),
+                call_back = self.close_popup, colors = self.colors)
+        self.popup.open()
+        self.popup_open = True
+
+    def show_save_geojson(self):
+        if self.e5_cfg.filename and self.e5_data.filename:
+            geojson_compatible = 0
+            for fieldname in self.e5_cfg.fields():
+                if fieldname in ['X','Y','Z']:
+                    geojson_compatible += 1
+                elif fieldname in ['LATITUDE','LONGITUDE','ELEVATION']:
+                    geojson_compatible += 1
+                else:
+                    field = self.e5_cfg.get(fieldname)
+                    if field.inputtype in ['GPS']:
+                        geojson_compatible = 2
+                if geojson_compatible > 1:
+                        break
+            if geojson_compatible:
+                filename = ntpath.split(self.e5_cfg.filename)[1].split(".")[0]
+                filename = filename + '_' + self.e5_data.table + '.geojson' 
+
+                content = e5_SaveDialog(filename = filename,
+                                    start_path = self.e5_cfg.path,
+                                    save = self.save_geojson, 
+                                    cancel = self.dismiss_popup)
+                self.popup = Popup(title = "Export geoJSON file",
+                                    content = content,
+                                    size_hint = (0.9, 0.9))
+            else:
+                self.popup = e5_MessageBox('E5', '\nA geoJSON file requires a GPS type field or fields named XY(Z) or Latitude, Longitude and optionally Elevation.',
+                                        call_back = self.dismiss_popup,
+                                        colors = self.colors)
+        else:
+            self.popup = e5_MessageBox('E5', '\nOpen a CFG before exporting to geoJSON.',
+                                    call_back = self.dismiss_popup,
+                                    colors = self.colors)
+        self.popup.open()
+        self.popup_open = True
+        
+    def save_geojson(self, path):
+        path = self.popup.content.filesaver.path
+        filename = self.popup.content.filename
+
+        self.popup.dismiss()
+
+        filename = os.path.join(path, filename)
+
+        table = self.e5_data.db.table(self.e5_data.table)
+
+        errors = self.e5_cfg.write_geojson(filename, table)
+        title = 'geoJSON Export'
+        if errors:
+            self.popup = e5_MessageBox(title, errors, call_back = self.close_popup, colors = self.colors)
+        else:
+            self.popup = e5_MessageBox(title, '\nThe table %s was successfully written as geoJSON to the file %s.' % (self.e5_data.table, filename),
+                call_back = self.close_popup, colors = self.colors)
+        self.popup.open()
+        self.popup_open = True
+
 class e5_InfoScreen(Screen):
 
     content = ObjectProperty(None)
@@ -270,12 +370,62 @@ class e5_LoadDialog(FloatLayout):
     button_color = ObjectProperty(None)
     button_background = ObjectProperty(None)
 
-class e5_SaveDialog(FloatLayout):
+class e5_SaveDialog(BoxLayout):
     save = ObjectProperty(None)
     cancel = ObjectProperty(None)
-    button_color = ObjectProperty(None)
-    button_background = ObjectProperty(None)
     start_path = ObjectProperty(None)
+    filename = ObjectProperty(None)
+    path = ObjectProperty(None)
+
+    def __init__(self, colors = None, **kwargs):
+        super(e5_SaveDialog, self).__init__(**kwargs)
+        self.colors = colors if colors else ColorScheme()
+
+        content = BoxLayout(orientation = 'vertical', padding = 5, spacing = 5)
+        self.filesaver = FileChooserListView(path = self.start_path)
+        self.filesaver.bind(selection = self.path_selected)
+        content.add_widget(self.filesaver)
+
+        self.txt = TextInput(text = self.filename, 
+                        multiline = False,
+                        size_hint = (1, .1),
+                        id = 'filename')
+        self.txt.bind(text = self.update_filename)
+        content.add_widget(self.txt)
+
+        content.add_widget(e5_side_by_side_buttons(text = ['Save','Cancel'],
+                                                id = ['save','cancel'],
+                                                call_back = [self.does_file_exist, self.cancel],
+                                                selected = [True, True],
+                                                colors = self.colors))
+
+        self.add_widget(content)
+        self.path = self.start_path
+
+    def update_filename(self, instance, value):
+        self.filename = value
+
+    def path_selected(self, instance, value):
+        self.path = instance.path
+        self.txt.text = ntpath.split(value[0])[1]
+
+    def does_file_exist(self, instance):
+        filename = os.path.join(self.path, self.filename)
+        if os.path.isfile(filename):
+            self.popup = e5_MessageBox('Overwrite existing file?', '\nYou are about to overwrite an existing file - %s.\nContinue?' % filename,
+                                        response_type = "YESNO",
+                                        call_back = [self.overwrite_file, self.close_popup],
+                                        colors = self.colors)
+            self.popup.open()    
+        else:
+            self.save(instance)
+ 
+    def overwrite_file(self, instance):
+        self.popup.dismiss()
+        self.save(instance)
+
+    def close_popup(self, instance):
+        self.popup.dismiss()
 
 class e5_RecordEditScreen(Screen):
 

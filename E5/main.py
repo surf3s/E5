@@ -756,7 +756,7 @@ class cfg(blockdata):
         
 #endregion
 
-class MainScreen(Screen):
+class MainScreen(e5_MainScreen):
 
     popup = ObjectProperty(None)
     popup_open = False
@@ -1076,6 +1076,8 @@ class MainScreen(Screen):
                 self.close_popup(None)
                 self.widget_with_focus.focus = True
                 return False
+            elif ascii_code in [275, 276]:
+                return(False)
         return True # return True to accept the key. Otherwise, it will be used by the system.
 
     def copy_from_menu_to_textbox(self):
@@ -1225,94 +1227,6 @@ class MainScreen(Screen):
         self.e5_ini.update_value('E5','HEIGHT', Window.height)
         self.e5_ini.save()
         App.get_running_app().stop()
-
-    def show_save_csvs(self):
-        if self.e5_cfg.filename and self.e5_data.filename:
-            content = e5_SaveDialog(start_path = self.e5_cfg.path,
-                                save = self.save_csvs, 
-                                cancel = self.dismiss_popup,
-                                button_color = self.colors.button_color,
-                                button_background = self.colors.button_background)
-            self.popup = Popup(title = "Select a folder for the CSV files",
-                                content = content,
-                                size_hint = (0.9, 0.9))
-        else:
-            self.popup = e5_MessageBox('E5', '\nOpen a CFG before exporting to CSV',
-                                    call_back = self.dismiss_popup,
-                                    colors = self.colors)
-        self.popup.open()
-        self.popup_open = True
-
-    def save_csvs(self, path):
-
-        self.popup.dismiss()
-
-        filename = ntpath.split(self.e5_cfg.filename)[1].split(".")[0]
-        filename = os.path.join(path, filename + "_" + self.e5_data.table + '.csv' )
-
-        table = self.e5_data.db.table(self.e5_data.table)
-
-        errors = self.e5_cfg.write_csvs(filename, table)
-        title = 'CSV Export'
-        if errors:
-            self.popup = e5_MessageBox(title, errors, call_back = self.close_popup, colors = self.colors)
-        else:
-            self.popup = e5_MessageBox(title, '\nThe table %s was successfully written as the file %s.' % (self.e5_data.table, filename),
-                call_back = self.close_popup, colors = self.colors)
-        self.popup.open()
-        self.popup_open = True
-
-    def show_save_geojson(self):
-        if self.e5_cfg.filename and self.e5_data.filename:
-            geojson_compatible = 0
-            for fieldname in self.e5_cfg.fields():
-                if fieldname in ['X','Y','Z']:
-                    geojson_compatible += 1
-                elif fieldname in ['LATITUDE','LONGITUDE','ELEVATION']:
-                    geojson_compatible += 1
-                else:
-                    field = self.e5_cfg.get(fieldname)
-                    if field.inputtype in ['GPS']:
-                        geojson_compatible = 2
-                if geojson_compatible > 1:
-                        break
-            if geojson_compatible:
-                content = e5_SaveDialog(start_path = self.e5_cfg.path,
-                                    save = self.save_geojson, 
-                                    cancel = self.dismiss_popup,
-                                    button_color = self.colors.button_color,
-                                    button_background = self.colors.button_background)
-                self.popup = Popup(title = "Select a folder for the geoJSON files",
-                                    content = content,
-                                    size_hint = (0.9, 0.9))
-            else:
-                self.popup = e5_MessageBox('E5', '\nA geoJSON file requires a GPS type field or fields named XY(Z) or Latitude, Longitude and optionally Elevation.',
-                                        call_back = self.dismiss_popup,
-                                        colors = self.colors)
-        else:
-            self.popup = e5_MessageBox('E5', '\nOpen a CFG before exporting to geoJSON.',
-                                    call_back = self.dismiss_popup,
-                                    colors = self.colors)
-        self.popup.open()
-        self.popup_open = True
-        
-    def save_geojson(self, path):
-        self.popup.dismiss()
-
-        filename = ntpath.split(self.e5_cfg.filename)[1].split(".")[0]
-        filename = os.path.join(path, filename + '_' + self.e5_data.table + '.geojson' )
-
-        table = self.e5_data.db.table(self.e5_data.table)
-
-        errors = self.e5_cfg.write_geojson(filename, table)
-        title = 'geoJSON Export'
-        if errors:
-            self.popup = e5_MessageBox(title, errors, call_back = self.close_popup, colors = self.colors)
-        else:
-            self.popup = e5_MessageBox(title, '\nThe table %s was successfully written as geoJSON to the file %s.' % (self.e5_data.table, filename),
-                call_back = self.close_popup, colors = self.colors)
-        self.popup.open()
-        self.popup_open = True
 
     def show_load_cfg(self):
         if self.e5_cfg.filename and self.e5_cfg.path:
