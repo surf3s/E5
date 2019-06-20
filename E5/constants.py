@@ -2,6 +2,8 @@ SCROLLBAR_WIDTH = 5
 BLACK = 0x000000
 WHITE = 0xFFFFFF
 
+__program__ = 'E5'
+
 # Color from Google material design
 # https://material.io/design/color/the-color-system.html#tools-for-picking-colors
 GOOGLE_COLORS = {'red': [0xFF8A80, BLACK, 0xFF1744, WHITE],

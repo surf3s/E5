@@ -1,3 +1,5 @@
+from kivy.app import App
+from kivy.clock import Clock, mainthread
 from kivy.uix.textinput import TextInput
 from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
@@ -13,11 +15,13 @@ from kivy.uix.recycleview import RecycleView
 from kivy.properties import ObjectProperty, NumericProperty, StringProperty, BooleanProperty, ListProperty
 from kivy.uix.floatlayout import FloatLayout
 
-from constants import BLACK, WHITE, SCROLLBAR_WIDTH, GOOGLE_COLORS
+from constants import BLACK, WHITE, SCROLLBAR_WIDTH, GOOGLE_COLORS, __program__
 from colorscheme import ColorScheme, make_rgb
-from misc import platform_name
+from misc import platform_name, locate_file
 import ntpath
 import os
+from shutil import copyfile
+from datetime import datetime
 
 class e5_label(Label):
     def __init__(self, text, popup = False, colors = None, **kwargs):
@@ -194,6 +198,185 @@ class e5_scrollview_label(ScrollView):
         self.add_widget(scrollbox)
 
 class e5_MainScreen(Screen):
+
+    popup = ObjectProperty(None)
+    popup_open = False
+    event = ObjectProperty(None)
+    widget_with_focus = ObjectProperty(None)
+    text_color = (0, 0, 0, 1)
+
+    def get_path(self):
+        if self.ini.get_value(__program__, "CFG"):
+            return(ntpath.split(self.ini.get_value(__program__, "CFG"))[0])
+        else:
+            return(os.getcwd())
+
+    def get_files(self, fpath, exts = None):
+        files = []
+        for (dirpath, dirnames, filenames) in os.walk(fpath):
+            files.extend(filenames)
+            break
+        if exts:
+            return([filename for filename in files if filename.upper().endswith(exts.upper())])
+        else:
+            return(files)
+
+    def open_db(self):
+        database = locate_file(self.cfg.get_value(__program__,'DATABASE'), self.cfg.path)
+        if not database:
+            database = os.path.split(self.cfg.filename)[1]
+            if "." in database:
+                database = database.split('.')[0]
+            database = os.path.join(self.cfg.path, database + '.json')
+        self.data.open(database)
+        if self.cfg.get_value(__program__,'TABLE'):    
+            self.data.table = self.cfg.get_value(__program__,'TABLE')
+        else:
+            self.data.table = '_default'
+        self.cfg.update_value(__program__,'DATABASE', self.data.filename)
+        self.cfg.update_value(__program__,'TABLE', self.data.table)
+        self.cfg.save()
+
+    def show_popup_message(self, dt):
+        self.event.cancel()
+        if self.cfg.has_errors or self.cfg.has_warnings:
+            if self.cfg.has_errors:
+                message_text = 'The following errors in the configuration file %s must be fixed before data entry can begin.\n\n' % self.cfg.filename
+                self.cfg.filename = ''
+                title = 'CFG File Errors'                
+            elif self.cfg.has_warnings:
+                self.cfg.has_warnings = False
+                message_text = '\nThough data entry can start, there are the following warnings in the configuration file %s.\n\n' % self.cfg.filename
+                title = 'Warnings'
+            message_text = message_text + '\n\n'.join(self.cfg.errors)
+        else:
+            title = __program__
+            message_text = SPLASH_HELP
+        self.popup = e5_MessageBox(title, message_text, call_back = self.close_popup, colors = self.colors)
+        self.popup.open()
+        self.popup_open = True
+
+    def get_widget_by_id(self, id):
+        for widget in self.walk():
+            if widget.id == id:
+                return(widget)
+        return(None)
+
+    def get_info(self):
+        if self.cfg.current_field.infofile:
+            fname = os.path.join(self.cfg.path, self.cfg.current_field.infofile)
+            if os.path.exists(fname):
+                try:
+                    with open(fname, 'r') as f:
+                        return(f.read())
+                except:
+                    return('Could not open file %s.' % fname)
+            else:
+                return('The file %s does not exist.' % fname)
+        else:
+            return(self.cfg.current_field.info)
+
+    def save_window_location(self):
+        self.ini.update_value(__program__,'TOP', Window.top)
+        self.ini.update_value(__program__,'LEFT', Window.left)
+        self.ini.update_value(__program__,'WIDTH', Window.width)
+        self.ini.update_value(__program__,'HEIGHT', Window.height)
+        self.ini.save()
+
+    def dismiss_popup(self, *args):
+        self.popup_open = False
+        self.popup.dismiss()
+        self.parent.current = 'MainScreen'
+
+    def save_record(self):
+        valid = self.cfg.validate_current_record()
+        if valid:
+            if self.data.save(self.cfg.current_record):
+                self.make_backup()
+            else:
+                pass
+        else:
+            self.popup = e5_MessageBox('Save Error', valid, call_back = self.close_popup, colors = self.colors)
+            self.popup.open()
+            self.popup_open = True
+
+    def make_backup(self):
+        if self.ini.backup_interval > 0:
+            try:
+                record_counter = int(self.cfg.get_value('E5','RECORDS UNTIL BACKUP')) if self.cfg.get_value('E5','RECORDS UNTIL BACKUP') else self.ini.backup_interval
+                record_counter -= 1
+                if record_counter <= 0:
+                    backup_path, backup_file = os.path.split(self.data.filename)
+                    backup_file, backup_file_ext = backup_file.split('.')
+                    backup_file += self.time_stamp() if self.ini.incremental_backups else '_backup'
+                    backup_file += backup_file_ext
+                    backup_file = os.path.join(backup_path, backup_file)
+                    copyfile(self.ini.filename, backup_file)
+                    record_counter = self.ini.backup_interval
+                self.cfg.update_value('E5','RECORDS UNTIL BACKUP',str(record_counter))
+            except:
+                self.popup = e5_MessageBox('Backup Error', "\nAn error occurred while attempting to make a backup.  Check the backup settings and that the disk has enough space for a backup.",
+                                            call_back = self.close_popup, colors = self.colors)
+                self.popup.open()
+                self.popup_open = True
+
+    def time_stamp(self):
+        time_stamp = '%s' % datetime.now().replace(microsecond=0)
+        time_stamp = time_stamp.replace('-','_')
+        time_stamp = time_stamp.replace(' ','_')
+        time_stamp = time_stamp.replace(':','_')
+        return('_' + time_stamp)
+
+    def close_popup(self, value):
+        self.popup.dismiss()
+        self.popup_open = False
+        self.event = Clock.schedule_once(self.set_focus, 1)
+
+    def set_focus(self, value):
+        self.widget_with_focus.focus = True
+
+    def show_delete_last_record(self):
+        last_record = self.data.last_record()
+        if last_record:
+            message_text = '\n'
+            for field in self.cfg.fields():
+                if field in last_record:
+                    message_text += field + " : " + last_record[field] + '\n'
+            self.popup = e5_MessageBox('Delete Last Record', message_text, response_type = "YESNO",
+                                        call_back = [self.delete_last_record, self.close_popup],
+                                        colors = self.colors)
+        else:
+            self.popup = e5_MessageBox('Delete Last Record', 'No records in table to delete.',
+                                        call_back = self.close_popup,
+                                        colors = self.colors)
+        self.popup.open()
+        self.popup_open = True
+
+    def delete_last_record(self, value):
+        last_record = self.data.last_record()
+        self.data.delete(last_record.doc_id)
+        self.close_popup(value)
+
+    def show_delete_all_records(self):
+        message_text = '\nYou are asking to delete all of the records in the current database table. Are you sure you want to do this?'
+        self.popup = e5_MessageBox('Delete All Records', message_text, response_type = "YESNO",
+                                    call_back = [self.delete_all_records1, self.close_popup],
+                                    colors = self.colors)
+        self.popup.open()
+        self.popup_open = True
+
+    def delete_all_records1(self, value):
+        self.close_popup(value)
+        message_text = '\nThis is your last chance.  All records will be deleted when you press Yes.'
+        self.popup = e5_MessageBox('Delete All Records', message_text, response_type = "YESNO",
+                                    call_back = [self.delete_all_records2, self.close_popup],
+                                    colors = self.colors)
+        self.popup.open()
+        self.popup_open = True
+        
+    def delete_all_records2(self, value):
+        self.data.delete_all()
+        self.close_popup(value)
 
     def show_save_csvs(self):
         if self.e5_cfg.filename and self.e5_data.filename:
@@ -625,6 +808,44 @@ class e5_MessageBox(Popup):
         self.size_hint = (.8, .8)
         self.size = (400, 400)
         self.auto_dismiss = False
+
+class e5_Program(App):
+
+    def setup_program(self):
+        self.ini.open(os.path.join(self.app_path, __program__ + '.ini'))
+
+        if not self.ini.first_time:
+
+            if self.ini.get_value(__program__,'ColorScheme'):
+                self.colors.set_to(self.ini.get_value(__program__,'ColorScheme'))
+            if self.ini.get_value(__program__,'DarkMode').upper() == 'TRUE':
+                self.colors.darkmode = True
+            else:
+                self.colors.darkmode = False
+
+            if self.ini.get_value(__program__, "CFG"):
+                self.cfg.open(self.ini.get_value(__program__, "CFG"))
+                if self.cfg.filename:
+                    if self.cfg.get_value(__program__,'DATABASE'):
+                        self.data.open(self.cfg.get_value(__program__,'DATABASE'))
+                    else:
+                        database = os.path.split(self.cfg.filename)[1]
+                        if "." in database:
+                            database = database.split('.')[0]
+                        database = database + '.json'
+                        self.data.open(os.path.join(self.cfg.path, database))
+                    if self.cfg.get_value(__program__,'TABLE'):    
+                        self.data.table = self.cfg.get_value(__program__,'TABLE')
+                    else:
+                        self.data.table = '_default'
+                    self.cfg.update_value(__program__,'DATABASE', self.data.filename)
+                    self.cfg.update_value(__program__,'TABLE', self.data.table)
+                    self.cfg.save()
+            self.ini.update(self.colors, self.cfg)
+            self.ini.save()
+        self.colors.set_colormode()
+        self.colors.need_redraw = False    
+        self.ini.update_value(__program__,'APP_PATH', self.user_data_dir)
 
 #region Data Grid
 #### Code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py

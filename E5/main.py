@@ -28,6 +28,7 @@
 
 __version__ = '1.0.6'
 __date__ = 'June, 2019'
+from constants import __program__
 
 #region Imports
 from kivy.utils import platform
@@ -108,7 +109,7 @@ class ini(blockdata):
     
     def __init__(self, filename = ''):
         if filename=='':
-            filename = 'E5.ini'
+            filename = __program__ + '.ini'
         self.filename = filename
         self.incremental_backups = False
         self.backup_interval = 0
@@ -121,38 +122,38 @@ class ini(blockdata):
         self.blocks = self.read_blocks()
         self.first_time = (self.blocks == [])
         self.is_valid()
-        self.incremental_backups = self.get_value('E5','IncrementalBackups').upper() == 'TRUE'
-        self.backup_interval = int(self.get_value('E5','BackupInterval'))
-        self.debug = self.get_value('E5','Debug').upper() == 'TRUE'
+        self.incremental_backups = self.get_value(__program__,'IncrementalBackups').upper() == 'TRUE'
+        self.backup_interval = int(self.get_value(__program__,'BackupInterval'))
+        self.debug = self.get_value(__program__,'Debug').upper() == 'TRUE'
 
     def is_valid(self):
         for field_option in ['DARKMODE','INCREMENTALBACKUPS']:
-            if self.get_value('E5',field_option):
-                if self.get_value('E5',field_option).upper() == 'YES':
-                    self.update_value('E5',field_option,'TRUE')
+            if self.get_value(__program__,field_option):
+                if self.get_value(__program__,field_option).upper() == 'YES':
+                    self.update_value(__program__,field_option,'TRUE')
             else:
-                self.update_value('E5',field_option,'FALSE')
+                self.update_value(__program__,field_option,'FALSE')
 
-        if self.get_value('E5', "BACKUPINTERVAL"):
+        if self.get_value(__program__, "BACKUPINTERVAL"):
             test = False
             try:
-                test = int(self.get_value('E5', "BACKUPINTERVAL"))
+                test = int(self.get_value(__program__, "BACKUPINTERVAL"))
                 if test < 0:
                     test = 0
                 elif test > 200:
                     test = 200
-                self.update_value('E5', 'BACKUPINTERVAL', test)
+                self.update_value(__program__, 'BACKUPINTERVAL', test)
             except:
-                self.update_value('E5', 'BACKUPINTERVAL', 0)
+                self.update_value(__program__, 'BACKUPINTERVAL', 0)
         else:
-            self.update_value('E5', 'BACKUPINTERVAL', 0)
+            self.update_value(__program__, 'BACKUPINTERVAL', 0)
 
     def update(self, e5_colors, e5_cfg):
-        self.update_value('E5','CFG', e5_cfg.filename)
-        self.update_value('E5','ColorScheme', e5_colors.color_scheme)
-        self.update_value('E5','DarkMode', 'TRUE' if e5_colors.darkmode else 'FALSE')
-        self.update_value('E5','IncrementalBackups', self.incremental_backups)
-        self.update_value('E5','BackupInterval', self.backup_interval)
+        self.update_value(__program__,'CFG', e5_cfg.filename)
+        self.update_value(__program__,'ColorScheme', e5_colors.color_scheme)
+        self.update_value(__program__,'DarkMode', 'TRUE' if e5_colors.darkmode else 'FALSE')
+        self.update_value(__program__,'IncrementalBackups', self.incremental_backups)
+        self.update_value(__program__,'BackupInterval', self.backup_interval)
         self.save()
 
     def save(self):
@@ -342,7 +343,7 @@ class cfg(blockdata):
         #    return(None)
 
     def fields(self):
-        field_names = [field for field in self.names() if field not in ['E5']]
+        field_names = [field for field in self.names() if field not in [__program__]]
         #del_fields = ['E5']
         #for del_field in del_fields:
         #    if del_field in field_names:
@@ -758,23 +759,17 @@ class cfg(blockdata):
 
 class MainScreen(e5_MainScreen):
 
-    popup = ObjectProperty(None)
-    popup_open = False
-    event = ObjectProperty(None)
-    widget_with_focus = ObjectProperty(None)
-    text_color = (0, 0, 0, 1)
-
     gps_location = StringProperty(None)
     gps_location_widget = ObjectProperty(None)
     gps_status = StringProperty('Click Start to get GPS location updates')
 
-    def __init__(self, e5_data = None, e5_cfg = None, e5_ini = None, colors = None, **kwargs):
+    def __init__(self, data = None, cfg = None, ini = None, colors = None, **kwargs):
         super(MainScreen, self).__init__(**kwargs)
 
         self.colors = colors if colors else ColorScheme()
-        self.e5_cfg = e5_cfg if e5_cfg else cfg()
-        self.e5_ini = e5_ini if e5_ini else ini()
-        self.e5_data = e5_data if e5_data else db()
+        self.cfg = cfg if cfg else cfg()
+        self.ini = ini if ini else ini()
+        self.data = data if data else db()
 
         if platform_name() == 'Android':
             self.colors.button_font_size = "14sp"
@@ -794,7 +789,7 @@ class MainScreen(e5_MainScreen):
 
         self.fpath = ''
 
-        if self.e5_cfg.gps:
+        if self.cfg.gps:
             try:
                 logger.info('Configuring GPS in mainscreen')
                 gps.configure(on_location = self.on_gps_location,
@@ -829,42 +824,24 @@ class MainScreen(e5_MainScreen):
         mainscreen.clear_widgets()
         self.scroll_menu = None
 
-        if self.e5_cfg.filename:
-            self.e5_cfg.start()
+        if self.cfg.filename:
+            self.cfg.start()
 
-            if not self.e5_cfg.EOF or not self.e5_cfg.BOF:
+            if not self.cfg.EOF or not self.cfg.BOF:
                 self.data_entry()
-                if self.e5_cfg.has_warnings:
+                if self.cfg.has_warnings:
                     self.event = Clock.schedule_once(self.show_popup_message, 1)
             else:
                 self.cfg_menu()
                 self.event = Clock.schedule_once(self.show_popup_message, 1)
 
         else:
-            if self.e5_ini.first_time:
-                self.e5_ini.first_time = False
+            if self.ini.first_time:
+                self.ini.first_time = False
                 self.event = Clock.schedule_once(self.show_popup_message, 1)
             self.cfg_menu()
 
-    def set_dropdown_menu_colors(self):
-        pass
-
-    def get_path(self):
-        if self.e5_ini.get_value("E5", "CFG"):
-            return(ntpath.split(self.e5_ini.get_value("E5", "CFG"))[0])
-        else:
-            return(os.getcwd())
-
-    def get_files(self, fpath, exts = None):
-        files = []
-        for (dirpath, dirnames, filenames) in os.walk(fpath):
-            files.extend(filenames)
-            break
-        if exts:
-            return([filename for filename in files if filename.upper().endswith(exts.upper())])
-        else:
-            return(files)
-
+    
     def cfg_menu(self):
 
         mainscreen = self.get_widget_by_id('mainscreen')
@@ -901,64 +878,30 @@ class MainScreen(e5_MainScreen):
             self.cfg_load(os.path.join(self.get_path(), value.text))
         
     def cfg_load(self, cfgfile_name):
-        self.e5_cfg.load(cfgfile_name)
-        if self.e5_cfg.filename:
+        self.cfg.load(cfgfile_name)
+        if self.cfg.filename:
             self.open_db()
-        self.e5_ini.update(self.colors, self.e5_cfg)
+        self.ini.update(self.colors, self.cfg)
         self.build_mainscreen()
 
-    def open_db(self):
-        database = locate_file(self.e5_cfg.get_value('E5','DATABASE'), self.e5_cfg.path)
-        if not database:
-            database = os.path.split(self.e5_cfg.filename)[1]
-            if "." in database:
-                database = database.split('.')[0]
-            database = os.path.join(self.e5_cfg.path, database + '.json')
-        self.e5_data.open(database)
-        if self.e5_cfg.get_value('E5','TABLE'):    
-            self.e5_data.table = self.e5_cfg.get_value('E5','TABLE')
-        else:
-            self.e5_data.table = '_default'
-        self.e5_cfg.update_value('E5','DATABASE', self.e5_data.filename)
-        self.e5_cfg.update_value('E5','TABLE', self.e5_data.table)
-        self.e5_cfg.save()
-        
-    def show_popup_message(self, dt):
-        self.event.cancel()
-        if self.e5_cfg.has_errors or self.e5_cfg.has_warnings:
-            if self.e5_cfg.has_errors:
-                message_text = 'The following errors in the configuration file %s must be fixed before data entry can begin.\n\n' % self.e5_cfg.filename
-                self.e5_cfg.filename = ''
-                title = 'CFG File Errors'                
-            elif self.e5_cfg.has_warnings:
-                self.e5_cfg.has_warnings = False
-                message_text = '\nThough data entry can start, there are the following warnings in the configuration file %s.\n\n' % self.e5_cfg.filename
-                title = 'Warnings'
-            message_text = message_text + '\n\n'.join(self.e5_cfg.errors)
-        else:
-            title = 'E5'
-            message_text = SPLASH_HELP
-        self.popup = e5_MessageBox(title, message_text, call_back = self.close_popup, colors = self.colors)
-        self.popup.open()
-        self.popup_open = True
-
+      
     def data_entry(self):
 
         if platform_name() == 'Android':
             size_hints = {  'field_label': .13, 
-                            'field_input': .07 if not self.e5_cfg.current_field.inputtype == 'NOTE' else .07 * 5,
-                            'scroll_content': .6 if not self.e5_cfg.current_field.inputtype == 'NOTE' else .6 - .07 * 4,
+                            'field_input': .07 if not self.cfg.current_field.inputtype == 'NOTE' else .07 * 5,
+                            'scroll_content': .6 if not self.cfg.current_field.inputtype == 'NOTE' else .6 - .07 * 4,
                             'prev_next_buttons': .2}
         else:
             size_hints = {  'field_label': .13, 
-                            'field_input': .07 if not self.e5_cfg.current_field.inputtype == 'NOTE' else .07 * 5,
-                            'scroll_content': .6 if not self.e5_cfg.current_field.inputtype == 'NOTE' else .6 - .07 * 4,
+                            'field_input': .07 if not self.cfg.current_field.inputtype == 'NOTE' else .07 * 5,
+                            'scroll_content': .6 if not self.cfg.current_field.inputtype == 'NOTE' else .6 - .07 * 4,
                             'prev_next_buttons': .2}
 
         mainscreen = self.get_widget_by_id('mainscreen')
         #inputbox.bind(minimum_height = inputbox.setter('height'))
 
-        label = Label(text = self.e5_cfg.current_field.prompt,
+        label = Label(text = self.cfg.current_field.prompt,
                     size_hint = (1, size_hints['field_label']),
                     color = self.colors.text_color,
                     id = 'field_prompt',
@@ -970,10 +913,10 @@ class MainScreen(e5_MainScreen):
         label.bind(texture_size = label.setter('size'))
         label.bind(size_hint_min_x = label.setter('width'))
 
-        self.field_data = TextInput(text = self.e5_cfg.current_record[self.e5_cfg.current_field.name] if self.e5_cfg.current_field.name in self.e5_cfg.current_record.keys() else '',
+        self.field_data = TextInput(text = self.cfg.current_record[self.cfg.current_field.name] if self.cfg.current_field.name in self.cfg.current_record.keys() else '',
                             size_hint = (1, size_hints['field_input']),
-                            multiline = (self.e5_cfg.current_field.inputtype == 'NOTE'),
-                            input_filter = None if not self.e5_cfg.current_field.inputtype in ['NUMERIC','INSTRUMENT'] else 'float',
+                            multiline = (self.cfg.current_field.inputtype == 'NOTE'),
+                            input_filter = None if not self.cfg.current_field.inputtype in ['NUMERIC','INSTRUMENT'] else 'float',
                             write_tab = False,
                             id = 'field_data')
         if self.colors:
@@ -991,7 +934,7 @@ class MainScreen(e5_MainScreen):
                                     spacing = 20)
         self.add_scroll_content(scroll_content, self.field_data.text)
 
-        if self.e5_cfg.current_field.inputtype in ['BOOLEAN','MENU']:
+        if self.cfg.current_field.inputtype in ['BOOLEAN','MENU']:
             self.scroll_menu_setup()
 
         buttons = GridLayout(cols = 2, size_hint = (1, size_hints['prev_next_buttons']), spacing = 20)
@@ -1022,19 +965,13 @@ class MainScreen(e5_MainScreen):
         self.widget_with_focus = self.scroll_menu if self.scroll_menu else self
 
     def textbox_changed(self, instance, value):
-        if self.e5_cfg.current_field.inputtype in ['BOOLEAN','MENU']:
+        if self.cfg.current_field.inputtype in ['BOOLEAN','MENU']:
             self.add_scroll_content(self.get_widget_by_id('scroll_content'), value)
             self.scroll_menu_setup()
 
     #def _keyboard_closed(self):
     #    self._keyboard.unbind(on_key_down = self._on_keyboard_down)
     #    self._keyboard = None
-
-    def get_widget_by_id(self, id):
-        for widget in self.walk():
-            if widget.id == id:
-                return(widget)
-        return(None)
 
     def _on_keyboard_down(self, *args):
         ascii_code = args[1]
@@ -1047,15 +984,15 @@ class MainScreen(e5_MainScreen):
                 if self.widget_with_focus.id == 'menu_scroll':
                     self.widget_with_focus = self.field_data
                     self.widget_with_focus.focus = True
-                elif self.widget_with_focus.id == 'field_data' and self.e5_cfg.current_field.inputtype in ['MENU','BOOLEAN']:
+                elif self.widget_with_focus.id == 'field_data' and self.cfg.current_field.inputtype in ['MENU','BOOLEAN']:
                     self.widget_with_focus.focus = False
                     self.widget_with_focus = self.get_widget_by_id('menu_scroll')
                 return False
             if ascii_code == 27:
-                if self.e5_cfg.filename:
+                if self.cfg.filename:
                     self.go_back(None)
             if ascii_code == 13:
-                if self.e5_cfg.filename:
+                if self.cfg.filename:
                     self.go_next(None)
                 elif self.cfg_files:
                     self.cfg_selected(self.scroll_menu.scroll_menu_get_selected())
@@ -1081,7 +1018,7 @@ class MainScreen(e5_MainScreen):
         return True # return True to accept the key. Otherwise, it will be used by the system.
 
     def copy_from_menu_to_textbox(self):
-        if self.e5_cfg.current_field.inputtype in ['MENU','BOOLEAN']:
+        if self.cfg.current_field.inputtype in ['MENU','BOOLEAN']:
             textbox = self.field_data.text
             menubox = self.scroll_menu.scroll_menu_get_selected().text if self.scroll_menu.scroll_menu_get_selected() else ''
             if textbox == '' and not menubox == '':
@@ -1092,7 +1029,7 @@ class MainScreen(e5_MainScreen):
                         self.field_data.text = menubox
 
     def copy_from_gps_to_textbox(self):
-        if self.e5_cfg.current_field.inputtype in ['GPS']:
+        if self.cfg.current_field.inputtype in ['GPS']:
             textbox = self.field_data
             textbox.text = self.gps_location_widget.text.replace('\n',',')
 
@@ -1100,10 +1037,10 @@ class MainScreen(e5_MainScreen):
     
         content_area.clear_widgets()
 
-        info_exists = self.e5_cfg.current_field.info or self.e5_cfg.current_field.infofile
-        menu_exists = self.e5_cfg.current_field.inputtype == 'BOOLEAN' or (not self.e5_cfg.current_field.menu == [])
-        camera_exists = self.e5_cfg.current_field.inputtype == 'CAMERA'
-        gps_exists = self.e5_cfg.current_field.inputtype == 'GPS'
+        info_exists = self.cfg.current_field.info or self.cfg.current_field.infofile
+        menu_exists = self.cfg.current_field.inputtype == 'BOOLEAN' or (not self.cfg.current_field.menu == [])
+        camera_exists = self.cfg.current_field.inputtype == 'CAMERA'
+        gps_exists = self.cfg.current_field.inputtype == 'GPS'
 
         if menu_exists or info_exists or camera_exists or gps_exists:
 
@@ -1119,9 +1056,9 @@ class MainScreen(e5_MainScreen):
 
             if gps_exists:
                 bx = BoxLayout(orientation = 'vertical')
-                if self.e5_cfg.gps:
+                if self.cfg.gps:
                     gps_label_text = 'Press start to begin.'
-                elif self.e5_ini.debug:
+                elif self.ini.debug:
                     gps_label_text = 'Press start to begin [Debug mode].'
                 else:
                     gps_label_text = 'No GPS available.'
@@ -1137,12 +1074,12 @@ class MainScreen(e5_MainScreen):
                 content_area.add_widget(bx)
 
             if menu_exists:
-                menu_list = ['True','False'] if self.e5_cfg.current_field.inputtype == 'BOOLEAN' else self.e5_cfg.current_field.menu
+                menu_list = ['True','False'] if self.cfg.current_field.inputtype == 'BOOLEAN' else self.cfg.current_field.menu
 
                 if menu_filter:
                     menu_list = [menu for menu in menu_list if menu.upper()[0:len(menu_filter)] == menu_filter.upper()]
 
-                selected_menu = self.e5_cfg.get_field_data('')
+                selected_menu = self.cfg.get_field_data('')
                 if not selected_menu and menu_list:
                     selected_menu = menu_list[0]
 
@@ -1164,7 +1101,7 @@ class MainScreen(e5_MainScreen):
                 content_area.add_widget(e5_scrollview_label(self.get_info(), colors = self.colors))
 
     def gps_manage(self, value):
-        if self.e5_cfg.gps:
+        if self.cfg.gps:
             if value.text == 'Start':        
                 logger.info('GPS started')
                 gps.start()
@@ -1175,7 +1112,7 @@ class MainScreen(e5_MainScreen):
                 self.gps_location_widget.text = "GPS stopped."
             elif value.text == 'Clear':
                 self.gps_location_widget.text = ''
-        elif self.e5_ini.debug:
+        elif self.ini.debug:
             if value.text == 'Start':
                 self.gps_location_widget.text = self.gps_random_point()
             elif value.text == 'Stop':
@@ -1201,38 +1138,16 @@ class MainScreen(e5_MainScreen):
                 print('camera file save error')
         camera.play = not camera.play
 
-    def get_info(self):
-        if self.e5_cfg.current_field.infofile:
-            fname = os.path.join(self.e5_cfg.path, self.e5_cfg.current_field.infofile)
-            if os.path.exists(fname):
-                try:
-                    with open(fname, 'r') as f:
-                        return(f.read())
-                except:
-                    return('Could not open file %s.' % fname)
-            else:
-                return('The file %s does not exist.' % fname)
-        else:
-            return(self.e5_cfg.current_field.info)
-
     def on_pre_enter(self):
         Window.bind(on_key_down = self._on_keyboard_down)
         if self.colors.need_redraw:
             pass
 
-    def exit_program(self):
-        self.e5_ini.update_value('E5','TOP', Window.top)
-        self.e5_ini.update_value('E5','LEFT', Window.left)
-        self.e5_ini.update_value('E5','WIDTH', Window.width)
-        self.e5_ini.update_value('E5','HEIGHT', Window.height)
-        self.e5_ini.save()
-        App.get_running_app().stop()
-
     def show_load_cfg(self):
-        if self.e5_cfg.filename and self.e5_cfg.path:
-            start_path = self.e5_cfg.path
+        if self.cfg.filename and self.cfg.path:
+            start_path = self.cfg.path
         else:
-            start_path = self.e5_ini.get_value('E5','APP_PATH')
+            start_path = self.ini.get_value(__program__,'APP_PATH')
         content = e5_LoadDialog(load = self.load, 
                             cancel = self.dismiss_popup,
                             start_path = start_path,
@@ -1246,11 +1161,6 @@ class MainScreen(e5_MainScreen):
         self.dismiss_popup()
         self.cfg_load(os.path.join(path, filename[0]))
 
-    def dismiss_popup(self, *args):
-        self.popup_open = False
-        self.popup.dismiss()
-        self.parent.current = 'MainScreen'
-
     def update_mainscreen(self):
         mainscreen = self.get_widget_by_id('mainscreen')
         mainscreen.clear_widgets()
@@ -1258,15 +1168,15 @@ class MainScreen(e5_MainScreen):
 
     def save_field(self):
         widget = self.field_data
-        self.e5_cfg.current_record[self.e5_cfg.current_field.name] = widget.text 
+        self.cfg.current_record[self.cfg.current_field.name] = widget.text 
         widget.text = ''
 
     def go_back(self, *args):
-        if self.e5_cfg.filename:
+        if self.cfg.filename:
             self.save_field()
-            self.e5_cfg.previous()
-            if self.e5_cfg.BOF:
-                self.e5_cfg.filename = ''
+            self.cfg.previous()
+            if self.cfg.BOF:
+                self.cfg.filename = ''
                 self.build_mainscreen()
             else:
                 self.update_mainscreen()
@@ -1275,18 +1185,18 @@ class MainScreen(e5_MainScreen):
         self.copy_from_menu_to_textbox()
         self.copy_from_gps_to_textbox()
         self.save_field()
-        valid_data = self.e5_cfg.data_is_valid(db = self.e5_data.db)
+        valid_data = self.cfg.data_is_valid(db = self.data.db)
         if valid_data == True:
-            self.e5_cfg.next()
-            if self.e5_cfg.EOF:
+            self.cfg.next()
+            if self.cfg.EOF:
                 self.save_record()
-                self.e5_cfg.start()
+                self.cfg.start()
             self.update_mainscreen()
         else:
             widget = self.field_data
-            widget.text = self.e5_cfg.current_record[self.e5_cfg.current_field.name] 
+            widget.text = self.cfg.current_record[self.cfg.current_field.name] 
             widget.focus = True
-            self.popup = e5_MessageBox(self.e5_cfg.current_field.name, valid_data, call_back = self.close_popup, colors = self.colors)
+            self.popup = e5_MessageBox(self.cfg.current_field.name, valid_data, call_back = self.close_popup, colors = self.colors)
             self.popup.open()
             self.popup_open = True
         
@@ -1294,94 +1204,9 @@ class MainScreen(e5_MainScreen):
         self.field_data.text = value.text
         self.go_next(value)
 
-    def save_record(self):
-        valid = self.e5_cfg.validate_current_record()
-        if valid:
-            if self.e5_data.save(self.e5_cfg.current_record):
-                self.make_backup()
-            else:
-                pass
-        else:
-            self.popup = e5_MessageBox('Save Error', valid, call_back = self.close_popup, colors = self.colors)
-            self.popup.open()
-            self.popup_open = True
-
-    def make_backup(self):
-        if self.e5_ini.backup_interval > 0:
-            try:
-                record_counter = int(self.e5_cfg.get_value('E5','RECORDS UNTIL BACKUP')) if self.e5_cfg.get_value('E5','RECORDS UNTIL BACKUP') else self.e5_ini.backup_interval
-                record_counter -= 1
-                if record_counter <= 0:
-                    backup_path, backup_file = os.path.split(self.e5_data.filename)
-                    backup_file, backup_file_ext = backup_file.split('.')
-                    backup_file += self.time_stamp() if self.e5_ini.incremental_backups else '_backup'
-                    backup_file += backup_file_ext
-                    backup_file = os.path.join(backup_path, backup_file)
-                    copyfile(self.e5_ini.filename, backup_file)
-                    record_counter = self.e5_ini.backup_interval
-                self.e5_cfg.update_value('E5','RECORDS UNTIL BACKUP',str(record_counter))
-            except:
-                self.popup = e5_MessageBox('Backup Error', "\nAn error occurred while attempting to make a backup.  Check the backup settings and that the disk has enough space for a backup.", call_back = self.close_popup, colors = self.colors)
-                self.popup.open()
-                self.popup_open = True
-
-    def time_stamp(self):
-        time_stamp = '%s' % datetime.now().replace(microsecond=0)
-        time_stamp = time_stamp.replace('-','_')
-        time_stamp = time_stamp.replace(' ','_')
-        time_stamp = time_stamp.replace(':','_')
-        return('_' + time_stamp)
-
-    def close_popup(self, value):
-        self.popup.dismiss()
-        self.popup_open = False
-        self.event = Clock.schedule_once(self.set_focus, 1)
-
-    def set_focus(self, value):
-        self.widget_with_focus.focus = True
-
-    def show_delete_last_record(self):
-        last_record = self.e5_data.last_record()
-        if last_record:
-            message_text = '\n'
-            for field in self.e5_cfg.fields():
-                if field in last_record:
-                    message_text += field + " : " + last_record[field] + '\n'
-            self.popup = e5_MessageBox('Delete Last Record', message_text, response_type = "YESNO",
-                                        call_back = [self.delete_last_record, self.close_popup],
-                                        colors = self.colors)
-        else:
-            self.popup = e5_MessageBox('Delete Last Record', 'No records in table to delete.',
-                                        call_back = self.close_popup,
-                                        colors = self.colors)
-        self.popup.open()
-        self.popup_open = True
-
-    def delete_last_record(self, value):
-        last_record = self.e5_data.last_record()
-        self.e5_data.delete(last_record.doc_id)
-        self.close_popup(value)
-
-    def show_delete_all_records(self):
-        message_text = '\nYou are asking to delete all of the records in the current database table. Are you sure you want to do this?'
-        self.popup = e5_MessageBox('Delete All Records', message_text, response_type = "YESNO",
-                                    call_back = [self.delete_all_records1, self.close_popup],
-                                    colors = self.colors)
-        self.popup.open()
-        self.popup_open = True
-
-    def delete_all_records1(self, value):
-        self.close_popup(value)
-        message_text = '\nThis is your last chance.  All records will be deleted when you press Yes.'
-        self.popup = e5_MessageBox('Delete All Records', message_text, response_type = "YESNO",
-                                    call_back = [self.delete_all_records2, self.close_popup],
-                                    colors = self.colors)
-        self.popup.open()
-        self.popup_open = True
-        
-    def delete_all_records2(self, value):
-        self.e5_data.delete_all()
-        self.close_popup(value)
+    def exit_program(self):
+        self.save_window_location()
+        App.get_running_app().stop()
 
 #region Edit Screens
 
@@ -1601,7 +1426,7 @@ class StatusScreen(e5_InfoScreen):
         txt = self.e5_data.status() if self.e5_data else 'A data file has not been initialized or opened.\n\n'
         txt += self.e5_cfg.status() if self.e5_cfg else 'A CFG is not open.\n\n'
         txt += self.e5_ini.status() if self.e5_ini else 'An INI file is not available.\n\n'
-        txt += '\nThe default user path is %s.\n' % self.e5_ini.get_value("E5","APP_PATH")
+        txt += '\nThe default user path is %s.\n' % self.e5_ini.get_value(__program__,"APP_PATH")
         txt += '\nThe operating system is %s.\n' % platform_name()
         txt += '\nPython buid is %s.\n' % (python_version())
         txt += '\nLibraries installed include Kivy %s, TinyDB %s and Plyer %s.\n' % (__kivy_version__, __tinydb_version__, __plyer_version__)
@@ -1618,6 +1443,7 @@ class AboutScreen(e5_InfoScreen):
         self.content.text = '\n\nE5 by Shannon P. McPherron\n\nVersion ' + __version__ + ' Alpha\nApple Pie\n\n'
         self.content.text += 'Built on Python 3.6, Kivy 1.10.1, TinyDB 3.11.1 and Plyer 1.4.0.\n\n'
         self.content.text += 'An OldStoneAge.Com Production\n\n' + __date__ 
+        self.content.text += '\n\nSpecial thanks to Marcel Weiss (debugging)\nand Jonathan Reeves (platform testing).\n\n'
         self.content.halign = 'center'
         self.content.valign = 'middle'
         self.content.color = self.colors.text_color
@@ -1629,113 +1455,79 @@ class AboutScreen(e5_InfoScreen):
 
 sm = ScreenManager(id = 'screen_manager')
 
-class E5App(App):
+class E5App(e5_Program):
 
     def __init__(self, **kwargs):
         super(E5App, self).__init__(**kwargs)
 
-        app_path = self.user_data_dir
+        self.colors = ColorScheme()
+        self.ini = ini()
+        self.cfg = cfg()
+        self.data = db()
 
+        self.app_path = self.user_data_dir
+        self.setup_logger()
+        self.setup_program()
+
+    def setup_logger(self):
         logger.setLevel(logging.INFO)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        fh = logging.FileHandler(os.path.join(app_path, 'E5.log'))
+        fh = logging.FileHandler(os.path.join(self.app_path, __program__ + '.log'))
         fh.setLevel(logging.INFO)
         fh.setFormatter(formatter)
         logger.addHandler(fh)
 
-        self.e5_colors = ColorScheme()
-        self.e5_ini = ini()
-        self.e5_cfg = cfg()
-        self.e5_data = db()
-
-        self.e5_ini.open(os.path.join(app_path, 'E5.ini'))
-
-        if not self.e5_ini.first_time:
-
-            if self.e5_ini.get_value('E5','ColorScheme'):
-                self.e5_colors.set_to(self.e5_ini.get_value('E5','ColorScheme'))
-            if self.e5_ini.get_value('E5','DarkMode').upper() == 'TRUE':
-                self.e5_colors.darkmode = True
-            else:
-                self.e5_colors.darkmode = False
-
-            if self.e5_ini.get_value("E5", "CFG"):
-                self.e5_cfg.open(self.e5_ini.get_value("E5", "CFG"))
-                if self.e5_cfg.filename:
-                    if self.e5_cfg.get_value('E5','DATABASE'):
-                        self.e5_data.open(self.e5_cfg.get_value('E5','DATABASE'))
-                    else:
-                        database = os.path.split(self.e5_cfg.filename)[1]
-                        if "." in database:
-                            database = database.split('.')[0]
-                        database = database + '.json'
-                        self.e5_data.open(os.path.join(self.e5_cfg.path, database))
-                    if self.e5_cfg.get_value('E5','TABLE'):    
-                        self.e5_data.table = self.e5_cfg.get_value('E5','TABLE')
-                    else:
-                        self.e5_data.table = '_default'
-                    self.e5_cfg.update_value('E5','DATABASE', self.e5_data.filename)
-                    self.e5_cfg.update_value('E5','TABLE', self.e5_data.table)
-                    self.e5_cfg.save()
-            self.e5_ini.update(self.e5_colors, self.e5_cfg)
-            self.e5_ini.save()
-        self.e5_colors.set_colormode()
-        self.e5_colors.need_redraw = False    
-        self.e5_ini.update_value('E5','APP_PATH', self.user_data_dir)
-
-    def build(self):
-
+    def add_screens(self):
         sm.add_widget(MainScreen(name = 'MainScreen', id = 'main_screen',
-                                 colors = self.e5_colors,
-                                 e5_ini = self.e5_ini,
-                                 e5_cfg = self.e5_cfg,
-                                 e5_data = self.e5_data))
+                                 colors = self.colors,
+                                 ini = self.ini,
+                                 cfg = self.cfg,
+                                 data = self.data))
         sm.add_widget(StatusScreen(name = 'StatusScreen', id = 'status_screen',
-                                    colors = self.e5_colors,
-                                    e5_cfg = self.e5_cfg,
-                                    e5_ini = self.e5_ini,
-                                    e5_data = self.e5_data))
+                                    colors = self.colors,
+                                    e5_cfg = self.cfg,
+                                    e5_ini = self.ini,
+                                    e5_data = self.data))
         sm.add_widget(e5_LogScreen(name = 'LogScreen', id = 'log_screen',
-                                colors = self.e5_colors,
+                                colors = self.colors,
                                 logger = logger))
         sm.add_widget(e5_CFGScreen(name = 'CFGScreen', id = 'cfg_screen',
-                                colors = self.e5_colors,
-                                cfg = self.e5_cfg))
+                                colors = self.colors,
+                                cfg = self.cfg))
         sm.add_widget(e5_INIScreen(name = 'INIScreen', id = 'ini_screen',
-                                colors = self.e5_colors,
-                                ini = self.e5_ini))
+                                colors = self.colors,
+                                ini = self.ini))
         sm.add_widget(AboutScreen(name = 'AboutScreen', id = 'about_screen',
-                                    colors = self.e5_colors))
+                                    colors = self.colors))
         sm.add_widget(EditLastRecordScreen(name = 'EditLastRecordScreen', id = 'editlastrecord_screen',
-                                        data_table = self.e5_data.db,
+                                        data_table = self.data.db,
                                         doc_id = None,
-                                        e5_cfg = self.e5_cfg))
+                                        e5_cfg = self.cfg))
         sm.add_widget(EditPointsScreen(name = 'EditPointsScreen', id = 'editpoints_screen',
-                                        colors = self.e5_colors,
-                                        main_data = self.e5_data,
-                                        main_tablename = self.e5_data.table if self.e5_data else '_default',
-                                        main_cfg = self.e5_cfg))
+                                        colors = self.colors,
+                                        main_data = self.data,
+                                        main_tablename = self.data.table if self.data else '_default',
+                                        main_cfg = self.cfg))
         sm.add_widget(EditCFGScreen(name = 'EditCFGScreen', id = 'editcfg_screen',
-                                    colors = self.e5_colors,
-                                    e5_cfg = self.e5_cfg))
+                                    colors = self.colors,
+                                    e5_cfg = self.cfg))
         sm.add_widget(E5SettingsScreen(name = 'E5SettingsScreen', id = 'e5settings_screen',
-                                        colors = self.e5_colors,
-                                        e5_ini = self.e5_ini,
-                                        e5_cfg = self.e5_cfg))
+                                        colors = self.colors,
+                                        e5_ini = self.ini,
+                                        e5_cfg = self.cfg))
 
-        restore_window_size_position('E5', self.e5_ini)
-        
-        self.title = "E5 " + __version__
-
-        logger.info('E5 started, logger initialized, and application built.')
-
+    def build(self):
+        self.add_screens()
+        restore_window_size_position(__program__, self.ini)
+        self.title = __program__ + " " + __version__
+        logger.info(__program__ + ' started, logger initialized, and application built.')
         sm.screens[0].build_mainscreen()
         return(sm)
-
-Factory.register('E5', cls=E5App)
+    
+Factory.register(__program__, cls=E5App)
 
 if __name__ == '__main__':
 
     # Initialize a set of classes that are global
-    logger = logging.getLogger('E5')
+    logger = logging.getLogger(__program__)
     E5App().run()
