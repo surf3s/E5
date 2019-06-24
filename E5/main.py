@@ -1319,94 +1319,6 @@ class EditCFGScreen(Screen):
     def show_menu(self):
         pass
 
-class E5SettingsScreen(Screen):
-    def __init__(self, e5_cfg = None, e5_ini = None, colors = None, **kwargs):
-        super(E5SettingsScreen, self).__init__(**kwargs)
-        self.colors = colors if  colors else ColorScheme()
-        self.e5_ini = e5_ini
-        self.e5_cfg = e5_cfg
-
-    def on_enter(self):
-        self.build_screen()
-
-    def build_screen(self):
-        self.clear_widgets()
-        layout = GridLayout(cols = 1,
-                                size_hint_y = 1,
-                                id = 'settings_box',
-                                spacing = 5, padding = 5)
-        layout.bind(minimum_height = layout.setter('height'))
-
-        darkmode = GridLayout(cols = 2, size_hint_y = .1, spacing = 5, padding = 5)
-        darkmode.add_widget(e5_label('Dark Mode', colors = self.colors))
-        darkmode_switch = Switch(active = self.colors.darkmode)
-        darkmode_switch.bind(active = self.darkmode)
-        darkmode.add_widget(darkmode_switch)
-        layout.add_widget(darkmode)
-
-        colorscheme = GridLayout(cols = 2, size_hint_y = .6, spacing = 5, padding = 5)
-        colorscheme.add_widget(e5_label('Color Scheme', colors = self.colors))
-        colorscheme.add_widget(e5_scrollview_menu(self.colors.color_names(),
-                                                  menu_selected = '',
-                                                  call_back = [self.color_scheme_selected]))
-        temp = ColorScheme()
-        for widget in colorscheme.walk():
-            if widget.id in self.colors.color_names():
-                temp.set_to(widget.text)
-                widget.background_color = temp.button_background
-        layout.add_widget(colorscheme)
-        
-        backups = GridLayout(cols = 2, size_hint_y = .3, spacing = 5, padding = 5)
-        backups.add_widget(e5_label('Auto-backup after\nevery %s\nrecords entered.' % self.e5_ini.backup_interval,
-                                    id = 'label_backup_interval',
-                                    colors = self.colors))
-        slide = Slider(min = 0, max = 200,
-                        value = self.e5_ini.backup_interval,
-                        orientation = 'horizontal', id = 'backup_interval',
-                        value_track = True, value_track_color= self.colors.button_background)
-        backups.add_widget(slide)
-        slide.bind(value = self.update_backup_interval)
-        backups.add_widget(e5_label('Use incremental backups?', colors = self.colors))
-        backups_switch = Switch(active = self.e5_ini.incremental_backups)
-        backups_switch.bind(active = self.incremental_backups)
-        backups.add_widget(backups_switch)
-        layout.add_widget(backups)
-
-        settings_layout = GridLayout(cols = 1, size_hint_y = 1, spacing = 5, padding = 5)
-        scrollview = ScrollView(size_hint = (1, 1),
-                                 bar_width = SCROLLBAR_WIDTH)
-        scrollview.add_widget(layout)
-        settings_layout.add_widget(scrollview)
-
-        self.back_button = e5_button('Back', selected = True,
-                                             call_back = self.go_back,
-                                             colors = self.colors)
-        settings_layout.add_widget(self.back_button)
-        self.add_widget(settings_layout)
-
-    def update_backup_interval(self, instance, value):
-        self.e5_ini.backup_interval = int(value)
-        for widget in self.walk():
-            if widget.id == 'label_backup_interval':
-                widget.text = 'Auto-backup after\nevery %s\nrecords entered.' % self.e5_ini.backup_interval
-                break
-
-    def incremental_backups(self, instance, value):
-        self.e5_ini.incremental_backups = value
-
-    def darkmode(self, instance, value):
-        self.colors.darkmode = value
-        self.colors.set_colormode()
-        self.build_screen()
-
-    def color_scheme_selected(self, instance):
-        self.colors.set_to(instance.text)
-        self.back_button.background_color = self.colors.button_background
-        self.back_button.color = self.colors.button_color
-        
-    def go_back(self, instance):
-        self.e5_ini.update(self.colors, self.e5_cfg)
-        self.parent.current = 'MainScreen'
 
 ### End Edit Screens
 #endregion
@@ -1511,10 +1423,10 @@ class E5App(e5_Program):
         sm.add_widget(EditCFGScreen(name = 'EditCFGScreen', id = 'editcfg_screen',
                                     colors = self.colors,
                                     e5_cfg = self.cfg))
-        sm.add_widget(E5SettingsScreen(name = 'E5SettingsScreen', id = 'e5settings_screen',
+        sm.add_widget(e5_SettingsScreen(name = 'E5SettingsScreen', id = 'e5settings_screen',
                                         colors = self.colors,
-                                        e5_ini = self.ini,
-                                        e5_cfg = self.cfg))
+                                        ini = self.ini,
+                                        cfg = self.cfg))
 
     def build(self):
         self.add_screens()
