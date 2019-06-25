@@ -1184,10 +1184,10 @@ class DataGridCasePanel(BoxLayout):
     
     def populate(self, data, fields, colors = None):
         self.colors = colors if colors else ColorScheme()
-        self.addnew_list.bind(minimum_height = self.addnew_list.setter('height'))
-        self.addnew_list.clear_widgets()
+        self.edit_list.bind(minimum_height = self.edit_list.setter('height'))
+        self.edit_list.clear_widgets()
         for col in fields.fields():
-            self.addnew_list.add_widget(DataGridLabelAndField(col = col, colors = self.colors))
+            self.edit_list.add_widget(DataGridLabelAndField(col = col, colors = self.colors))
     
 class DataGridLabelAndField(BoxLayout):
 
@@ -1287,7 +1287,7 @@ class DataGridWidget(TabbedPanel):
         if datatable:
             if datatable.datagrid_doc_id:
                 data_record = self.data.get(doc_id = int(datatable.datagrid_doc_id))
-                for widget in self.ids.add_new_panel.children[0].walk():
+                for widget in self.ids.edit_panel.children[0].walk():
                     if widget.id in self.fields.fields():
                         widget.text = data_record[widget.id] if widget.id in data_record else ''
                         widget.bind(text = self.update_db)
@@ -1295,7 +1295,7 @@ class DataGridWidget(TabbedPanel):
                 self.textboxes_will_update_db = True
             else:
                 cfg_fields = self.fields.fields()
-                for widget in self.ids.add_new_panel.children[0].walk():
+                for widget in self.ids.edit_panel.children[0].walk():
                     if widget.id in cfg_fields:
                         widget.text = ''
                 self.textboxes_will_update_db = False

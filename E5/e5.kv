@@ -203,7 +203,7 @@
 
 <DataGridWidget>:
     panel1: data_frame_panel
-    panel2: add_new_panel
+    panel2: edit_panel
     panel3: delete_panel
     do_default_tab: False
     TabbedPanelItem:
@@ -217,7 +217,7 @@
         background_normal: ''
         on_release: root.open_panel2()
         DataGridCasePanel:
-            id: add_new_panel
+            id: edit_panel
     TabbedPanelItem:
         text: 'Delete'
         background_normal: ''
@@ -233,7 +233,7 @@
     orientation: 'vertical'
 
 <DataGridCasePanel>:
-    addnew_list: addnew_list
+    edit_list: edit_list
     orientation: 'vertical'
     ScrollView:
         do_scroll_x: False
@@ -241,7 +241,7 @@
         size_hint: 1, 1
         scroll_timeout: 150
         GridLayout:
-            id: addnew_list
+            id: edit_list
             padding: "10sp"
             spacing: "5sp"
             cols:1
