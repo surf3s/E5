@@ -1,5 +1,4 @@
 from os import path
-import ntpath
 from kivy.utils import platform
 from kivy.core.window import Window
 
@@ -11,11 +10,18 @@ def locate_file(filename, cfg_path = None):
     if path.isfile(filename):
         return(filename)
     if cfg_path:
-        p, f = ntpath.split(filename)
+        p, f = path.split(filename)
         if path.isfile(path.join(cfg_path, f)):
             return(path.join(cfg_path, f))
     return('')
 
+def filename_only(filename = None):
+    if filename:
+        p, f = path.split(filename)
+        return(f)
+    else:
+        return('')
+        
 def platform_name():
     return(['Windows','Linux','Android','MacOSX','IOS','Unknown'][['win', 'linux', 'android', 'macosx', 'ios', 'unknown'].index(platform)])
 

@@ -26,11 +26,12 @@
 #   Consider putting a dropdown menu into the grid view for sorting and maybe searching
 #   Think about whether to allow editing of CFG in the program
 
-__version__ = '1.0.6'
-__date__ = 'June, 2019'
+__version__ = '1.0.7'
+__date__ = 'August, 2019'
 from constants import __program__
 
 #region Imports
+from kivy import resources
 from kivy.utils import platform
 from kivy.clock import Clock, mainthread
 from kivy.app import App
@@ -70,7 +71,7 @@ try:
 except:
     pass
 
-import os 
+import os, sys 
 from datetime import datetime
 import ntpath
 from string import ascii_uppercase
@@ -97,6 +98,7 @@ from tinydb import TinyDB, Query, where
 from tinydb import __version__ as __tinydb_version__
 
 from collections import OrderedDict
+
 #endregion
 
 #region Data Classes
@@ -486,7 +488,7 @@ class cfg(blockdata):
                         logger.info('GPS Errors in cfg.is_valid')
 
                 if f.inputtype == 'MENU' and (len(f.menu)==0 and f.menufile == ''):
-                    self.errors.append('Error: The field %s is listed a menu, but no menu list or menu file was provided with a MENU or MENUFILE option.' % field_name)
+                    self.errors.append('Error: The field %s is listed as a menu, but no menu list or menu file was provided with a MENU or MENUFILE option.' % field_name)
                     self.has_errors = True
 
                 if f.menufile:
@@ -496,7 +498,7 @@ class cfg(blockdata):
                         self.has_warnings = True
                         self.errors.append("Warning: Could not locate the menu file '%s' for the field %s." % (f.menufile, field_name))
                 
-                if any((c in set(r' !@#$%^&*()?/\{}<.,.|+=-~`')) for c in field_name):
+                if any((c in set(r' !@#$%^&*()?/\{}<.,.|+=~`')) for c in field_name):
                     self.errors.append('Warning: The field %s has non-standard characters in it.  E5 will attempt to work with it, but it is highly recommended that you rename it as it will likely cause problems elsewhere.' % field_name)
                     self.has_warnings = True
 
@@ -1213,9 +1215,9 @@ class MainScreen(e5_MainScreen):
 class EditLastRecordScreen(e5_RecordEditScreen):
 
     def on_pre_enter(self):
-        if self.data_table and self.e5_cfg:
+        if self.data_table is not None and self.e5_cfg is not None:
             try:
-                last = self.data_table.all()[-1]
+                last = self.data.db.table(self.data.table).all()[-1]
                 self.doc_id = last.doc_id
             except:
                 self.doc_id = None
@@ -1438,8 +1440,18 @@ class E5App(e5_Program):
     
 Factory.register(__program__, cls=E5App)
 
-if __name__ == '__main__':
+# From https://stackoverflow.com/questions/35952595/kivy-compiling-to-a-single-executable
+def resourcePath():
+    '''Returns path containing content - either locally or in pyinstaller tmp file'''
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS)
 
+    return os.path.join(os.path.abspath("."))
+
+if __name__ == '__main__':
+    # This line goes with the function above 
+    resources.resource_add_path(resourcePath()) # add this line
+    
     # Initialize a set of classes that are global
     logger = logging.getLogger(__program__)
     E5App().run()

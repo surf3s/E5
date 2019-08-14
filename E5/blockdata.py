@@ -27,6 +27,13 @@ class blockdata:
             return(True)
         return(False)
 
+    def get_block(self, blockname):
+        if self.blocks:
+            for block in self.blocks:
+                if block['BLOCKNAME'] == blockname.upper():
+                    return(block)
+        return('')                
+
     def read_blocks(self):
         self.blocks = []
         try:
@@ -67,6 +74,12 @@ class blockdata:
                         return('')
         return('')                
 
+    def delete_key(self, blockname, key):
+        for block in self.blocks:
+            if block['BLOCKNAME'] == blockname.upper():
+                block.pop(key)
+                return
+        
     def rename_block(self, oldname, newname):
         for block in self.blocks:
             if block['BLOCKNAME'] == oldname.upper():

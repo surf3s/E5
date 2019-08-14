@@ -25,14 +25,14 @@ class dbs:
     def status(self):
         if self.filename:
             txt = '\nThe JSON data file is %s.\n\n' % self.filename
-            if self.db:
+            if self.db is not None:
                 if len(self.db.tables()) > 0:
                     txt += 'There are %s tables in this data file as follows:\n' % len(self.db.tables())
                     total_records = 0
                     for table_name in self.db.tables():
                         total_records += len(self.db.table(table_name))
                         txt += "  A table named '%s' with %s records.\n" % (table_name, len(self.db.table(table_name)))
-                    txt += '\nIn total there are %s records in the data file.\n' % total_records
+                    txt += '  In total there are %s records in the data file.\n' % total_records
                     txt += "The current table is '%s'.\n" % self.table
                 else:
                     txt += 'There are no tables in this data file.\n'
