@@ -190,7 +190,8 @@ class field:
         self.invalidfile = ''
         self.lookupfile = ''
         self.lookupdb = None
-
+        self.link_fields = None     # Compatibility with E5
+        
 class a_condition:
     match_list = []
     match_field = ''
@@ -769,7 +770,7 @@ class MainScreen(e5_MainScreen):
         super(MainScreen, self).__init__(**kwargs)
 
         self.colors = colors if colors else ColorScheme()
-        self.cfg = cfg if cfg else cfg()
+        self.cfg = cfg if cfg is not None else cfg()
         self.ini = ini if ini else ini()
         self.data = data if data else db()
 
@@ -869,7 +870,7 @@ class MainScreen(e5_MainScreen):
             self.widget_with_focus = self.scroll_menu
 
         else:
-            label_text = '\nBefore data entry can begin, you need to have a CFG file.\n\nThe current folder contains none.  Either use File Open to switch a folder that contains CFG files or create one.' 
+            label_text = '\nBefore data entry can begin, you need to have a CFG file.\n\nThe current folder %s contains none.  Either use File Open to switch a folder that contains CFG files or create a new one.' % self.get_path() 
             lb = e5_scrollview_label(text = label_text, id = 'label', colors = self.colors)
             lb.halign = 'center'
             mainscreen.add_widget(lb)
@@ -885,7 +886,6 @@ class MainScreen(e5_MainScreen):
             self.open_db()
         self.ini.update(self.colors, self.cfg)
         self.build_mainscreen()
-
       
     def data_entry(self):
 
@@ -1217,7 +1217,7 @@ class EditLastRecordScreen(e5_RecordEditScreen):
     def on_pre_enter(self):
         if self.data_table is not None and self.e5_cfg is not None:
             try:
-                last = self.data.db.table(self.data.table).all()[-1]
+                last = self.data.db.table(self.data_table).all()[-1]
                 self.doc_id = last.doc_id
             except:
                 self.doc_id = None
@@ -1414,7 +1414,8 @@ class E5App(e5_Program):
         sm.add_widget(AboutScreen(name = 'AboutScreen', id = 'about_screen',
                                     colors = self.colors))
         sm.add_widget(EditLastRecordScreen(name = 'EditLastRecordScreen', id = 'editlastrecord_screen',
-                                        data_table = self.data.db,
+                                        data = self.data,
+                                        data_table = self.data.table,
                                         doc_id = None,
                                         e5_cfg = self.cfg))
         sm.add_widget(EditPointsScreen(name = 'EditPointsScreen', id = 'editpoints_screen',

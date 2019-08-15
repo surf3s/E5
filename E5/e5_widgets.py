@@ -17,7 +17,7 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.switch import Switch
 from kivy.uix.slider import Slider
 
-from constants import BLACK, WHITE, SCROLLBAR_WIDTH, GOOGLE_COLORS, __program__
+from constants import BLACK, WHITE, SCROLLBAR_WIDTH, GOOGLE_COLORS, SPLASH_HELP, __program__
 from colorscheme import ColorScheme, make_rgb
 from misc import platform_name, locate_file
 import ntpath
@@ -810,12 +810,12 @@ class e5_RecordEditScreen(Screen):
 
     def previous_record(self, value):
         if self.doc_id:
-            self.doc_id = max(1, self.doc_id - 1)
+            self.doc_id = max(self.data.db.table(self.data_table).all()[0].doc_id, self.doc_id - 1)
             self.put_data_in_frame()
 
     def next_record(self, value):
         if self.doc_id and self.data_table:
-            self.doc_id = min(len(self.data.db.table(self.data_table)), self.doc_id + 1)
+            self.doc_id = min(self.data.db.table(self.data_table).all()[-1].doc_id, self.doc_id + 1)
             self.put_data_in_frame()
 
     def clear_the_frame(self):
