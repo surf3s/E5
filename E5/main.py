@@ -26,7 +26,10 @@
 #   Consider putting a dropdown menu into the grid view for sorting and maybe searching
 #   Think about whether to allow editing of CFG in the program
 
-__version__ = '1.0.7'
+
+### conditions in e4 not comma delimited
+
+__version__ = '1.0.9'
 __date__ = 'August, 2019'
 from constants import __program__
 
@@ -314,10 +317,10 @@ class cfg(blockdata):
             
             return(f)
 
-    # Remove leading and trailing spaces
-    # and remove empty items once this is done.
     def clean_menu(self, menulist):
+        # Remove leading and trailing spaces
         menulist = [item.strip() for item in menulist]
+        # and remove empty items.
         menulist = list(filter(('').__ne__, menulist))
         return(menulist)
 
@@ -345,14 +348,6 @@ class cfg(blockdata):
         #else:
         #    return(None)
 
-    def fields(self):
-        field_names = [field for field in self.names() if field not in [__program__]]
-        #del_fields = ['E5']
-        #for del_field in del_fields:
-        #    if del_field in field_names:
-        #        field_names.remove(del_field)
-        return(field_names)
-
     def data_is_valid(self, db = None):
         if self.current_field.required and self.current_record[self.current_field.name]=='':
             return('\nError: This field is marked as required.  Please provide a response.')
@@ -374,6 +369,14 @@ class cfg(blockdata):
                              (self.current_record[self.current_field.name], self.current_field.invalidfile) )
         return(True)
 
+    def convert_space_to_comma_delimited(self):
+        for field in self.fields():
+            menulist = self.get_value(field, 'MENU')
+            if menulist:
+                if ',' not in menulist:
+                    menulist = menulist.replace(' ', ',')
+                    self.update_value(field, 'MENU', menulist)
+
     def is_valid(self):
         # Check to see that conditions are numbered 
         self.has_errors = False
@@ -383,7 +386,10 @@ class cfg(blockdata):
             self.errors.append('Error: No fields defined in the CFG file.')
             self.has_errors = True
         else:
-            self.rename_block('E4','E5')        # Convert E4 file to E5
+            if 'E4' in self.names():
+                self.rename_block('E4','E5')        # Convert E4 file to E5
+                self.convert_space_to_comma_delimited()
+            
             prior_fieldnames = []
             for field_name in self.fields():
 

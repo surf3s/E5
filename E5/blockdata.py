@@ -3,6 +3,7 @@
 
 import logging
 import os
+from constants import __program__ 
 
 class blockdata:
 
@@ -63,7 +64,11 @@ class blockdata:
         for block in self.blocks:
             name_list.append(block['BLOCKNAME'])
         return(name_list)
-        
+
+    def fields(self):
+        field_names = [field for field in self.names() if field not in [__program__]]
+        return(field_names)
+
     def get_value(self, blockname, varname):
         if self.blocks:
             for block in self.blocks:

@@ -53,6 +53,7 @@ class dbs:
     def save(self, data_record):
         try:
             self.db.table(self.table).insert(data_record)
+            self.new_data = True
             return(True)
         except:
             return(False)

@@ -25,8 +25,7 @@ import os
 from shutil import copyfile
 from datetime import datetime
 from datetime import date
-from tinydb import where
-from tinydb import Query
+from tinydb import TinyDB, Query, where
 import re
 
 class e5_PopUpMenu(Popup):
@@ -379,13 +378,52 @@ class e5_MainScreen(Screen):
     def set_focus(self, value):
         self.widget_with_focus.focus = True
 
+    def show_delete_last_object(self):
+        last_record = self.data.last_record()
+        if last_record:
+            message_text = '\nDelete the following records?\n\n'
+            if 'UNIT' in last_record.keys() and 'ID' in last_record.keys():
+                unit = last_record["UNIT"]
+                idno = last_record["ID"]
+                a_record = Query()
+                records_to_delete = self.data.db.table(self.data.table).search(a_record.UNIT.matches('^' + unit + '$', flags = re.IGNORECASE) and a_record.ID.matches('^' + idno + '$', flags = re.IGNORECASE))
+                for record in records_to_delete:
+                    for field in self.cfg.fields():
+                        if field in record:
+                            message_text += "%s : %s \n" % (field, record[field])
+                    message_text += '\n\n'
+                self.popup = e5_MessageBox('Delete last object', message_text, response_type = "YESNO",
+                                            call_back = [self.delete_last_object, self.close_popup],
+                                            colors = self.colors)
+            else:
+                self.popup = e5_MessageBox('Delete last object', '\nFor now, this option requires a field called UNIT and another called ID.',
+                                            call_back = self.close_popup,
+                                            colors = self.colors)
+        else:
+            self.popup = e5_MessageBox('Delete last object', '\nNo records in table to delete.',
+                                        call_back = self.close_popup,
+                                        colors = self.colors)
+        self.popup.open()
+        self.popup_open = True
+
+    def delete_last_object(self, value):
+        last_record = self.data.last_record()
+        unit = last_record["UNIT"]
+        idno = last_record["ID"]
+        a_record = Query()
+        records_to_delete = self.data.db.table(self.data.table).search(a_record.UNIT.matches('^' + unit + '$', flags = re.IGNORECASE) and a_record.ID.matches('^' + idno + '$', flags = re.IGNORECASE))
+        for record in records_to_delete:
+            self.data.delete(record.doc_id)
+        self.data.new_data = True
+        self.close_popup(value)
+
     def show_delete_last_record(self):
         last_record = self.data.last_record()
         if last_record:
             message_text = '\n'
             for field in self.cfg.fields():
                 if field in last_record:
-                    message_text += field + " : " + last_record[field] + '\n'
+                    message_text += "%s : %s \n" % (field, last_record[field])
             self.popup = e5_MessageBox('Delete Last Record', message_text, response_type = "YESNO",
                                         call_back = [self.delete_last_record, self.close_popup],
                                         colors = self.colors)
@@ -399,6 +437,7 @@ class e5_MainScreen(Screen):
     def delete_last_record(self, value):
         last_record = self.data.last_record()
         self.data.delete(last_record.doc_id)
+        self.data.new_data = True
         self.close_popup(value)
 
     def show_delete_all_records(self, table_name = None):
@@ -425,6 +464,7 @@ class e5_MainScreen(Screen):
         
     def delete_all_records2(self, value):
         self.data.delete_all(self.delete_table)
+        self.data.new_data = True
         self.close_popup(value)
 
     def show_save_csvs(self, *args):
@@ -845,6 +885,7 @@ class e5_RecordEditScreen(Screen):
             update = {instance.id: value}
             self.data.db.table(self.data_table).update(update, doc_ids = [self.doc_id])
             self.refresh_linked_fields(instance.id, value)
+            self.data.new_data = True
 
     def refresh_linked_fields(self, fieldname, value):
         field = self.e5_cfg.get(fieldname)
