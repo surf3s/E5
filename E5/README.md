@@ -102,7 +102,7 @@ Works but I haven't pushed it to Git yet.
 ##### Linux
 If you use Linux, you probably know how to download and install the code on your machine.  I haven't yet posted this code in a Python repository for pip.  I could also use some help here as well.
 
-#### Details
+#### Details (still a draft)
 
 ##### [E5]
 
