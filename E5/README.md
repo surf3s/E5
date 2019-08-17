@@ -89,7 +89,7 @@ Both the *PlatformWidth* field and the last field, *Weight*, are numeric fields 
 #### Installation  
 
 ##### Windows
-A Windows installation can be found in the folder installs/windows.  Copy the entire contents of the E5 folder in windows/installs to your computer (for instance, in C:\Program Files (x84) ).  Then go to this folder and double-click the program e5.exe.  
+A Windows installation can be found in the folder installs/windows as a zip (compressed) file.  Copy the zip file to where you want to install the program (for instance, in C:\Program Files (x84) ).  Then uncompress the file (normally a double-click).  Go into the folder created and launch the program e5.exe.  Normally you can make short-cuts to this program in our data collection directory.  
 
 I have tested it on several Windows 10 machines and it worked well (though in some instance some of the time it was so to load and then this problem went away).  It may work on some Windows 7 installations, and it does not work on Windows XP.  If you have to use Windows XP (and you shouldn't) or Windows 7 (and you soon shouldn't) then I recommend using my previous softare (E4 or Entrer Trois).
 
