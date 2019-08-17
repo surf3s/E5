@@ -1,4 +1,4 @@
-# E5 (Alpha Version)
+# E5 (Beta Version)
 
 E5 is a generalized data entry program intended for archaeologists but likely useful for others as well.  It works with a configuration file where the data entry fields are defined.  Importantly, E5 makes it simple to make entry in one field conditional on values previously entered for other fields.  The goal is to make data entry fast, efficient and error free.  
 
@@ -31,7 +31,7 @@ E5 is written with Python 3.6.5 using as few dependencies as possible for portab
 
 #### Data Security and Bugs
 
-E5 is a complete re-write of E4 in a language that I am still learning.  It also tries to do some things I have never done before (like cross-platform compatibility).  At the same time, E5 is responsible for your scientific data.  I can assure you that I take this responsibility, like the collection of my own data, very seriously, and I am making every effort to have a bug free program.  If you encounter bugs, please report them by emailing me at mcpherron@eva.mpg.de.  To effectively replicate the problem and fix the bug, I will need your configuration file, a description of how to replicate the bug, and the name of the platform (Windows, Android etc.).  If you want to add features, again, please write me.  And if you are a programmer and want to contribute features, please use GitHub so that I can incorporate your improvements into the general release versions.
+E5 is a complete re-write of E4 in a language that I am still learning.  It also tries to do some things I have never done before (like cross-platform compatibility).  At the same time, E5 is responsible for your scientific data.  I can assure you that I take this responsibility, like the collection of my own data, very seriously, and I am making every effort to have a bug free program.  If you encounter bugs, please report them by emailing me at mcpherron@eva.mpg.de.  To effectively replicate the problem and fix the bug, I will need your configuration file, a description of how to replicate the bug, and the name of the platform (Windows, Android etc.).  If you want to add features, again, please write me.  And if you are a programmer and want to contribute features, that's great.  Please use GitHub so that I can incorporate your improvements into the general release versions (and I would prefer it if you contact me beforehand about working on the project).
 
 #### Configuration Files
 
@@ -88,7 +88,19 @@ Both the *PlatformWidth* field and the last field, *Weight*, are numeric fields 
 
 #### Installation  
 
+##### Windows
+A Windows installation can be found in the folder installs/windows.  Copy the entire contents of the E5 folder in windows/installs to your computer (for instance, in C:\Program Files (x84) ).  Then go to this folder and double-click the program e5.exe.  
 
+I have tested it on several Windows 10 machines and it worked well (though in some instance some of the time it was so to load and then this problem went away).  It may work on some Windows 7 installations, and it does not work on Windows XP.  If you have to use Windows XP (and you shouldn't) or Windows 7 (and you soon shouldn't) then I recommend using my previous softare (E4 or Entrer Trois).
+
+##### Mac OS
+Not available yet. Working on it (and could use some help).
+
+##### Android
+Works but I haven't pushed it to Git yet.
+
+##### Linux
+If you use Linux, you probably know how to download and install the code on your machine.  I haven't yet posted this code in a Python repository for pip.  I could also use some help here as well.
 
 #### Details
 
