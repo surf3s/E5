@@ -1,33 +1,34 @@
-# Errors:
-#  If TYPE is missing from CFG provide a default of text
+### E5 by Shannon McPherron
+#
+#   This is a beta release.  I am still working on bugs and I am still implementing some features.
+#   But it has been used to collect data and seems to work in most cases.  Caution should be exercised.
+#   It should be backwards compatible with E4 and Entrer Trois (but there are still some issues).
+#   A Windows version is available here, and has been tested on Windows 10.  Older versions of Windows
+#   will likely experience issues.
 
-# Fix box on icon
-# Make a loading icon
-# Set icon on program main screen
-# Add better formatted note and GPS fields to edit last record and data grid
-
-
-# To Do
-# Find a way to note when you are on the first field
-# Ask whether to add to menulist when new item is entered
-# Somehow show info from last record entered on first screen
-# Look into letting user set CSV file save name
-# Test species menu
-# Handle database and table names in the CFG and program better
-# On unique fields, give a warning but let data entry continue
+# ToDo and Bugs:
+#   If TYPE is missing from CFG provide a default of text
+#   Fix box on icon
+#   Make a loading icon
+#   Set icon on program main screen
+#   Add better formatted note and GPS fields to edit last record and data grid
+#   Find a way to note when you are on the first field
+#   Ask whether to add to menulist when new item is entered
+#   Somehow show info from last record entered on first screen
+#   Look into letting user set CSV file save name
+#   Test species menu
+#   Handle database and table names in the CFG and program better
+#   On unique fields, give a warning but let data entry continue
 #   then overwrite previous record
-# Implement 'sort' option on menus
-# Key press on boolean moves to right menu item but adds key press too
-
-# Need to establish a unique key for each record
-# Add a CFG option to sort menus
+#   Implement 'sort' option on menus
+#   Key press on boolean moves to right menu item but adds key press too
+#   Add a CFG option to sort menus
 
 # Long term
 #   Consider putting a dropdown menu into the grid view for sorting and maybe searching
 #   Think about whether to allow editing of CFG in the program
 
-
-### conditions in e4 not comma delimited
+### Need to fix ASAP conditions in e4 not comma delimited
 
 __version__ = '1.0.9'
 __date__ = 'August, 2019'
