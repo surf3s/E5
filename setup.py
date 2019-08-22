@@ -18,8 +18,8 @@ setup(
       ],
   classifiers=[
     'Development Status :: 4 - Beta',      # Chose either "3 - Alpha", "4 - Beta" or "5 - Production/Stable" as the current state of your package
-    'Intended Audience :: Users',      # Define that your audience are developers
-    'Topic :: Software Development :: Build Tools',
+	'Intended Audience :: End Users/Desktop',	
+	'Intended Audience :: Developers',    'Topic :: Software Development :: Build Tools',
     'License :: OSI Approved :: GNU',   # Again, pick a license
     'Programming Language :: Python :: 3.6',
   ],
