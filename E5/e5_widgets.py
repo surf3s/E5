@@ -168,7 +168,6 @@ class e5_scrollview_menu(ScrollView):
             index_no = 0
 
         if index_no >= 0:
-            print (self.children[0].cols)
             new_index = -1
             if ascii_code == 279:
                 new_index = len(menu_list) - 1
@@ -1195,7 +1194,7 @@ class DataGridTextInput(TextInput):
         self.call_back = call_back
 
     def keyboard_on_key_up(self, window, keycode):
-        print(keycode)
+        #print(keycode)
         return super(DataGridTextInput, self).keyboard_on_key_up(window, keycode)
 
 class DataGridTextBox(Popup):

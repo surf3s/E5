@@ -985,7 +985,7 @@ class MainScreen(e5_MainScreen):
     def _on_keyboard_down(self, *args):
         ascii_code = args[1]
         text_str = args[3]  
-        print('INFO: The key %s has been pressed %s' % (ascii_code, text_str))
+        #print('INFO: The key %s has been pressed %s' % (ascii_code, text_str))
         if not self.popup_open:
             if ascii_code == 8:
                 return False
@@ -1144,7 +1144,9 @@ class MainScreen(e5_MainScreen):
             try:
                 camera.export_to_png("IMG_%s.png" % self.time_stamp())
             except:
-                print('camera file save error')
+                pass
+                #print('camera file save error')
+                ###Replace this with a popup message
         camera.play = not camera.play
 
     def on_pre_enter(self):
