@@ -8,7 +8,7 @@ setup(
   author = 'Shannon McPherron',                   # Type in your name
   author_email = 'shannon.mcpherron@gmail.com',      # Type in your E-Mail
   url = 'https://github.com/surf3s/E5',   # Provide either the link to your github or to your website
-  download_url = 'https://github.com/surf3s/E5/archive/v_01.tar.gz',    # I explain this later on
+  download_url = 'https://github.com/surf3s/E5/archive/v1.0.9.tar.gz',    # I explain this later on
   keywords = ['archaeology', 'data entry'],   # Keywords that define your package best
   install_requires=[            # I get to this in a second
           'logging',
