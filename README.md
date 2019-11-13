@@ -91,16 +91,27 @@ Both the *PlatformWidth* field and the last field, *Weight*, are numeric fields 
 ##### Windows
 A Windows installation can be found in the folder installs/windows as a zip (compressed) file.  Copy the zip file to where you want to install the program (for instance, in C:\Program Files (x84) or in your data collection folder).  Then uncompress the file (normally a double-click).  Go into the folder created and launch the program e5.exe.  Normally you can make short-cuts to this program in our data collection directory.  
 
-I have tested E5 on several Windows 10 machines, and it worked well (though in some instance some of the time it was slow to load and then this problem went away).  It may work on some Windows 7 installations, and it does not work on Windows XP.  If you have to use Windows XP (and you shouldn't) or Windows 7 (and you soon shouldn't) then I recommend using my previous softare (E4 or Entrer Trois).
+I have tested E5 on several Windows 10 machines, and it worked well (though in some instance some of the time it was slow to load and then this problem went away).  It may work on some Windows 7 installations, and it does not work on Windows XP.  If you have to use Windows XP (and you really shouldn't) or Windows 7 (and shouldn't after Jan. 1, 2020) then I recommend using my previous software (E4 or Entrer Trois).
 
 ##### Mac OS
-Not available yet. Working on it (and could use some help).
+Not available yet. I am working hard on it (and could use some help).  Now that the code base is on Pypi it should be installable through that route.
 
 ##### Android
-Works but I haven't pushed it to Git yet.
+Works but I am still working on getting the code uploaded to the Google Play store.
 
 ##### Linux
-If you use Linux, you probably know how to download and install the code on your machine.  I haven't yet posted this code in a Python repository for pip.  I could also use some help here as well.
+The following has been tested on a clean install of Ubuntu 18.  There may be some small differences in the code base from what it stored on GitHub and what is pulled from Pypi using pip, but I will try to maintain both equally.
+
+```
+sudo apt update
+sudo apt install python3-pip
+python3 -m pip install --upgrade --user pip setuptools
+python3 -m pip install kivy --user
+python3 -m pip install e5 --user
+python3 -m e5
+```
+
+
 
 #### Details (still a draft)
 
