@@ -30,9 +30,9 @@
 
 ### Need to fix ASAP conditions in e4 not comma delimited
 
-__version__ = '1.0.9'
-__date__ = 'August, 2019'
-from constants import __program__
+__version__ = '1.0.99'
+__date__ = 'November, 2019'
+from e5.constants import __program__
 
 #region Imports
 from kivy import resources
@@ -90,12 +90,12 @@ import logging
 import logging.handlers as handlers
 
 # My libraries for this project
-from blockdata import blockdata
-from dbs import dbs
-from e5_widgets import *
-from constants import *
-from colorscheme import *
-from misc import *
+from e5.blockdata import blockdata
+from e5.dbs import dbs
+from e5.e5_widgets import *
+from e5.constants import *
+from e5.colorscheme import *
+from e5.misc import *
 
 # The database - pure Python
 from tinydb import TinyDB, Query, where
@@ -379,6 +379,8 @@ class cfg(blockdata):
                     self.update_value(field, 'MENU', menulist)
 
     def is_valid(self):
+        logger = logging.getLogger(__name__)
+
         # Check to see that conditions are numbered 
         self.has_errors = False
         self.has_warnings = False
@@ -565,6 +567,7 @@ class cfg(blockdata):
         return(formatted_conditions)    
 
     def gps_location(self):
+        logger = logging.getLogger(__name__)
         logger.info('Have location in cfg.is_valid')
 
     def save(self):
@@ -800,6 +803,7 @@ class MainScreen(e5_MainScreen):
         self.fpath = ''
 
         if self.cfg.gps:
+            logger = logging.getLogger(__name__)
             try:
                 logger.info('Configuring GPS in mainscreen')
                 gps.configure(on_location = self.on_gps_location,
@@ -819,6 +823,7 @@ class MainScreen(e5_MainScreen):
 
     @mainthread
     def on_gps_status(self, stype, status):
+        logger = logging.getLogger(__name__)
         logger.info('GPS status updated.')
         self.gps_status = 'type={}\n{}'.format(stype, status)
         status = self.get_widget_by_id('gps_status')
@@ -1110,6 +1115,7 @@ class MainScreen(e5_MainScreen):
                 content_area.add_widget(e5_scrollview_label(self.get_info(), colors = self.colors))
 
     def gps_manage(self, value):
+        logger = logging.getLogger(__name__)
         if self.cfg.gps:
             if value.text == 'Start':        
                 logger.info('GPS started')
@@ -1393,6 +1399,7 @@ class E5App(e5_Program):
         self.setup_program()
 
     def setup_logger(self):
+        logger = logging.getLogger(__name__)
         logger.setLevel(logging.INFO)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         fh = logging.FileHandler(os.path.join(self.app_path, __program__ + '.log'))
@@ -1401,6 +1408,7 @@ class E5App(e5_Program):
         logger.addHandler(fh)
 
     def add_screens(self):
+        logger = logging.getLogger(__name__)
         sm.add_widget(MainScreen(name = 'MainScreen', id = 'main_screen',
                                  colors = self.colors,
                                  ini = self.ini,
@@ -1441,6 +1449,7 @@ class E5App(e5_Program):
                                         cfg = self.cfg))
 
     def build(self):
+        logger = logging.getLogger(__name__)
         self.add_screens()
         restore_window_size_position(__program__, self.ini)
         self.title = __program__ + " " + __version__
@@ -1461,7 +1470,5 @@ def resourcePath():
 if __name__ == '__main__':
     # This line goes with the function above 
     resources.resource_add_path(resourcePath()) # add this line
-    
-    # Initialize a set of classes that are global
-    logger = logging.getLogger(__program__)
+   
     E5App().run()

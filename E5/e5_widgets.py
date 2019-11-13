@@ -17,9 +17,9 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.switch import Switch
 from kivy.uix.slider import Slider
 
-from constants import BLACK, WHITE, SCROLLBAR_WIDTH, GOOGLE_COLORS, SPLASH_HELP, __program__
-from colorscheme import ColorScheme, make_rgb
-from misc import platform_name, locate_file
+from e5.constants import BLACK, WHITE, SCROLLBAR_WIDTH, GOOGLE_COLORS, SPLASH_HELP, __program__
+from e5.colorscheme import ColorScheme, make_rgb
+from e5.misc import platform_name, locate_file
 import ntpath
 import os
 from shutil import copyfile

@@ -1,6 +1,6 @@
-from constants import WHITE, BLACK, GOOGLE_COLORS
+from e5.constants import WHITE, BLACK, GOOGLE_COLORS
 from kivy.core.window import Window
-from misc import platform_name
+from e5.misc import platform_name
 
 def make_rgb(hex_color):
     return([(( hex_color >> 16 ) & 0xFF)/255.0,
