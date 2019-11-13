@@ -33,6 +33,45 @@ E5 is written with Python 3.6.5 using as few dependencies as possible for portab
 
 E5 is a complete re-write of E4 in a language that I am still learning.  It also tries to do some things I have never done before (like cross-platform compatibility).  At the same time, E5 is responsible for your scientific data.  I can assure you that I take this responsibility, like the collection of my own data, very seriously, and I am making every effort to have a bug free program.  If you encounter bugs, please report them by emailing me at mcpherron@eva.mpg.de.  To effectively replicate the problem and fix the bug, I will need your configuration file, a description of how to replicate the bug, and the name of the platform (Windows, Android etc.).  If you want to add features, again, please write me.  And if you are a programmer and want to contribute features, that's great.  Please use GitHub so that I can incorporate your improvements into the general release versions (and I would prefer it if you contact me beforehand about working on the project).
 
+#### Installation  
+
+##### Windows
+
+A Windows installation can be found in the folder installs/windows as a zip (compressed) file.  Copy the zip file to where you want to install the program (for instance, in C:\Program Files (x84) or in your data collection folder).  Then uncompress the file (normally a double-click).  Go into the folder created and launch the program e5.exe.  Normally you can make short-cuts to this program in our data collection directory.  
+
+I have tested E5 on several Windows 10 machines, and it worked well (though in some instance some of the time it was slow to load and then this problem went away).  It may work on some Windows 7 installations, and it does not work on Windows XP.  If you have to use Windows XP (and you really shouldn't) or Windows 7 (and shouldn't after Jan. 1, 2020) then I recommend using my previous software (E4 or Entrer Trois).
+
+##### Mac OS
+
+These instructions are the same as for Linux.  They have been tested on two separate computers.  Let me know if these instructions do not work.
+
+```sudo apt update
+sudo apt install python3-pip
+python3 -m pip install --upgrade --user pip setuptools
+python3 -m pip install kivy --user
+python3 -m pip install e5 --user
+python3 -m e5```
+```
+
+##### Android
+
+Works but I am still working on getting the code uploaded to the Google Play store.
+
+##### Linux
+
+The following has been tested on a clean install of Ubuntu 18.  There may be some small differences in the code base from what it stored on GitHub and what is pulled from Pypi using pip, but I will try to maintain both equally.
+
+```
+sudo apt update
+sudo apt install python3-pip
+python3 -m pip install --upgrade --user pip setuptools
+python3 -m pip install kivy --user
+python3 -m pip install e5 --user
+python3 -m e5
+```
+
+
+
 #### Configuration Files
 
 The key element of E5 is the configuration file where the data entry fields are defined.  Configuration files (ending with a CFG file extension) may seem a bit complicated at first, and they must be written in a separate program (an ASCII text editor like NotePad or NotePad++ on Windows).  The effort of thinking through a configuration file, however, means thinking through the structure of your data before you start collecting it (unlike, for instance, if you use a spreadsheet), and this effort typically pays off later when you go to analyze the data.
@@ -86,34 +125,7 @@ Likewise *PlatformType* is conditioned on the *ArtifactType* being a tool or a f
 
 Both the *PlatformWidth* field and the last field, *Weight*, are numeric fields meaning that only valid numbers are accepted as input.  All other entries will generate an error and data entry cannot continue.
 
-#### Installation  
-
-##### Windows
-A Windows installation can be found in the folder installs/windows as a zip (compressed) file.  Copy the zip file to where you want to install the program (for instance, in C:\Program Files (x84) or in your data collection folder).  Then uncompress the file (normally a double-click).  Go into the folder created and launch the program e5.exe.  Normally you can make short-cuts to this program in our data collection directory.  
-
-I have tested E5 on several Windows 10 machines, and it worked well (though in some instance some of the time it was slow to load and then this problem went away).  It may work on some Windows 7 installations, and it does not work on Windows XP.  If you have to use Windows XP (and you really shouldn't) or Windows 7 (and shouldn't after Jan. 1, 2020) then I recommend using my previous software (E4 or Entrer Trois).
-
-##### Mac OS
-Not available yet. I am working hard on it (and could use some help).  Now that the code base is on Pypi it should be installable through that route.
-
-##### Android
-Works but I am still working on getting the code uploaded to the Google Play store.
-
-##### Linux
-The following has been tested on a clean install of Ubuntu 18.  There may be some small differences in the code base from what it stored on GitHub and what is pulled from Pypi using pip, but I will try to maintain both equally.
-
-```
-sudo apt update
-sudo apt install python3-pip
-python3 -m pip install --upgrade --user pip setuptools
-python3 -m pip install kivy --user
-python3 -m pip install e5 --user
-python3 -m e5
-```
-
-
-
-#### Details (still a draft)
+#### Details on Configuration Files (still a draft)
 
 ##### [E5]
 
