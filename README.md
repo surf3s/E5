@@ -81,39 +81,39 @@ Several example CFG files are included here in the CFGs folder, and here is a sa
 
 ```
 [E5]
-table=lithics
+TABLE=lithics
 
 [ID]
-input=text
-prompt=Enter the artifact ID
-unique=True
+TYPE=TEXT
+PROMPT=Enter the artifact ID
+UNIQUE=True
 
-[ArtifactType]
-input=menu
-prompt=Select the artifact type
-menu=Tool,Flake,Core
+[ARTIFACTTYPE]
+TYPE=MENU
+PROMPT=Select the artifact type
+MENU=Tool,Flake,Core
 
-[ToolType]
-input=menu
-prompt=Select the tool type
-menu=Scraper,Notch,Point,Other
-condition1=ArtifactType Tool
+[TOOLTYPE]
+TYPE=MENU
+PROMPT=Select the tool type
+MENU=Scraper,Notch,Point,Other
+CONDITION1=ArtifactType Tool
 
-[PlatformType]
-input=menu
-prompt=What is the platform
-menu=Plain,Cortical,Missing,Other
-condition1=ArtifactType Tool Flake
+[PLATFORMTYPE]
+TYPE=MENU
+PROMPT=What is the platform
+MENU=Plain,Cortical,Missing,Other
+CONDITION1=ArtifactType Tool,Flake
 
-[PlatformWidth]
-input=numeric
-prompt=Measure the platform width
-condition1=ArtifactType Tool Flake
-condition2=PlatformType not Missing
+[PLATFORMWIDTH]
+TYPE=NUMERIC
+PROMPT=Measure the platform width
+CONDITION1=ArtifactType Tool,Flake
+CONDITION2=PlatformType not Missing
 
-[Weight]
-input=numeric
-
+[WEIGHT]
+TYPE=NUMERIC
+PROMPT=WEIGHT
 ```
 
 The file is organized into blocks defined by the [].  Each file will have an [E5] block (usually at the start) that contains settings that apply to the whole configuration file.  In this example, there is one option (table=) which tells E5 what to call the database table.  If no table is specified, E5 uses '_default'.  Because it is not specified here, the database file itself (a JSON file) will have the same name as the configuration file.

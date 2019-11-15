@@ -85,6 +85,7 @@ class e5_button(Button):
     def __init__(self, text, id = '', selected = False, call_back = None,
                  button_height = None, colors = None, **kwargs):
         super(e5_button, self).__init__(**kwargs)
+        self.colors = colors
         self.text = text
         self.size_hint_y = button_height
         self.id = id
@@ -615,10 +616,10 @@ class e5_SettingsScreen(Screen):
         backups.add_widget(e5_label('Auto-backup after\nevery %s\nrecords entered.' % self.ini.backup_interval,
                                     id = 'label_backup_interval',
                                     colors = self.colors))
-        slide = Slider(min = 0, max = 200,
+        slide = Slider(min = 0, max = 200, step = 5,
                         value = self.ini.backup_interval,
                         orientation = 'horizontal', id = 'backup_interval',
-                        value_track = True, value_track_color= self.colors.button_background)
+                        value_track = True, value_track_color = self.colors.button_background)
         backups.add_widget(slide)
         slide.bind(value = self.update_backup_interval)
         backups.add_widget(e5_label('Use incremental backups?', colors = self.colors))
@@ -626,6 +627,38 @@ class e5_SettingsScreen(Screen):
         backups_switch.bind(active = self.incremental_backups)
         backups.add_widget(backups_switch)
         layout.add_widget(backups)
+
+        text_font_size = GridLayout(cols = 2, size_hint_y = .3, spacing = 5, padding = 5)
+        if self.colors.text_font_size:
+            text_font_size_value = int(self.colors.text_font_size.replace("sp",''))
+        else:
+            text_font_size_value = 12
+        self.text_font_size_label = e5_label('Text font size is %s' % text_font_size_value,
+                                    id = 'label_font_size',
+                                    colors = self.colors)
+        text_font_size.add_widget(self.text_font_size_label)
+        text_font_slide = Slider(min = 12, max = 26, step = 1, value = text_font_size_value,
+                        orientation = 'horizontal', id = 'font_size',
+                        value_track = True, value_track_color = self.colors.button_background)
+        text_font_size.add_widget(text_font_slide)
+        text_font_slide.bind(value = self.update_text_font_size)
+        layout.add_widget(text_font_size)
+
+        button_font_size = GridLayout(cols = 2, size_hint_y = .3, spacing = 5, padding = 5)
+        if self.colors.button_font_size:
+            button_font_size_value = int(self.colors.button_font_size.replace("sp",''))
+        else:
+            button_font_size_value = 12
+        self.button_font_size_label = e5_label('Button font size is %s' % button_font_size_value,
+                                    id = 'label_font_size',
+                                    colors = self.colors)
+        button_font_size.add_widget(self.button_font_size_label)
+        button_font_slide = Slider(min = 12, max = 26, step = 1, value = button_font_size_value,
+                        orientation = 'horizontal', id = 'font_size',
+                        value_track = True, value_track_color = self.colors.button_background)
+        button_font_size.add_widget(button_font_slide)
+        button_font_slide.bind(value = self.update_button_font_size)
+        layout.add_widget(button_font_size)
 
         settings_layout = GridLayout(cols = 1, size_hint_y = 1, spacing = 5, padding = 5)
         scrollview = ScrollView(size_hint = (1, 1),
@@ -638,6 +671,16 @@ class e5_SettingsScreen(Screen):
                                              colors = self.colors)
         settings_layout.add_widget(self.back_button)
         self.add_widget(settings_layout)
+
+    def update_text_font_size(self, intance, value):
+        self.text_font_size_label.text = 'Text font size is %s' % int(value)
+        self.colors.text_font_size = '%ssp' % value
+        self.build_screen()
+
+    def update_button_font_size(self, intance, value):
+        self.button_font_size_label.text = 'Button font size is %s' % int(value)
+        self.colors.button_font_size = '%ssp' % value
+        self.build_screen()
 
     def update_backup_interval(self, instance, value):
         self.ini.backup_interval = int(value)
@@ -813,7 +856,7 @@ class e5_RecordEditScreen(Screen):
                         one_record_only = False,
                         **kwargs):
         super(e5_RecordEditScreen, self).__init__(**kwargs)
-        self.colors = colors if colors else ColorScheme()
+        self.colors = colors if colors is not None else ColorScheme()
         self.e5_cfg = e5_cfg
         self.data_table = data_table
         self.data = data
@@ -830,7 +873,8 @@ class e5_RecordEditScreen(Screen):
             self.layout.add_widget(e5_side_by_side_buttons(text = ['Previous record','Next record'],
                                                             id = ['previous','next'],
                                                             call_back = [self.previous_record, self.next_record],
-                                                            selected = [True, True]))
+                                                            selected = [True, True],
+                                                            colors = self.colors))
             self.layout.add_widget(e5_button('Back', id = 'back', selected = True,
                                         call_back = self.call_back, colors = self.colors))
         else:
@@ -845,7 +889,10 @@ class e5_RecordEditScreen(Screen):
         self.data_fields.bind(minimum_height = self.data_fields.setter('height'))
         self.data_fields.clear_widgets()
         for col in self.e5_cfg.fields():
-            self.data_fields.add_widget(DataGridLabelAndField(col = col, colors = self.colors))
+            field_type = self.e5_cfg.get_value(col, 'TYPE')
+            self.data_fields.add_widget(DataGridLabelAndField(col = col,
+                                                                colors = self.colors,
+                                                                note_field = (field_type == 'NOTE')))
 
     def previous_record(self, value):
         if self.doc_id:
@@ -968,7 +1015,7 @@ class e5_RecordEditScreen(Screen):
                 self.popup_field_widget = instance
                 if cfg_field.inputtype in ['MENU','BOOLEAN']:
                     self.popup = DataGridMenuList(instance.id, cfg_field.menu,
-                                                    instance.text, self.menu_selection)
+                                                    instance.text, self.menu_selection, colors = self.colors)
                     self.popup.open()
                     self.popup_scrollmenu = self.get_widget_by_id(self.popup, 'menu_scroll')
                     self.popup_textbox = self.get_widget_by_id(self.popup, 'new_item')
@@ -1117,6 +1164,11 @@ class e5_Program(App):
             else:
                 self.colors.darkmode = False
 
+            if self.ini.get_value(__program__,'ButtonFontSize'):
+                self.colors.button_font_size = (self.ini.get_value(__program__,'ButtonFontSize'))
+            if self.ini.get_value(__program__,'TextFontSize'):
+                self.colors.text_font_size = (self.ini.get_value(__program__,'TextFontSize'))
+
             if self.ini.get_value(__program__, "CFG"):
                 self.cfg.open(self.ini.get_value(__program__, "CFG"))
                 if self.cfg.filename:
@@ -1194,7 +1246,7 @@ class DataGridTextInput(TextInput):
         self.call_back = call_back
 
     def keyboard_on_key_up(self, window, keycode):
-        #print(keycode)
+        print(keycode)
         return super(DataGridTextInput, self).keyboard_on_key_up(window, keycode)
 
 class DataGridTextBox(Popup):
@@ -1225,10 +1277,13 @@ class DataGridTextBox(Popup):
         content.add_widget(buttons)
         self.title = title
         self.content = content
-        self.size_hint = (.8, .35 if label is None else .5)
+        if not multiline:
+            self.size_hint = (.8, .35 if label is None else .5)
+        else:
+            self.size_hint = (.8, .45 if label is None else .6)
         self.auto_dismiss = True
 
-        self.event = Clock.schedule_once(self.set_focus, .5)
+        self.event = Clock.schedule_once(self.set_focus, .35)
     
     def set_focus(self, instance):
         self.txt.focus = True
@@ -1358,12 +1413,13 @@ class DataGridTableData(RecycleView):
         cfg_field = self.e5_cfg.get(field)
         self.inputtype = cfg_field.inputtype
         if cfg_field.inputtype in ['MENU','BOOLEAN']:
-            self.popup = DataGridMenuList(field, cfg_field.menu, editcell_widget.text, self.menu_selection)
+            self.popup = DataGridMenuList(field, cfg_field.menu, editcell_widget.text, self.menu_selection, self.colors)
             self.popup.open()
         if cfg_field.inputtype in ['TEXT','NUMERIC','NOTE']:
             self.popup = DataGridTextBox(title = field, text = editcell_widget.text,
                                             multiline = cfg_field.inputtype == 'NOTE',
-                                            call_back = self.menu_selection)
+                                            call_back = self.menu_selection,
+                                            colors = self.colors)
             self.popup.open()
         self.datatable_widget.popup_scrollmenu = self.datatable_widget.get_widget_by_id(self.popup, 'menu_scroll')
         self.datatable_widget.popup_textbox = self.datatable_widget.get_widget_by_id(self.popup, 'new_item')
@@ -1441,21 +1497,23 @@ class DataGridLabelAndField(BoxLayout):
     popup = ObjectProperty(None)
     sorted_result = None
 
-    def __init__(self, col, colors, **kwargs):
+    def __init__(self, col, colors, note_field = False, **kwargs):
         super(DataGridLabelAndField, self).__init__(**kwargs)
         self.update_db = False
         self.widget_type = 'data'
-        self.height = "30sp"
+        if not note_field:
+            self.height = "30sp"
         self.size_hint = (0.9, None)
         self.spacing = 10
         label = e5_label(text = col, id = '__label')
-        self.txt = TextInput(multiline = False,
+        self.txt = TextInput(multiline = note_field,
                         size_hint = (0.75, None),
-                        id = col)
+                        id = col,
+                        size_hint_y = .95)
         if colors:
             if colors.text_font_size:
                 self.txt.font_size = colors.text_font_size 
-        self.txt.bind(minimum_height = self.txt.setter('height'))
+        #self.txt.bind(minimum_height = self.txt.setter('height'))
         self.add_widget(label)
         self.add_widget(self.txt)
 
@@ -1594,7 +1652,8 @@ class DataGridWidget(TabbedPanel):
             if cfg_field:
                 self.popup_field_widget = instance
                 if cfg_field.inputtype in ['MENU','BOOLEAN']:
-                    self.popup = DataGridMenuList(instance.id, cfg_field.menu, instance.text, self.menu_selection)
+                    self.popup = DataGridMenuList(instance.id, cfg_field.menu,
+                                                    instance.text, self.menu_selection, colors = self.colors)
                     self.popup.open()
                     self.popup_scrollmenu = self.get_widget_by_id(self.popup, 'menu_scroll')
                     self.popup_textbox = self.get_widget_by_id(self.popup, 'new_item')

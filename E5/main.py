@@ -30,7 +30,7 @@
 
 ### Need to fix ASAP conditions in e4 not comma delimited
 
-__version__ = '1.0.99'
+__version__ = '1.2.0'
 __date__ = 'November, 2019'
 from e5.constants import __program__
 
