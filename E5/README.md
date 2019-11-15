@@ -45,12 +45,13 @@ I have tested E5 on several Windows 10 machines, and it worked well (though in s
 
 These instructions are the same as for Linux.  They have been tested on two separate computers.  Let me know if these instructions do not work.
 
-```sudo apt update
+```
+sudo apt update
 sudo apt install python3-pip
 python3 -m pip install --upgrade --user pip setuptools
 python3 -m pip install kivy --user
 python3 -m pip install e5 --user
-python3 -m e5```
+python3 -m e5
 ```
 
 ##### Android
