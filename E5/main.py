@@ -4,7 +4,7 @@
 #   But it has been used to collect data and seems to work in most cases.  Caution should be exercised.
 #   It should be backwards compatible with E4 and Entrer Trois (but there are still some issues).
 #   A Windows version is available here, and has been tested on Windows 10.  Older versions of Windows
-#   will likely experience issues.
+#   will likely experience issues.  This code also works on Mac and Linux.
 
 # ToDo and Bugs:
 #   If TYPE is missing from CFG provide a default of text
@@ -390,8 +390,8 @@ class cfg(blockdata):
             self.has_errors = True
         else:
             if 'E4' in self.names():
-                self.rename_block('E4','E5')        # Convert E4 file to E5
-                self.convert_space_to_comma_delimited()
+                self.rename_block('E4','E5')                # Convert E4 file to E5
+                self.convert_space_to_comma_delimited()     # E4 allowed space delimited lists. 
             
             prior_fieldnames = []
             for field_name in self.fields():
