@@ -35,11 +35,11 @@ E5 is a complete re-write of E4 in a language that I am still learning.  It also
 
 #### Installation  
 
-WARNING - In the last two years, one of the key libraries for E5, kivy, changed to version 2.0.  This new version breaks the installation of E5.  I have fixed it with another of my programs, E5 (not yet posted here), and I am working to fix the problem here with E5. I am very sorry for this inconvience.
+**WARNING** - In the last two years, one of the key libraries for E5, kivy, changed to version 2.0.  This new version breaks the installation of E5.  I have fixed it with another of my programs, E5 (not yet posted here), and I am working to fix the problem here with E5. I am very sorry for this inconvience.  If you are a Windows user, the [packaged installation](https://github.com/surf3s/E5/tree/master/E5/installs/windows) should still work.
 
 ##### Windows
 
-A Windows installation can be found in the folder installs/windows as a zip (compressed) file.  Copy the zip file to where you want to install the program (for instance, in C:\Program Files (x84) or in your data collection folder).  Then uncompress the file (normally a double-click).  Go into the folder created and launch the program e5.exe.  Normally you can make short-cuts to this program in our data collection directory.  
+A Windows installation can be found in the folder [installs/windows](installs/windows) as a zip (compressed) file.  Copy the zip file to where you want to install the program (for instance, in C:\Program Files (x84) or in your data collection folder).  Then uncompress the file (normally a double-click).  Go into the folder created and launch the program e5.exe.  Normally you can make short-cuts to this program in our data collection directory.  
 
 I have tested E5 on several Windows 10 machines, and it worked well (though in some instance some of the time it was slow to load and then this problem went away).  It may work on some Windows 7 installations, and it does not work on Windows XP.  If you have to use Windows XP (and you really shouldn't) or Windows 7 (and shouldn't after Jan. 1, 2020) then I recommend using my previous software (E4 or Entrer Trois).
 
