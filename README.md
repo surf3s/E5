@@ -35,6 +35,8 @@ E5 is a complete re-write of E4 in a language that I am still learning.  It also
 
 #### Installation  
 
+WARNING - In the last two years, one of the key libraries for E5, kivy, changed to version 2.0.  This new version breaks the installation of E5.  I have fixed it with another of my programs, E5 (not yet posted here), and I am working to fix the problem here with E5. I am very sorry for this inconvience.
+
 ##### Windows
 
 A Windows installation can be found in the folder installs/windows as a zip (compressed) file.  Copy the zip file to where you want to install the program (for instance, in C:\Program Files (x84) or in your data collection folder).  Then uncompress the file (normally a double-click).  Go into the folder created and launch the program e5.exe.  Normally you can make short-cuts to this program in our data collection directory.  
@@ -43,13 +45,13 @@ I have tested E5 on several Windows 10 machines, and it worked well (though in s
 
 ##### Mac OS
 
-These instructions are the same as for Linux.  They have been tested on two separate computers.  Let me know if these instructions do not work.
+These instructions are the same as for Linux.  They have been tested on two separate computers.  Let me know if these instructions do not work.  I am not sure about python3-pip versus pip.  You may need to install pip instead of python3-pip with sudo apt install pip.  If python3 does not work, then try typing just python.  This will put you into python and tell you the version number.  Exit python with quit().  If the version is 3.0 or above, then you can replace python3 below with python.
 
 ```
 sudo apt update
 sudo apt install python3-pip
 python3 -m pip install --upgrade --user pip setuptools
-python3 -m pip install kivy --user
+python3 -m pip install kivy==1.11.1 --user
 python3 -m pip install e5 --user
 python3 -m e5
 ```
@@ -66,7 +68,7 @@ The following has been tested on a clean install of Ubuntu 18.  There may be som
 sudo apt update
 sudo apt install python3-pip
 python3 -m pip install --upgrade --user pip setuptools
-python3 -m pip install kivy --user
+python3 -m pip install kivy==1.11.1 --user
 python3 -m pip install e5 --user
 python3 -m e5
 ```
