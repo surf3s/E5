@@ -1,0 +1,286 @@
+#:kivy 1.1.0
+#:set SUBMENU_COLOR (1, 1, 1, 1)
+
+<MainScreen>:
+    BoxLayout:
+        id: mainbox
+        orientation: 'vertical'
+        BoxLayout:
+            ActionView:
+                size_hint_y : .1
+                use_separator: True
+                pos_hint: {'top':1}
+                background_color: (.5, .5, .5, 1)
+                background_image: 'white-bg.png'
+                background_normal: ''
+                ActionPrevious:
+                    title: 'E5'
+                    with_previous: False
+                    background_color: (.5, .5, .5, 1)
+                    background_normal: ''
+                ActionOverflow:
+                    background_color: (.5, .5, .5, 1)
+                    background_normal: ''
+                ActionGroup:
+                    text: 'Help'
+                    color: root.text_color
+                    id: topmenu
+                    background_color: (.5, .5, .5, 1)
+                    background_normal: ''
+                    ActionButton:
+                        text: 'Status'
+                        on_press: app.root.current = 'StatusScreen'
+                        color: SUBMENU_COLOR
+                    ActionButton:
+                        text: 'Log'
+                        on_press: app.root.current = 'LogScreen'
+                        color: SUBMENU_COLOR
+                    ActionButton:
+                        text: 'CFG'
+                        on_press: app.root.current = 'CFGScreen'
+                        color: SUBMENU_COLOR
+                    ActionButton:
+                        text: 'INI'
+                        on_press: app.root.current = 'INIScreen'
+                        color: SUBMENU_COLOR
+                    ActionButton:
+                        text: 'About'
+                        on_press: app.root.current = 'AboutScreen'
+                        color: SUBMENU_COLOR
+                ActionGroup:
+                    text: 'Edit'
+                    color: root.text_color
+                    id: topmenu
+                    ActionButton:
+                        text: 'Last Record'
+                        on_press: app.root.current = 'EditLastRecordScreen'
+                        color: SUBMENU_COLOR
+                    ActionButton:
+                        text: 'All Records'
+                        on_press: app.root.current = 'EditPointsScreen'
+                        color: SUBMENU_COLOR
+                        minimum_width: '140sp'
+                    ActionButton:
+                        text: 'Delete Last'
+                        on_press: app.root.current = root.show_delete_last_record()
+                        color: SUBMENU_COLOR
+                    ActionButton:
+                        text: 'Delete All'
+                        on_press: app.root.current = root.show_delete_all_records()
+                        color: SUBMENU_COLOR
+                    #ActionButton:
+                    #    text: 'CFG'
+                    #    on_press: app.root.current = 'EditCFGScreen'
+                    #    color: SUBMENU_COLOR
+                    ActionButton:
+                        text: 'Settings'
+                        on_press: app.root.current = 'E5SettingsScreen'
+                        color: SUBMENU_COLOR
+                ActionGroup:
+                    text: 'File'
+                    color: root.text_color
+                    ActionButton:
+                        text: 'Open CFG'
+                        on_release: root.show_load_cfg()
+                        color: SUBMENU_COLOR
+                    ActionButton:
+                        text: 'Export CSVs'
+                        on_release: root.show_save_csvs()
+                        color: SUBMENU_COLOR
+                    ActionButton:
+                        text: 'Export geoJSON'
+                        on_release: root.show_save_geojson()
+                        color: SUBMENU_COLOR
+                        minimum_width: '140sp'
+                    ActionButton:
+                        text: 'Exit'
+                        on_release: root.exit_program()
+                        color: SUBMENU_COLOR
+
+<SelectableButton>:
+    # Draw a background to indicate selection
+    canvas.before:
+        Color:
+            rgba: (0.0, 0.9, 0.1, 0.3)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+<e5_LoadDialog>:
+    BoxLayout:
+        size: root.size
+        pos: root.pos
+        orientation: "vertical"
+        TextInput:
+            size_hint: 1, None
+            height: self.minimum_height
+            readonly: True
+            text: filechooser.path
+            background_color: (0,0,0,0)
+            foreground_color: (1,1,1,.8)
+        FileChooserListView:
+            id: filechooser
+            filters: ['*.cfg','*.CFG']
+            path: root.start_path
+        BoxLayout:
+            size_hint_y: None
+            spacing: 5
+            padding: 5
+            Button:
+                text: "Cancel"
+                on_release: root.cancel()
+                color: root.button_color
+                background_color: root.button_background
+                background_normal: ''
+            Button:
+                text: "Open"
+                on_release: root.load(filechooser.path, filechooser.selection)
+                color: root.button_color
+                background_color: root.button_background
+                background_normal: ''
+
+#region code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py
+
+<DataGridHeaderCell>:
+    size_hint: (None, None)
+    text_size: self.size
+    halign: "center"
+    valign: "middle"
+    height: '30dp'
+    background_disabled_normal: ''
+    disabled_color: (1, 1, 1, 1)
+    color: (1, 1, 1, 1)
+    canvas.before:
+        Color:
+            rgba: 0.165, 0.165, 0.165, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    on_release: root.parent.parent.parent.parent._generate_table(self.text)
+
+<DataGridTableHeader>:
+    header: header
+    bar_width: 0
+    do_scroll: False
+    size_hint: (1, None)
+    effect_cls: "ScrollEffect"
+    height: '30dp'
+    GridLayout:
+        id: header
+        rows: 1
+        size_hint: (None, None)
+        width: self.minimum_width
+        height: self.minimum_height
+
+<DataGridScrollCell>:
+    canvas.before:
+        #Color:
+        #    rgba: root.datagrid_odd if root.is_even else root.datagrid_even
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    text: root.text
+    id: root.id
+    on_press: root.callback(root.key, root.field, root.db)
+    background_color: root.datagrid_odd if root.is_even else root.datagrid_even
+    halign: "center"
+    valign: "middle"
+    # This setting determines if text wraps in the grid cell box
+    text_size: self.size
+    size_hint: 1, 1
+    #height: 60
+    #width: 400
+
+<DataGridTableData>:
+    rgrid: rgrid
+    scroll_type: ['bars', 'content']
+    bar_color: [0.2, 0.7, 0.9, 1]
+    bar_inactive_color: [0.2, 0.7, 0.9, .5]
+    do_scroll_x: True
+    do_scroll_y: True
+    effect_cls: "ScrollEffect"
+    viewclass: "DataGridScrollCell"
+    RecycleGridLayout:
+        id: rgrid
+        rows: root.nrows
+        cols: root.ncols
+        size_hint: (None, None)
+        width: self.minimum_width
+        height: self.minimum_height
+
+<DataGridWidget>:
+    panel1: data_frame_panel
+    panel2: edit_panel
+    panel3: delete_panel
+    panel4: addnew_panel
+    do_default_tab: False
+    TabbedPanelItem:
+        text: 'Data'
+        on_release: root.open_panel1()
+        background_normal: ''
+        DataGridGridPanel:
+            id: data_frame_panel
+    TabbedPanelItem:
+        text: 'Edit'
+        background_normal: ''
+        on_release: root.open_panel2()
+        DataGridCasePanel:
+            id: edit_panel
+    TabbedPanelItem:
+        text: 'Delete'
+        background_normal: ''
+        on_release: root.open_panel3()
+        DataGridDeletePanel:
+            id: delete_panel
+    TabbedPanelItem:
+        text: 'Add New'
+        background_normal: ''
+        on_release: root.open_panel4()
+        DataGridAddNewPanel:
+            id: addnew_panel
+    TabbedPanelItem:
+        text: 'Close'
+        on_release: root.close_panels()
+        background_normal: ''
+
+<DataGridGridPanel>:
+#    orientation: 'vertical'
+
+<DataGridAddNewPanel>:
+    addnew_list: addnew_list
+#    orientation: 'vertical'
+    ScrollView:
+        do_scroll_x: False
+        do_scroll_y: True
+        size_hint: 1, 1
+        scroll_timeout: 150
+        GridLayout:
+            id: addnew_list
+            padding: "10sp"
+            spacing: "5sp"
+            cols:1
+            row_default_height: '35dp'
+            row_force_default: True
+            size_hint_y: None
+
+<DataGridCasePanel>:
+    edit_list: edit_list
+#    orientation: 'vertical'
+    ScrollView:
+        do_scroll_x: False
+        do_scroll_y: True
+        size_hint: 1, 1
+        scroll_timeout: 150
+        GridLayout:
+            id: edit_list
+            padding: "10sp"
+            spacing: "5sp"
+            cols:1
+            row_default_height: '35dp'
+            row_force_default: True
+            size_hint_y: None
+
+<DataGridDeletePanel>:
+#    orientation: 'vertical'
+
+#endregion end code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py

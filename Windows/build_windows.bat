@@ -1,0 +1,1 @@
+ python -m PyInstaller e5py.spec
