@@ -1,6 +1,6 @@
 # E5 (Beta Version)
 
-E5 is a generalized data entry program intended for archaeologists but likely useful for others as well.  It works with a configuration file where the data entry fields are defined.  Importantly, E5 makes it simple to make entry in one field conditional on values previously entered for other fields.  The goal is to make data entry fast, efficient and error free.  
+E5 is a generalized data entry program intended for archaeologists but likely useful for others as well.  It works with a configuration file where the data entry fields are defined.  Importantly, E5 makes it simple to make entry in one field conditional on values previously entered for other fields.  The goal is to make data entry fast, efficient and error free.
 
 E5 is a complete, from scratch re-write of E4.  It is backwards compatible with E4 configuration files, but it supports several new features (with more to come).  For one, it is now built on Python to be cross-platform compatible, and the source code is available at GitHub.  E5 will run on Windows, Mac OS, Linux and Android tablets and phones.  For this reason and others, E5 now uses an open database format.  All data are stored in human readable, ASCII formatted JSON files.  Data can also be exported to CSV files for easy import into any database, statistics or spreadsheet software.
 
@@ -18,42 +18,36 @@ E5 is a complete, from scratch re-write of E4.  It is backwards compatible with 
 
 - Support for device cameras to link images with data records
 - Support for device GPS to link locations to data records
-- Support for related tables with one to many relationships 
+- Support for related tables with one to many relationships
 
 #### What is Missing
 
-- Support for iPhones.  Unfortunately the technology used for this version of E5 cannot be easily ported to iPhones.  However, once this version is stable, I will begin work on a custom re-write for Android and Apple phones.
+- Support for iPhones.  Unfortunately the technology used for this version of E5 cannot be easily ported to iPhones.
 - Support for older, serial port (COM) calipers and scales.  If there is a demand for this, I can consider adding it. I am interested in finding solutions for connecting calipers to Android phones as well.
 
 #### A Word about the Technology
 
-E5 is written with Python 3.6.5 using as few dependencies as possible for portability and maintainability.  The graphical user interface is built on Kivy 1.11.0.  Kivy is specifically designed for touch screens and cross-platform support; however, I made every effort to retain the efficiency of keyboard data entry for Windows and Mac OS.  The database is built on TinyDB, which is written in pure Python.  E3 (the DOS version) lasted a good 15 years (and still works actually).  E4 lasted 10-15 years as well.  My hope is that E5 will have at least this same use life, and I am cautiously optimistic that the switch to Python will give it a longer use life (though I expect that I will have to change the graphical user interface technology more frequently).  
+E5 is written with Python 3.8.1 (but is compatible with 3.6 for now) using as few dependencies as possible for portability and maintainability.  The graphical user interface is built on Kivy 2.0.  Kivy is specifically designed for touch screens and cross-platform support; however, I made every effort to retain the efficiency of keyboard data entry for Windows and Mac OS.  The database is built on TinyDB, which is written in pure Python.  E3 (the DOS version) lasted a good 15 years (and still works actually).  E4 lasted 10-15 years as well.  My hope is that E5 will have at least this same use life, and I am cautiously optimistic that the switch to Python will give it a longer use life (though I expect that I will have to change the graphical user interface technology more frequently).
 
 #### Data Security and Bugs
 
 E5 is a complete re-write of E4 in a language that I am still learning.  It also tries to do some things I have never done before (like cross-platform compatibility).  At the same time, E5 is responsible for your scientific data.  I can assure you that I take this responsibility, like the collection of my own data, very seriously, and I am making every effort to have a bug free program.  If you encounter bugs, please report them by emailing me at mcpherron@eva.mpg.de.  To effectively replicate the problem and fix the bug, I will need your configuration file, a description of how to replicate the bug, and the name of the platform (Windows, Android etc.).  If you want to add features, again, please write me.  And if you are a programmer and want to contribute features, that's great.  Please use GitHub so that I can incorporate your improvements into the general release versions (and I would prefer it if you contact me beforehand about working on the project).
 
-#### Installation  
-
-**WARNING** - In the last two years, one of the key libraries for E5, kivy, changed to version 2.0.  This new version breaks the installation of E5.  I have fixed it with another of my programs, E5 (not yet posted here), and I am working to fix the problem here with E5. I am very sorry for this inconvience.  If you are a Windows user, the [packaged installation](https://github.com/surf3s/E5/tree/master/E5/installs/windows) should still work.
+#### Installation
 
 ##### Windows
 
-A Windows installation can be found in the folder [installs/windows](https://github.com/surf3s/E5/tree/master/E5/installs/windows) as a zip (compressed) file.  Copy the zip file to where you want to install the program (for instance, in C:\Program Files (x84) or in your data collection folder).  Then uncompress the file (normally a double-click).  Go into the folder created and launch the program e5.exe.  Normally you can make short-cuts to this program in our data collection directory.  
+A Windows exe file can be found in the folder [Windows](https://github.com/surf3s/E5/tree/master/E5/Windows).  Download this file, place it in a folder where you want to start your data entry, and launch the program.
 
-I have tested E5 on several Windows 10 machines, and it worked well (though in some instance some of the time it was slow to load and then this problem went away).  It may work on some Windows 7 installations, and it does not work on Windows XP.  If you have to use Windows XP (and you really shouldn't) or Windows 7 (and shouldn't after Jan. 1, 2020) then I recommend using my previous software (E4 or Entrer Trois).
+I have tested E5 on several Windows 10 machines, and it worked well (though in some instance some of the time it was slow to load and then this problem went away).  I doubt it works on Windows 7 and it almost certainly does not work on Windows XP.  If you have to use Windows XP (and you really, really shouldn't) or Windows 7 (and you really, really shouldn't) then I recommend using my previous software (E4 or Entrer Trois).
 
 ##### Mac OS
 
-These instructions are the same as for Linux.  They have been tested on two separate computers.  Let me know if these instructions do not work.  I am not sure about python3-pip versus pip.  You may need to install pip instead of python3-pip with sudo apt install pip.  If python3 does not work, then try typing just python.  This will put you into python and tell you the version number.  Exit python with quit().  If the version is 3.0 or above, then you can replace python3 below with python.
+These instructions are similar to what is required for Linux.  They have been tested on two separate computers.  Let me know if these instructions do not work.  I am not sure about python3-pip versus pip.  You may need to install pip instead of python3-pip with sudo apt install pip.  If python3 does not work, then try typing just python.  This will put you into python and tell you the version number.  Exit python with quit().  If the version is 3.0 or above, then you can replace python3 below with python.
 
 ```
-sudo apt update
-sudo apt install python3-pip
-python3 -m pip install --upgrade --user pip setuptools
-python3 -m pip install kivy==1.11.1 --user
-python3 -m pip install e5 --user
-python3 -m e5
+pip install e5 --user
+python3 -m e5py
 ```
 
 ##### Android
@@ -62,17 +56,19 @@ Works but I am still working on getting the code uploaded to the Google Play sto
 
 ##### Linux
 
-The following has been tested on a clean install of Ubuntu 18.  There may be some small differences in the code base from what it stored on GitHub and what is pulled from Pypi using pip, but I will try to maintain both equally.
+The following has been tested on clean installs of Ubuntu.  There may be some small differences in the code base from what it stored on GitHub and what is pulled from PyPi using pip, but I will try to maintain both equally.
 
 ```
-sudo apt update
-sudo apt install python3-pip
-python3 -m pip install --upgrade --user pip setuptools
-python3 -m pip install kivy==1.11.1 --user
-python3 -m pip install e5 --user
-python3 -m e5
+pip install e5
+python -m e5py
 ```
 
+##### Bug Fixes in Version 1.3 (June, 2022)
+
+I finally had a chance to work on this and EDM.  The main effort here was to upgrade the program to Kivy 2.0 so that it would once again easily work across platforms.  This is done in the new version.  Additionally, I fixed a number of buys/annoyances including:
+1.  Delete key now works in addition to backspace
+2.  When only one record was present, the datagrid did not work properly.  This is fixed.
+3.  When deleting records, sometimes the last record didn't show as deleted in the datagrid.  This is fixed.
 
 
 #### Configuration Files
@@ -122,7 +118,7 @@ The file is organized into blocks defined by the [].  Each file will have an [E5
 
 Next is a series of data entry fields (again, each defined with []).  Here the first field is an artifact ID.  The 'type' option tells E5 what kind of data to accept.  Valid options include text, note, numeric, menus, boolean (True/False), and the date and time.  The *prompt* is specified with an option, and then the *unique* option tells E5 that each data record must have a unique value for this field.  Attempts to duplicate a value for this field will generate a warning, and if data entry continues it will edit (or overwrite) the previous record with this ID.
 
-The *ArtifactType* field demonstrates the use of menus.  The actual menu items are specified in the *menu* option and are comma separated.  There is no limit to the number of menu items, and they are displayed in the order specified here (unless the *sorted* option is set to *True*).  The *ToolType* field that follows is also a menu, but it demonstrates the use of conditionals.  During data entry, the *ToolType* menu will only be displayed when *ArtifactType* is a tool, otherwise E5 will skip to the next field and insert an empty string ("") for the *ToolType* field.  
+The *ArtifactType* field demonstrates the use of menus.  The actual menu items are specified in the *menu* option and are comma separated.  There is no limit to the number of menu items, and they are displayed in the order specified here (unless the *sorted* option is set to *True*).  The *ToolType* field that follows is also a menu, but it demonstrates the use of conditionals.  During data entry, the *ToolType* menu will only be displayed when *ArtifactType* is a tool, otherwise E5 will skip to the next field and insert an empty string ("") for the *ToolType* field.
 
 Likewise *PlatformType* is conditioned on the *ArtifactType* being a tool or a flake.  The field that follows, *PlatformWidth*, has two conditionals which must both be true otherwise the field will be skipped and an empty value will be inserted into the database table.  Notice that the second condition illustrates the use of the not keyword on conditions.  When the *PlatformType* is a value other than missing, this condition is true.
 
@@ -142,11 +138,11 @@ The name of the data table within the database.  If a table is not specified, E5
 
 ##### [fieldname]
 
-###### type = 	
+###### type =
 
 Valid values are *text*, *note*, *numeric*, *instrument*, *menu*, *boolean*, *datetime*, *camera* (experimental) and *gps* (not yet implemented).  *Text* provides a one line entry box and accepts any alphanumeric characters.  *Note* is like *text* accept that provides a multiline entry box.  *Numeric* constrains input to valid numbers and an Android the keyboard defaults to numeric.  *Instrument* is retained for backwards compatibility but is now equivalent to *numeric*.  *Menu* works with the menu option (below) to provide a menu list.  *Boolean* is a menu with only two options (*True* and *False*).  *Datetime* automatically inserts the current date and time.  *Camera* is in testing mode but is intended to allow photos to be linked to data records.  A *GPS* feature is planned to also attach coordinates to data records.  If missing, type defaults to *text*.
 
-###### prompt =	
+###### prompt =
 
 The prompt associated with each field.  If missing a default will be provided.
 
@@ -170,7 +166,7 @@ A message to be displayed for this field.
 
 The name of a text file containing help text to be displayed for this field.  Unless a full path name is given, files are assumed to be in the same folder as the CFG.  If a full path is given, but this path is not valid or does not contain the file, E5 will search for the file in the same folder as the CFG.
 
-###### increment = 
+###### increment =
 
 If *True*, the numeric value in this field will be incremented by one each new record.  The default is *False*.
 
