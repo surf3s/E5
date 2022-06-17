@@ -10,11 +10,9 @@ __pycache__/
 .Python
 build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/
@@ -24,6 +22,7 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+/dist/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -128,4 +127,4 @@ temp*.*
 *.xml
 *.iml
 *.csv
-*.spec
+other/
