@@ -1,9 +1,3 @@
-# Fixes
-#   Delete key works in addition to backspace key
-#   Datagrid shows record when only one record exists
-#   Datagrid shows no records when no record exists
-
-
 # ## E5 by Shannon McPherron
 #
 #   This is a beta release.  I am still working on bugs and I am still implementing some features.
@@ -37,7 +31,7 @@
 
 # TODO Need to fix ASAP conditions in e4 not comma delimited
 
-__version__ = '1.3.2'
+__version__ = '1.3.3'
 __date__ = 'June, 2022'
 __program__ = 'E5'
 
