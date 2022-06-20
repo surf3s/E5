@@ -39,7 +39,6 @@ __program__ = 'E5'
 from kivy import resources
 from kivy.clock import Clock, mainthread
 from kivy.app import App
-from kivy.uix.camera import Camera
 from kivy.uix.switch import Switch
 from kivy.factory import Factory
 from kivy.uix.popup import Popup
@@ -945,7 +944,8 @@ class MainScreen(e5_MainScreen):
     def if_camera_setup_camera(self):
         if self.cfg.camera_in_cfg() and 1 == 0:
             try:
-                self.camera = Camera(play = True, size_hint_y = .8, resolution = (-1, -1))
+                # self.camera = Camera(play = True, size_hint_y = .8, resolution = (-1, -1))
+                pass
             except Exception as e:
                 print("Oops!", e.__class__, "occurred.")
         else:
