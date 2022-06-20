@@ -257,6 +257,13 @@ class cfg(blockdata):
     def validate_current_record(self):
         return(True)
 
+    def camera_in_cfg(self):
+        for field in self.fields():
+            f = self.get(field)
+            if f.inputtype == 'CAMERA':
+                return(True)
+        return(False)
+
     def get(self, field_name):
         if not field_name:
             return('')
@@ -798,7 +805,6 @@ class MainScreen(e5_MainScreen):
         self.ini = ini()
         self.cfg = cfg()
         self.data = db()
-
         self.setup_program()
 
         if platform_name() == 'Android':
@@ -832,6 +838,7 @@ class MainScreen(e5_MainScreen):
         self.add_screens()
         restore_window_size_position(__program__, self.ini)
         self.setup_logger()
+        self.if_camera_setup_camera()
 
     def setup_logger(self):
         logger = logging.getLogger(__name__)
@@ -935,6 +942,15 @@ class MainScreen(e5_MainScreen):
             self.cfg_menu()
         self.update_title()
 
+    def if_camera_setup_camera(self):
+        if self.cfg.camera_in_cfg():
+            try:
+                self.camera = Camera(play = True, size_hint_y = .8, resolution = (-1, -1))
+            except Exception as e:
+                print("Oops!", e.__class__, "occurred.")
+        else:
+            self.camera = None
+
     def cfg_menu(self):
 
         self.cfg_files = self.get_files(self.get_path(), 'cfg')
@@ -977,6 +993,7 @@ class MainScreen(e5_MainScreen):
         self.ini.update(self.colors, self.cfg)
         self.build_mainscreen()
         self.reset_screens()
+        self.if_camera_setup_camera()
 
     def set_new_data_to_true(self, table_name = None):
         if table_name is None:
@@ -1143,13 +1160,15 @@ class MainScreen(e5_MainScreen):
         if menu_exists or info_exists or camera_exists or gps_exists:
 
             if camera_exists:
+                if self.camera.parent is not None:
+                    self.camera.parent.remove_widget(self.camera)
                 bx = BoxLayout(orientation = 'vertical')
-                bx.add_widget(Camera(play = True, size_hint_y = .8,
-                                         resolution = (320, 160)))
+                bx.add_widget(self.camera)
+                self.camera.play = True
                 bx.add_widget(e5_button(text = "Snap",
-                                        id = "snap", selected = True,
+                                        selected = True,
                                         colors = self.colors,
-                                        callback = self.take_photo))
+                                        call_back = self.take_photo))
                 content_area.add_widget(bx)
 
             if gps_exists:
@@ -1228,16 +1247,15 @@ class MainScreen(e5_MainScreen):
         point += "Accuracy = %s" % round(random() * 5 + 3, 3)
         return(point)
 
-    def take_photo(self):
-        camera = self.get_widget_by_id('camera')
-        if camera.play:
+    def take_photo(self, instance):
+        if self.camera.play:
             try:
-                camera.export_to_png("IMG_%s.png" % self.time_stamp())
-            except:
-                pass
-                # print('camera file save error')
+                self.camera.export_to_png(path.join(self.cfg.path, "IMG_%s.png" % self.datetime_stamp()))
+            except Exception as e:
+                print("Oops!", e.__class__, "occurred.")
+                print('camera file save error')
                 # TODO Replace this with a popup message
-        camera.play = not camera.play
+        self.camera.play = not self.camera.play
 
     def on_pre_enter(self):
         Window.bind(on_key_down = self._on_keyboard_down)
