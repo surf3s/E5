@@ -31,7 +31,7 @@
 
 # TODO Need to fix ASAP conditions in e4 not comma delimited
 
-__version__ = '1.3.3'
+__version__ = '1.3.4'
 __date__ = 'June, 2022'
 __program__ = 'E5'
 
@@ -943,7 +943,7 @@ class MainScreen(e5_MainScreen):
         self.update_title()
 
     def if_camera_setup_camera(self):
-        if self.cfg.camera_in_cfg():
+        if self.cfg.camera_in_cfg() and 1 == 0:
             try:
                 self.camera = Camera(play = True, size_hint_y = .8, resolution = (-1, -1))
             except Exception as e:
@@ -1160,11 +1160,12 @@ class MainScreen(e5_MainScreen):
         if menu_exists or info_exists or camera_exists or gps_exists:
 
             if camera_exists:
-                if self.camera.parent is not None:
-                    self.camera.parent.remove_widget(self.camera)
+                if self.camera is not None:
+                    if self.camera.parent is not None:
+                        self.camera.parent.remove_widget(self.camera)
                 bx = BoxLayout(orientation = 'vertical')
-                bx.add_widget(self.camera)
-                self.camera.play = True
+                # bx.add_widget(self.camera)
+                # self.camera.play = True
                 bx.add_widget(e5_button(text = "Snap",
                                         selected = True,
                                         colors = self.colors,
@@ -1248,6 +1249,7 @@ class MainScreen(e5_MainScreen):
         return(point)
 
     def take_photo(self, instance):
+        return
         if self.camera.play:
             try:
                 self.camera.export_to_png(path.join(self.cfg.path, "IMG_%s.png" % self.datetime_stamp()))
