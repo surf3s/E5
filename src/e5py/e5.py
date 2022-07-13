@@ -31,8 +31,8 @@
 
 # TODO Need to fix ASAP conditions in e4 not comma delimited
 
-__version__ = '1.3.4'
-__date__ = 'June, 2022'
+__version__ = '1.3.5'
+__date__ = 'July, 2022'
 __program__ = 'E5'
 
 # region Imports
@@ -83,7 +83,7 @@ from e5py.lib.colorscheme import ColorScheme
 from e5py.lib.misc import platform_name, restore_window_size_position, locate_file, filename_only
 
 # The database - pure Python
-# from tinydb import TinyDB, Query, where
+from tinydb import where
 from tinydb import __version__ as __tinydb_version__
 
 
@@ -262,6 +262,62 @@ class cfg(blockdata):
             if f.inputtype == 'CAMERA':
                 return(True)
         return(False)
+
+    def validate_datafield(self, data_to_insert, data_table):
+        # This just validates one field (e.g. when an existing record is edit)
+        if data_to_insert and data_table and len(data_to_insert) == 1:
+            for field, value in data_to_insert.items():
+                f = self.get(field)
+                if f.required and value.strip() == "":
+                    error_message = f'\nThe field {field} is set to unique or required.  Enter a value to save this record.'
+                    return(error_message)
+                if f.inputtype == 'NUMERIC':
+                    try:
+                        float(value)
+                    except ValueError:
+                        error_message = f'\nThe field {field} requires a valid number.  Correct to save this record.'
+                        return(error_message)
+                if f.unique:
+                    result = data_table.search(where(field) == value)
+                    if result:
+                        error_message = f'\nThe field {field} is set to unique and the value {value} already exists for this field in this data table.'
+                        return(error_message)
+        return(True)
+
+    def validate_datarecord(self, data_to_insert, data_table):
+        # This validates one record (e.g. one a record is about to be inserted)
+        for field in self.fields():
+            f = self.get(field)
+            if f.required:
+                if field in data_to_insert.keys():
+                    if data_to_insert[field].strip() == '':
+                        error_message = f'\nThe field {field} is set to unique or required.  Enter a value to save this record.'
+                        return(error_message)
+                else:
+                    error_message = f'\nThe field {field} is set to unique or required.  Enter a value to save this record.'
+                    return(error_message)
+            if f.inputtype == 'NUMERIC':
+                if field in data_to_insert.keys():
+                    try:
+                        float(data_to_insert[field])
+                    except ValueError:
+                        error_message = f'\nThe field {field} requires a valid number.  Correct to save this record.'
+                        return(error_message)
+            if f.unique:
+                if field in data_to_insert.keys():
+                    result = data_table.search(where(field) == data_to_insert[field])
+                    if result:
+                        error_message = f'\nThe field {field} is set to unique and the value {data_to_insert[field]} already exists for this field in this data table.'
+                        return(error_message)
+                else:
+                    error_message = f'\nThe field {field} is set to unique and a value was not provided for this field.  Unique fields require a value.'
+                    return(error_message)
+
+        # TODO test to see if it is units, prisms or datums
+        # TODO create a unit, prism or datum from the dictionary using *data_to_insert
+        # TODO run the validator in whichever
+        # TODO and return results
+        return(True)
 
     def get(self, field_name):
         if not field_name:
@@ -800,6 +856,8 @@ class MainScreen(e5_MainScreen):
         super(MainScreen, self).__init__(**kwargs)
 
         self.user_data_dir = user_data_dir
+        self.setup_logger()
+
         self.colors = ColorScheme()
         self.ini = ini()
         self.cfg = cfg()
@@ -836,7 +894,6 @@ class MainScreen(e5_MainScreen):
         self.build_mainscreen()
         self.add_screens()
         restore_window_size_position(__program__, self.ini)
-        self.setup_logger()
         self.if_camera_setup_camera()
 
     def setup_logger(self):
