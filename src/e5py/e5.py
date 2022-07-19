@@ -31,11 +31,12 @@
 
 # TODO Need to fix ASAP conditions in e4 not comma delimited
 
-__version__ = '1.3.5'
+__version__ = '1.3.6'
 __date__ = 'July, 2022'
 __program__ = 'E5'
 
 # region Imports
+from kivy.config import Config
 from kivy import resources
 from kivy.clock import Clock, mainthread
 from kivy.app import App
@@ -63,7 +64,7 @@ except ModuleNotFoundError:
     pass
 
 import sys
-from os import path
+from os import lseek, path
 from datetime import datetime
 import ntpath
 from random import random
@@ -1326,6 +1327,8 @@ class MainScreen(e5_MainScreen):
             start_path = self.cfg.path
         else:
             start_path = self.ini.get_value(__program__, 'APP_PATH')
+        if not path.exists(start_path):
+            start_path = path.abspath(path.dirname(__file__))
         content = e5_LoadDialog(load = self.load,
                                 cancel = self.dismiss_popup,
                                 start_path = start_path,
@@ -1548,10 +1551,13 @@ class E5App(App):
     def __init__(self, **kwargs):
         super(E5App, self).__init__(**kwargs)
 
-        self.app_path = self.user_data_dir
+        if platform_name() != 'Android':
+            self.app_path = path.abspath(path.dirname(__file__))
+        else:
+            self.app_path = self.user_data_dir
 
     def build(self):
-        sm.add_widget(MainScreen(user_data_dir = self.user_data_dir, name = 'MainScreen'))
+        sm.add_widget(MainScreen(user_data_dir = self.app_path, name = 'MainScreen'))
         sm.current = 'MainScreen'
         self.title = __program__ + " " + __version__
         return(sm)
@@ -1573,4 +1579,5 @@ def resourcePath():
 if __name__ == '__main__':
     # This line goes with the function above
     resources.resource_add_path(resourcePath())  # add this line
+    Config.set('input', 'mouse', 'mouse,multitouch_on_demand')      # Removes red dot
     E5App().run()
