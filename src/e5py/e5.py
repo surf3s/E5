@@ -31,7 +31,7 @@
 
 # TODO Need to fix ASAP conditions in e4 not comma delimited
 
-__version__ = '1.3.6'
+__version__ = '1.3.7'
 __date__ = 'July, 2022'
 __program__ = 'E5'
 
@@ -64,7 +64,7 @@ except ModuleNotFoundError:
     pass
 
 import sys
-from os import lseek, path
+from os import path
 from datetime import datetime
 import ntpath
 from random import random
@@ -620,26 +620,38 @@ class cfg(blockdata):
     def format_conditions(self, conditions):
         formatted_conditions = []
         for condition in conditions:
-            condition_parsed = condition.split(' ')
-            condition_parsed = self.clean_menu(condition_parsed)
-            formatted_condition = a_condition()
-            if len(condition_parsed) > 1:
-                formatted_condition.match_field = condition_parsed[0].upper()
-                if condition_parsed[1].upper() == 'NOT':
-                    formatted_condition.negate_it = True
-                    if len(condition_parsed) > 2:
-                        formatted_condition.match_list = condition_parsed[2].upper().split(',')
+            condition_parsed = []
+            if ' ' in condition:
+                condition_parsed.append(condition[:condition.find(' ')])
+                condition = condition[condition.find(' '):].strip()
+                if condition[:3].upper() == 'NOT':
+                    condition_parsed.append('NOT')
+                    condition = condition[3:]
+                if condition.upper().endswith(' OR'):
+                    condition = condition[:-3]
+                    condition_parsed.append(condition.strip())
+                    condition_parsed.append('OR')
                 else:
-                    formatted_condition.match_list = condition_parsed[1].upper().split(',')
-                if formatted_condition.negate_it and len(condition_parsed) == 4:
-                    if condition_parsed[3].upper() == 'OR':
-                        formatted_condition.or_it = True
-                elif not formatted_condition.negate_it and len(condition_parsed) == 3:
-                    if condition_parsed[2].upper() == 'OR':
-                        formatted_condition.or_it = True
-                if formatted_condition.match_list:
-                    formatted_condition.match_list = self.clean_menu(formatted_condition.match_list)
-            formatted_conditions.append(formatted_condition)
+                    condition_parsed.append(condition.strip())
+                condition_parsed = self.clean_menu(condition_parsed)
+                formatted_condition = a_condition()
+                if len(condition_parsed) > 1:
+                    formatted_condition.match_field = condition_parsed[0].upper()
+                    if condition_parsed[1].upper() == 'NOT':
+                        formatted_condition.negate_it = True
+                        if len(condition_parsed) > 2:
+                            formatted_condition.match_list = condition_parsed[2].upper().split(',')
+                    else:
+                        formatted_condition.match_list = condition_parsed[1].upper().split(',')
+                    if formatted_condition.negate_it and len(condition_parsed) == 4:
+                        if condition_parsed[3].upper() == 'OR':
+                            formatted_condition.or_it = True
+                    elif not formatted_condition.negate_it and len(condition_parsed) == 3:
+                        if condition_parsed[2].upper() == 'OR':
+                            formatted_condition.or_it = True
+                    if formatted_condition.match_list:
+                        formatted_condition.match_list = self.clean_menu(formatted_condition.match_list)
+                formatted_conditions.append(formatted_condition)
         return(formatted_conditions)
 
     def gps_location(self):
