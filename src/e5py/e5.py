@@ -631,6 +631,9 @@ class cfg(blockdata):
                     condition = condition[:-3]
                     condition_parsed.append(condition.strip())
                     condition_parsed.append('OR')
+                if condition.upper().endswith(' AND'):
+                    condition = condition[:-4]
+                    condition_parsed.append(condition.strip())
                 else:
                     condition_parsed.append(condition.strip())
                 condition_parsed = self.clean_menu(condition_parsed)
