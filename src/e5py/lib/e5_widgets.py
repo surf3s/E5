@@ -18,8 +18,9 @@ from kivy.uix.switch import Switch
 from kivy.uix.slider import Slider
 from kivy.uix.behaviors.focus import FocusBehavior
 from kivy.uix.spinner import Spinner, SpinnerOption
+from kivy.uix.progressbar import ProgressBar
 
-from e5py.lib.constants import SPLASH_HELP, __program__
+from e5py.lib.constants import __SPLASH_HELP__
 from e5py.lib.colorscheme import ColorScheme, make_rgb, BLACK, WHITE, GOOGLE_COLORS
 from e5py.lib.misc import platform_name, locate_file
 import ntpath
@@ -28,8 +29,13 @@ from shutil import copyfile
 from datetime import datetime
 from tinydb import Query, where
 import re
+import requests
+import json
+import urllib
+from threading import Thread
 
 SCROLLBAR_WIDTH = 5
+__program__ = 'E5'
 
 
 def width_calculator(fraction_size = .8, maximum_width = 800):
@@ -37,6 +43,13 @@ def width_calculator(fraction_size = .8, maximum_width = 800):
         return(maximum_width / Window.size[0])
     else:
         return(fraction_size)
+
+
+def height_calculator(desired_size):
+    ratio = desired_size / Window.size[1]
+    if ratio > .9:
+        ratio = .9
+    return(ratio)
 
 
 def set_color(popup, colors):
@@ -166,7 +179,7 @@ class edm_manual(Popup):
         pop_content.add_widget(buttons)
         self.content = pop_content
         self.title = 'Manual Input'
-        self.size_hint = (.9, .32)
+        self.size_hint = (.9, height_calculator(280))
         self.auto_dismiss = True
 
     def on_open(self):
@@ -192,10 +205,11 @@ class e5_textinput(TextInput):
                 self.bind(on_text_validate = self.do_coordinate_math)
 
     def do_coordinate_math(self, instance):
-        try:
-            self.text = str(eval(instance.text))
-        except (DivisionByZero, NameError):
-            pass
+        if instance.text:
+            try:
+                self.text = str(eval(instance.text))
+            except (DivisionByZero, NameError):
+                pass
 
 
 class e5_label(Label):
@@ -208,6 +222,14 @@ class e5_label(Label):
         if colors:
             if colors.text_font_size:
                 self.font_size = colors.text_font_size
+
+
+class e5_label_wrapped(e5_label):
+    def __init__(self, text, popup = False, colors = None, **kwargs):
+        super(e5_label_wrapped, self).__init__(text, popup = False, colors = None, **kwargs)
+        self.size_hint = (1, None)
+        self.bind(width=lambda *x: self.setter('text_size')(self, (self.width, None)),
+                                texture_size=lambda *x: self.setter('height')(self, self.texture_size[1]))
 
 
 class e5_side_by_side_buttons(GridLayout):
@@ -364,25 +386,26 @@ class e5_scrollview_label(ScrollView):
     def __init__(self, text, widget_id = '', popup = False, colors = None, **kwargs):
         super(e5_scrollview_label, self).__init__(**kwargs)
         self.colors = colors if colors else ColorScheme()
+        self.text = text
         scrollbox = GridLayout(cols = 1,
                                 size_hint_y = None,
                                 spacing = 5)
         scrollbox.bind(minimum_height = scrollbox.setter('height'))
 
-        info = e5_label(text = text, markup = True,
-                        size_hint_y = None,
-                        color = self.colors.text_color if not popup else self.colors.popup_text_color,
-                        id = widget_id + '_label', popup = popup,
-                        text_size = (self.width, None))
+        self.scrolling_label = e5_label(text = self.text, markup = True,
+                                        size_hint_y = None,
+                                        color = self.colors.text_color if not popup else self.colors.popup_text_color,
+                                        id = widget_id + '_label', popup = popup,
+                                        text_size = (self.width, None))
         if colors is not None:
             if colors.text_font_size:
-                info.font_size = colors.text_font_size
+                self.scrolling_label.font_size = colors.text_font_size
 
-        info.bind(texture_size=lambda instance, value: setattr(instance, 'height', value[1]))
-        info.bind(width=lambda instance, value: setattr(instance, 'text_size', (value * .95, None)))
+        self.scrolling_label.bind(texture_size=lambda instance, value: setattr(instance, 'height', value[1]))
+        self.scrolling_label.bind(width=lambda instance, value: setattr(instance, 'text_size', (value * .95, None)))
 
         # info.bind(texture_size=lambda *x: info.setter('height')(info, info.texture_size[1]))
-        scrollbox.add_widget(info)
+        scrollbox.add_widget(self.scrolling_label)
 
         self.bar_width = SCROLLBAR_WIDTH
         self.size_hint = (1, 1)
@@ -399,10 +422,9 @@ class e5_MainScreen(Screen):
     text_color = (0, 0, 0, 1)
 
     def setup_program(self):
+        warnings, errors = [], []
         self.ini.open(os.path.join(self.user_data_dir, __program__ + '.ini'))
-
         if not self.ini.first_time:
-
             if self.ini.get_value(__program__, 'ColorScheme'):
                 self.colors.set_to(self.ini.get_value(__program__, 'ColorScheme'))
             if self.ini.get_value(__program__, 'DarkMode').upper() == 'TRUE':
@@ -418,27 +440,13 @@ class e5_MainScreen(Screen):
             if self.ini.get_value(__program__, "CFG"):
                 self.cfg.open(self.ini.get_value(__program__, "CFG"))
                 if self.cfg.filename:
-                    found_db = False
-                    if self.cfg.get_value(__program__, 'DATABASE'):
-                        found_db = self.data.open(self.cfg.get_value(__program__, 'DATABASE'))
-                    if not found_db:
-                        database = os.path.split(self.cfg.filename)[1]
-                        if "." in database:
-                            database = database.split('.')[0]
-                        database = database + '.json'
-                        self.data.open(os.path.join(self.cfg.path, database))
-                    if self.cfg.get_value(__program__, 'TABLE'):
-                        self.data.table = self.cfg.get_value(__program__, 'TABLE')
-                    else:
-                        self.data.table = '_default'
-                    self.cfg.update_value(__program__, 'DATABASE', self.data.filename)
-                    self.cfg.update_value(__program__, 'TABLE', self.data.table)
-                    self.cfg.save()
+                    warnings, errors = self.open_db()
             self.ini.update(self.colors, self.cfg)
             self.ini.save()
         self.colors.set_colormode()
         self.colors.need_redraw = False
-        self.ini.update_value(__program__, 'APP_PATH', os.path.abspath(os.path.dirname(__file__)) if platform_name() == 'Windows' else self.user_data_dir)
+        self.ini.update_value(__program__, 'APP_PATH', self.user_data_dir)
+        return(warnings, errors)
 
     def get_path(self):
         if self.ini.get_value(__program__, "CFG"):
@@ -457,21 +465,49 @@ class e5_MainScreen(Screen):
             return(files)
 
     def open_db(self):
+        warnings = []
+        errors = []
         database = locate_file(self.cfg.get_value(__program__, 'DATABASE'), self.cfg.path)
         if not database:
             database = os.path.split(self.cfg.filename)[1]
             if "." in database:
                 database = database.split('.')[0]
             database = os.path.join(self.cfg.path, database + '.json')
-        self.data.open(database)
-        if self.cfg.get_value(__program__, 'TABLE'):
-            self.data.table = self.cfg.get_value(__program__, 'TABLE')
+            warning = f"Could not locate the data file {self.cfg.get_value(__program__, 'DATABASE')} as specified in the CFG file.  EDM looked in the specified location and also in "
+            warning += f"in the same folder as the CFG file {self.cfg.path}.  A new empty data file was created as {database}.  If this is not correct, leave the program and alter the CFG file "
+            warning += "and/or move the data file to the correct location."
+            warnings.append(warning)
+        if database.lower().endswith('.mdb') or database.lower().endswith('.sdf'):
+            database = database[:-4] + '.json'
+            warning = 'EDM does not accept the mdb and sdf data files that were used with EDMWin and EDM-Mobile.  A new, empty json format file has been opened in this case.  '
+            warning += f'The filename is {database}.  '
+            warning += 'JSON files are human readable ASCII files.  To move your data from the old format to this program, follow the directions found on the EDM GitHub site '
+            warning += 'https://github.com/surf3s/EDM/tree/master/Import_from_EDM-Mobile or https://github.com/surf3s/EDM/tree/master/Import_from_EDMWin.  Basically you need to '
+            warning += 'create csv files that can be imported into this program.  EDM-Mobile will create them for you.  With EDMWin you need to create them youself.  '
+            warning += 'Alternatively, you can hand enter items like datums, units, and prisms using the various menu options under Edit.'
+            warnings.append(warning)
+        if not self.data.valid_format(database):
+            error = f'The file {database} does not load as a valid json file.  If the wrong file has been loaded, edit the CFG file to point to the correct database.  If the file is '
+            error += 'the correct one, then it appears that it has become corrupted.  Open the file in any text editor and assess the situation.  A json file is a human readable '
+            error += 'file format, and you should be able to see your data.  If you need more help fixing the problem, you can contact me.'
+            errors.append(error)
         else:
-            self.data.table = '_default'
-        self.cfg.update_value(__program__, 'DATABASE', self.data.filename)
-        self.cfg.update_value(__program__, 'TABLE', self.data.table)
-        self.cfg.save()
-        self.data.new_data[self.data.table] = True
+            self.data.open(database)
+            if self.cfg.get_value(__program__, 'TABLE'):
+                self.data.table = self.cfg.get_value(__program__, 'TABLE')
+            else:
+                self.data.table = '_default'
+            self.cfg.update_value(__program__, 'DATABASE', self.data.filename)
+            self.cfg.update_value(__program__, 'TABLE', self.data.table)
+            self.cfg.save()
+            self.data.new_data[self.data.table] = True
+        return((warnings, errors))
+
+    def warnings_and_errors_popup(self, warnings, errors):
+        message_txt = '\n'
+        message_txt += ',\n\n'.join(['Warning: ' + warning for warning in warnings])
+        message_txt += ',\n\n'.join(['Error: ' + error for error in errors])
+        return(e5_MessageBox('Warnings and errors', message_txt, colors = self.colors))
 
     def show_popup_message(self, dt):
         self.event.cancel()
@@ -487,7 +523,7 @@ class e5_MainScreen(Screen):
             message_text = message_text + '\n\n'.join(self.cfg.errors)
         else:
             title = __program__
-            message_text = SPLASH_HELP
+            message_text = __SPLASH_HELP__
         self.popup = e5_MessageBox(title, message_text, call_back = self.close_popup, colors = self.colors)
         self.popup.open()
         self.popup_open = True
@@ -651,7 +687,7 @@ class e5_MainScreen(Screen):
             message_text = '\nYou are asking to delete all of the records in the current database table. Are you sure you want to do this?'
             self.delete_table = self.data.table
         else:
-            message_text = '\nYou are asking to delete all of the records in the %s table. Are you sure you want to do this?' % table_name
+            message_text = f'\nYou are asking to delete all of the records in the {table_name} table. Are you sure you want to do this?'
             self.delete_table = table_name
         self.popup = e5_MessageBox('Delete All Records', message_text, response_type = "YESNO",
                                     call_back = [self.delete_all_records1, self.close_popup],
@@ -660,8 +696,9 @@ class e5_MainScreen(Screen):
         self.popup_open = True
 
     def delete_all_records1(self, value):
-        self.close_popup(value)
-        message_text = '\nThis is your last chance.  All records in the %s table will be deleted when you press Yes.' % self.delete_table
+        self.popup.dismiss()
+        self.popup_open = False
+        message_text = f'\nThis is your last chance.  All records in the {self.delete_table} table will be deleted when you press Yes.'
         self.popup = e5_MessageBox('Delete All Records', message_text, response_type = "YESNO",
                                     call_back = [self.delete_all_records2, self.close_popup],
                                     colors = self.colors)
@@ -671,7 +708,8 @@ class e5_MainScreen(Screen):
     def delete_all_records2(self, value):
         self.data.delete_all(self.delete_table)
         self.data.new_data[self.data.table] = True
-        self.close_popup(value)
+        self.popup.dismiss()
+        self.popup_open = False
 
     def show_save_csvs(self, *args):
         if self.cfg.filename and self.data.filename:
@@ -938,10 +976,11 @@ class e5_InfoScreen(Screen):
         self.colors = colors if colors else ColorScheme()
         layout = GridLayout(cols = 1, size_hint_y = 1, spacing = 5, padding = 5)
         layout.add_widget(e5_scrollview_label(text = '', widget_id = 'content', colors = self.colors))
-        layout.add_widget(e5_button('Back',
-                                    id = 'back_button',
-                                    selected = True, call_back = self.go_back,
-                                    colors = self.colors))
+        layout.add_widget(e5_side_by_side_buttons(['Back', 'Copy'],
+                                                    id = ['back_button', 'copy_button'],
+                                                    selected = [False, False],
+                                                    call_back = [self.go_back, self.copy],
+                                                    colors = self.colors))
         self.add_widget(layout)
         for widget in self.walk():
             if hasattr(widget, 'id'):
@@ -952,6 +991,9 @@ class e5_InfoScreen(Screen):
 
     def go_back(self, *args):
         self.parent.current = 'MainScreen'
+
+    def copy(self, instance):
+        Clipboard.copy(self.content.text)
 
 
 class e5_LogScreen(e5_InfoScreen):
@@ -1126,17 +1168,17 @@ class e5_RecordEditScreen(Screen):
                                                                          self.next_record, self.last_record],
                                                             selected = [True, True, True, True],
                                                             colors = self.colors))
-            back_and_filter = e5_side_by_side_buttons(text = ['Back', 'Filter'],
-                                                            id = ['back', 'filter'],
-                                                            call_back = [self.call_back, self.filter],
-                                                            selected = [True, True],
+            back_and_filter = e5_side_by_side_buttons(text = ['Back', 'Save', 'Filter'],
+                                                            id = ['back', 'save', 'filter'],
+                                                            call_back = [self.call_back, self.update_db, self.filter],
+                                                            selected = [True, True, True],
                                                             colors = self.colors)
             self.filter_button = back_and_filter.children[0]
             self.layout.add_widget(back_and_filter)
         else:
-            self.layout.add_widget(e5_side_by_side_buttons(text = ['Save', 'Cancel'],
-                                                            id = ['save', 'cancel'],
-                                                            call_back = [self.save_record, self.cancel_record],
+            self.layout.add_widget(e5_side_by_side_buttons(text = ['Cancel', 'Save'],
+                                                            id = ['cancel', 'save'],
+                                                            call_back = [self.cancel_record, self.save_record],
                                                             selected = [True, True],
                                                             colors = self.colors))
 
@@ -1158,6 +1200,13 @@ class e5_RecordEditScreen(Screen):
         if self.first_field_widget:
             self.first_field_widget.focus = True
         self.loading = False
+        self.changes_made = False
+
+    def on_leave(self):
+        # This helps insure that saving on lost focus works properly
+        # There is an issue this addresses with building the screens
+        # at startup.
+        self.loading = True
 
     def reset_doc_ids(self):
         self.doc_ids = [r.doc_id for r in self.data.db.table(self.data.table).all()] if self.data.db is not None else []
@@ -1184,7 +1233,7 @@ class e5_RecordEditScreen(Screen):
                         matches.append(record.doc_id)
         else:
             for record in self.data.db.table(self.data.table):
-                if record[filter_field].lower() == filter_value.lower():
+                if str(record[filter_field]).lower() == filter_value.lower():
                     matches.append(record.doc_id)
         return(matches)
 
@@ -1207,37 +1256,70 @@ class e5_RecordEditScreen(Screen):
     def make_empty_frame(self):
         self.data_fields.bind(minimum_height = self.data_fields.setter('height'))
         self.data_fields.clear_widgets()
-        for col in self.e5_cfg.fields():
-            field_type = self.e5_cfg.get_value(col, 'TYPE')
-            self.data_fields.add_widget(DataGridLabelAndField(col = col,
-                                                                colors = self.colors,
-                                                                note_field = (field_type == 'NOTE')))
-        if self.e5_cfg.fields():  # TODO not a great way to do this - fix later
-            self.first_field_widget = self.get_widget_by_id(self.data_fields, self.e5_cfg.fields()[0])
+        fields = self.e5_cfg.fields()
+        self.first_field_widget = None
+        if fields:
+            first_field = True
+            for col in fields:
+                field_type = self.e5_cfg.get_value(col, 'TYPE')
+                widget = DataGridLabelAndField(col = col, colors = self.colors, note_field = (field_type == 'NOTE'))
+                self.data_fields.add_widget(widget)
+                if first_field:
+                    if field_type not in ['MENU', 'BOOLEAN']:
+                        self.first_field_widget = widget.txt
+                    first_field = False
+
+    def leave_record_without_save(self, instance):
+        self.changes_made = False
+        self.close_popup(None)
+        self.continue_on_with(None)
+
+    def ask_about_saving(self):
+        self.popup = e5_MessageBox('Leave without saving', '\nLeave this record without saving changes?',
+                                    response_type = "YESNO",
+                                    call_back = [self.leave_record_without_save, self.close_popup],
+                                    colors = self.colors)
+        self.popup.open()
 
     def first_record(self, value):
         if self.doc_ids:
-            self.doc_id = self.doc_ids[0]
-            self.put_data_in_frame()
+            if self.changes_made:
+                self.continue_on_with = self.first_record
+                self.ask_about_saving()
+            else:
+                self.doc_id = self.doc_ids[0]
+                self.put_data_in_frame()
 
     def previous_record(self, value):
         if self.doc_ids:
-            current = self.doc_ids.index(self.doc_id)
-            new = max(current - 1, 0)
-            self.doc_id = self.doc_ids[new]
-            self.put_data_in_frame()
+            if self.changes_made:
+                self.continue_on_with = self.previous_record
+                self.ask_about_saving()
+            else:
+                current = self.doc_ids.index(self.doc_id)
+                new = max(current - 1, 0)
+                self.doc_id = self.doc_ids[new]
+                self.put_data_in_frame()
 
     def next_record(self, value):
         if self.doc_ids:
-            current = self.doc_ids.index(self.doc_id)
-            new = min(current + 1, len(self.doc_ids) - 1)
-            self.doc_id = self.doc_ids[new]
-            self.put_data_in_frame()
+            if self.changes_made:
+                self.continue_on_with = self.next_record
+                self.ask_about_saving()
+            else:
+                current = self.doc_ids.index(self.doc_id)
+                new = min(current + 1, len(self.doc_ids) - 1)
+                self.doc_id = self.doc_ids[new]
+                self.put_data_in_frame()
 
     def last_record(self, value):
         if self.doc_ids:
-            self.doc_id = self.doc_ids[-1]
-            self.put_data_in_frame()
+            if self.changes_made:
+                self.continue_on_with = self.last_record
+                self.ask_about_saving()
+            else:
+                self.doc_id = self.doc_ids[-1]
+                self.put_data_in_frame()
 
     def update_record_counter_label(self):
         if self.record_counter_label:
@@ -1266,18 +1348,37 @@ class e5_RecordEditScreen(Screen):
                         if hasattr(widget, 'id'):
                             if widget.id == field:
                                 widget.text = '%s' % data_record[field] if field in data_record.keys() else ''
-                                widget.bind(text = self.update_db)
+                                widget.bind(text = self.flag_changes_made)
                                 widget.bind(focus = self.show_menu)
                                 break
         self.can_update_data_table = True
         self.update_record_counter_label()
+        self.changes_made = False
 
-    def update_db(self, instance, value):
-        if self.data.table and self.can_update_data_table:
-            update = {instance.id: value}
-            self.data.db.table(self.data.table).update(update, doc_ids = [self.doc_id])
-            self.refresh_linked_fields(instance.id, value)
+    def flag_changes_made(self, instance, value):
+        self.changes_made = True
+
+    def check_numeric(self, instance, value):
+        cfg_field = self.e5_cfg.get(instance.id)
+        if cfg_field.inputtype in ['NUMERIC', 'INSTRUMENT']:
+            if not self.is_numeric(value):
+                return([f'{instance.id} is listed as a numeric field in the CFG file but the value {value} is not a valid number.'])
+            else:
+                return([])
+        else:
+            return([])
+
+    def update_db(self, *args):
+        if self.doc_id and self.data.table and self.e5_cfg and self.can_update_data_table:
+            for field in self.e5_cfg.fields():
+                for widget in self.layout.walk():
+                    if hasattr(widget, 'id'):
+                        if widget.id == field:
+                            update = {widget.id: widget.text}
+                            self.data.db.table(self.data.table).update(update, doc_ids = [self.doc_id])
+                            break
             self.data.new_data[self.data.table] = True
+            self.changes_made = False
 
     def refresh_linked_fields(self, fieldname, value):
         field = self.e5_cfg.get(fieldname)
@@ -1294,6 +1395,7 @@ class e5_RecordEditScreen(Screen):
                                     widget.text = str(int(widget.text) + 1)
                                 except ValueError:
                                     pass
+                            # self.update_db(widget, widget.text)
 
     def check_required_fields(self):
         save_errors = []
@@ -1307,34 +1409,67 @@ class e5_RecordEditScreen(Screen):
                                 save_errors.append('The field %s requires a value.' % field_name)
         return(save_errors)
 
-    def get_unique_key(self, doc_id):
+    def convert_widgets_to_record(self):
+        data_record = {}
+        for field_name in self.e5_cfg.fields():
+            for widget in self.layout.walk():
+                if hasattr(widget, 'id'):
+                    if widget.id == field_name:
+                        data_record[field_name] = widget.text
+        return(data_record)
+
+    def get_unique_key(self, data_record):
         unique_key = []
-        data_record = self.data.db.table(self.data.table).get(doc_id = doc_id)
         for field in self.e5_cfg.unique_together:
-            unique_key.append("%s" % data_record[field])
+            unique_key.append("%s" % data_record[field] if field in data_record else '')
         return(",".join(unique_key))
 
     def check_unique_together(self):
         save_errors = []
         if self.e5_cfg.unique_together and len(self.data.db.table(self.data.table)) > 1:
             doc_ids = self.data.doc_ids()
-            unique_key = self.get_unique_key(doc_ids[-1])
+            unique_key = self.get_unique_key(self.convert_widgets_to_record())
             for doc_id in doc_ids[0:-1]:
-                if unique_key == self.get_unique_key(doc_id):
+                if unique_key == self.get_unique_key(self.data.db.table(self.data.table).get(doc_id = doc_id)):
                     save_errors.append("Based on the unique together field(s) %s, this record's unique key of %s duplicates the record with a doc_id of %s." %
                                         (",".join(self.e5_cfg.unique_together), unique_key, doc_id))
                     break
         return(save_errors)
 
+    def check_numeric_fields(self):
+        save_errors = []
+        for field_name in self.e5_cfg.fields():
+            field = self.e5_cfg.get(field_name)
+            if field.inputtype in ['NUMERIC', 'INSTRUMENT']:
+                for widget in self.layout.walk():
+                    if hasattr(widget, 'id'):
+                        if widget.id == field_name:
+                            if not self.is_numeric(widget.text) and widget.text != '':
+                                save_errors.append('The field %s is marked as numeric but the value entered is not a valid number.' % field_name)
+        return(save_errors)
+
+    def check_bad_characters(self):
+        save_errors = []
+        for field_name in self.e5_cfg.fields():
+            for widget in self.layout.walk():
+                if hasattr(widget, 'id'):
+                    if widget.id == field_name:
+                        if "\"" in widget.text:
+                            save_errors.append('The field %s contains characters that are not recommended in a data file.  These include \" and \\.' % field_name)
+        return(save_errors)
+
     def save_record(self, instance):
         save_errors = self.check_required_fields()
         save_errors += self.check_unique_together()
+        save_errors += self.check_numeric_fields()
+        save_errors += self.check_bad_characters()
         if hasattr(self.data.db.table(self.data.table), 'on_save') and save_errors == []:
             save_errors += self.data.db.table(self.data.table).on_save()
         if not save_errors:
+            self.update_db()
             self.update_link_fields()
             self.data.new_data[self.data.table] = True
-            self.parent.current = 'MainScreen'
+            self.go_mainscreen()
         else:
             self.popup = e5_MessageBox('Save errors',
                                         '\nCorrect the following errors:\n  ' + '\n  '.join(save_errors),
@@ -1390,10 +1525,13 @@ class e5_RecordEditScreen(Screen):
                     self.popup_scrollmenu = self.get_widget_by_id(self.popup, 'menu_scroll')
                     self.popup_textbox = self.get_widget_by_id(self.popup, 'new_item')
                     self.popup_addbutton = self.get_widget_by_id(self.popup, 'add_button')
+        elif not instance.focus and not self.loading:
+            self.refresh_linked_fields(instance.id, instance.text)
 
     def menu_selection(self, instance):
         self.popup.dismiss()
         self.popup_field_widget.text = instance.text if not instance.id == 'add_button' else self.popup_textbox.text
+        self.refresh_linked_fields(instance.id, instance.text)
         if instance.id == 'add_button' and self.popup_field_widget.text.strip() != '':
             field = self.e5_cfg.get(self.popup_field_widget.id)
             if self.popup_field_widget.text not in field.menu:
@@ -1413,6 +1551,20 @@ class e5_RecordEditScreen(Screen):
         return(None)
 
     def call_back(self, value):
+        if self.changes_made:
+            self.popup = e5_MessageBox('Leave without saving', '\nLeave this record without saving changes?',
+                                        response_type = "YESNO",
+                                        call_back = [self.back_without_save, self.close_popup],
+                                        colors = self.colors)
+            self.popup.open()
+        else:
+            self.go_mainscreen()
+
+    def back_without_save(self, instance):
+        self.close_popup(instance)
+        self.go_mainscreen()
+
+    def go_mainscreen(self, *args):
         self.parent.current = 'MainScreen'
 
 
@@ -1547,6 +1699,434 @@ class e5_MessageBox(Popup):
             self.widget_with_focus.trigger_action()
 
 
+class DataUploadScreen(Screen):
+
+    def __init__(self, data = None, cfg = None, colors = None, url = None, username = None, password = None, **kwargs):
+        super(DataUploadScreen, self).__init__(**kwargs)
+
+        self.data = data
+        self.cfg = cfg
+        self.colors = colors if colors is not None else ColorScheme()
+        self.height = 1
+        self.layout = GridLayout(cols = 1,
+                                 size_hint_y = .9,
+                                 size_hint_x = width_calculator(.9, 600),
+                                 spacing = 5,
+                                 padding = 5,
+                                 pos_hint={'center_x': .5, 'center_y': .5})
+        self.scroll = ScrollView(size_hint = (1, 1))
+        self.scroll_grid = GridLayout(cols = 1,
+                                        spacing = 5,
+                                        padding = 5,
+                                        size_hint_y = None)
+        instructions = 'Here the data are uploaded to an online database repository like OSA.  The URL of the repository and your credentials are needed.  '
+        instructions += 'You also need the database and table names for the online repository.  If you select overwrite, all data for existing matching records in the online repository will be overwritten with the data here.  Normally you do not want to do this, but if you are making changes here to already uploaded data, you may want to select this option. '
+        instructions += 'A local backup of your JSON datafile is made before the upload.  Select Delete to remove the data here after the upload (this is good practise).'
+        self.scroll_grid.add_widget(e5_label_wrapped(text = instructions, colors = self.colors))
+        self.url = DataGridLabelAndField(col = 'URL', colors = self.colors)
+        if url:
+            self.url.txt.text = url
+        self.scroll_grid.add_widget(self.url)
+        self.username = DataGridLabelAndField(col = 'Username', colors = self.colors)
+        if username:
+            self.username.txt.text = username
+        self.scroll_grid.add_widget(self.username)
+        self.password = DataGridLabelAndField(col = 'Password', colors = self.colors)
+        if password:
+            self.password.txt.text = password
+        self.password.txt.password = True
+        self.scroll_grid.add_widget(self.password)
+        self.dbname = DataGridLabelAndField(col = 'Database name', colors = self.colors)
+        self.scroll_grid.add_widget(self.dbname)
+        self.tablename = DataGridLabelAndField(col = 'Table name', colors = self.colors)
+        self.scroll_grid.add_widget(self.tablename)
+        self.overwrite = DataGridLabelAndToggle(col = 'Overwrite existing records?')
+        self.scroll_grid.add_widget(self.overwrite)
+        self.deleteafter = DataGridLabelAndToggle(col = 'Delete uploaded/updated?')
+        self.scroll_grid.add_widget(self.deleteafter)
+        self.progress = DataGridLabelAndProgressBar(col = 'Progress\n')
+        self.scroll_grid.add_widget(self.progress)
+        self.scroll_grid.add_widget(e5_side_by_side_buttons(text = ['Back', 'Test', 'Upload'],
+                                                            id = ['back', 'test', 'upload'],
+                                                            call_back = [self.back, self.test, self. upload],
+                                                            selected = [False, False, False],
+                                                            colors = self.colors))
+        self.scroll.add_widget(self.scroll_grid)
+        self.layout.add_widget(self.scroll)
+        self.add_widget(self.layout)
+
+        self.upload_thread = None
+        self.test_thread = None
+
+    def on_pre_enter(self):
+        database = self.cfg.get_value(__program__, 'ONLINE_DATABASE')
+        if database:
+            self.dbname.txt.text = database
+
+        table = self.cfg.get_value(__program__, 'ONLINE_TABLE')
+        if table:
+            self.tablename.txt.text = table
+
+        username = self.cfg.get_value(__program__, 'ONLINE_USERNAME')
+        if username:
+            self.username.txt.text = username
+
+        url = self.cfg.get_value(__program__, 'ONLINE_URL')
+        if url:
+            self.url.txt.text = url
+
+    def back(self, instance):
+        if self.dbname.txt.text:
+            self.cfg.update_value(__program__, 'ONLINE_DATABASE', self.dbname.txt.text)
+
+        if self.tablename.txt.text:
+            self.cfg.update_value(__program__, 'ONLINE_TABLE', self.tablename.txt.text)
+
+        if self.username.txt.text:
+            self.cfg.update_value(__program__, 'ONLINE_USERNAME', self.username.txt.text)
+
+        if self.url.txt.text:
+            self.cfg.update_value(__program__, 'ONLINE_URL', self.url.txt.text)
+
+        self.cfg.save()
+        self.parent.current = 'MainScreen'
+
+    def connected_to_internet(self):
+        try:
+            # This is hardwired to OSA but it could be anything on the internet
+            urllib.request.urlopen('https://www.oldstoneage.com')
+            return True
+        except:
+            return False
+
+    def get_auth_token(self, route):
+        try:
+            if not route['username'] or not route['password']:
+                return (False, 'A username and password must be provided')
+            response = requests.post(route['url'] + 'get-token/', data = {'username': route['username'], 'password': route['password']})
+            if not response.ok:
+                return(False, response.reason)
+            return (True, json.loads(response.text))
+        except urllib.error.HTTPError as e:
+            return (False, e.code)
+        except urllib.error.URLError as e:
+            return(False, e.reason)
+        except Exception as inst:
+            return (False, str(inst))
+
+    def connected_to_rest(self, route):
+        try:
+            if not route['api']:
+                return (False, 'Username and Password authentication not yet coded')
+            response = requests.get(route['url'] + 'connected/', headers = {'Authorization': f"Token {route['api']}"})
+            if response.status_code == 401:
+                return(False, response.reason)
+            return (True, str(response))
+        except urllib.error.HTTPError as e:
+            return (False, e.code)
+        except urllib.error.URLError as e:
+            return(False, e.reason)
+        except Exception as inst:
+            return (False, str(inst))
+
+    def get_structure(self, route):
+        response = requests.get(f"{route['url']}structure/{route['database']}/{route['table']}/", headers = {'Authorization': f"Token {route['api']}"})
+        return json.loads(response.text)
+
+    def get_details(self, route, detail_keys):
+        response = requests.get(f"{route['url']}{route['database']}/{route['table']}/detail{detail_keys}/", headers = {'Authorization': f"Token {route['api']}"})
+        return json.loads(response.text)
+
+    def unique_together_as_url(self, record, unique_together):
+        detail = [record[field] if field in record.keys() else '' for field in unique_together]
+        return '/' + '/'.join([details if details != '' else 'None' for details in detail])
+
+    def unique_together_as_humanreadable(self, record, unique_together):
+        detail = [record[field] if field in record.keys() else '' for field in unique_together]
+        return '-'.join(detail)
+
+    def record_already_exists(self, route, record, unique_together):
+        detail = self.unique_together_as_url(record, unique_together)
+        response = self.get_details(route, detail)
+        if 'detail' in response.keys():
+            if response['detail'] == 'Not found.':
+                return False
+        return response
+
+    def is_numeric(self, value):
+        try:
+            float(value)
+            return(True)
+        except ValueError:
+            return(False)
+
+    def is_integer(self, value):
+        try:
+            int(value)
+            return(True)
+        except ValueError:
+            return(False)
+
+    def get_route(self):
+        return {'url': self.url.txt.text, 'api': '',
+                    'username': self.username.txt.text, 'password': self.password.txt.text,
+                    'database': self.dbname.txt.text.lower(), 'table': self.tablename.txt.text.lower()}
+
+    def check_connection_issues(self, route):
+        if not self.connected_to_internet():
+            return('Could not establish an internet connection to www.oldstoneage.com.  Check that you are connected to the internet.', route)
+        if not route['url']:
+            return('Provide a URL to the base address of the API for this database (e.g. https://www.oldstoneage.com/api/).', route)
+        if not route['api'] and (not route['username'] or not route['password']):
+            return('Provide either an API key or a username and password.', route)
+        connected, status = self.get_auth_token(route)
+        if not connected:
+            return('Username or password is invalid.  Or URL is invalid.  The URL should look something like https://www.oldstoneage.com/api/', route)
+        route['api'] = status['token']
+        connected, status = self.connected_to_rest(route)
+        if not connected:
+            return(f"Could not connect to the URL provided above with those credentials.  This URL should look something like https://www.oldstoneage.com/api/ but modified for your database. The exact error message was '{status}'.", route)
+        if not self.dbname.txt.text or not self.tablename.txt.text:
+            return('Provide a database and table name.', route)
+        return('', route)
+
+    def check_for_cfg_fields_not_online(self, structure):
+        online_fields = [field.lower() for field, value in structure.items() if field not in ['pk', 'unique_together']]
+        missing_fields = []
+        for field in self.cfg.fields():
+            if field.lower() not in online_fields:
+                missing_fields.append(field)
+
+        if missing_fields:
+            return(f"The following fields are in the CFG but not in the online database: {', '.join(missing_fields)}.\n\nData cannot be transfered until this is fixed.")
+        else:
+            return('')
+
+    def parse_error(self, record, unique_together, error):
+        error_message = self.unique_together_as_humanreadable(record, unique_together) + ' - '
+        for field, value in error.items():
+            if field in record.keys():
+                error_message += f"{record[field]} in {field} - {' '.join(value)}\n"
+            else:
+                error_message += f"{field} - {' '.join(value)}\n"
+        return(error_message)
+
+    def clean_the_record(self, record, structure):
+        for field, value in record.items():
+            if field in structure.keys():
+                field_online_structure = structure[field]
+                if field_online_structure['type'] == 'BooleanField':
+                    if value.lower() in ['yes', 'true']:
+                        record[field] = True
+                    elif value.lower() in ['no', 'false']:
+                        record[field] = False
+                    elif value.lower() in ['na', 'n/a', '']:
+                        record[field] = None
+        return(record)
+
+    def update_upload_progress(self, dt):
+        if self.upload_thread is not None:
+            if self.progress.label.text == 'Done\n':
+                if self.error_message:
+                    fails = list(dict.fromkeys(self.fails))
+                    self.popup = e5_MessageBox('Data Upload', f"\n{self.additions} records were added. {len(self.overwrites)} were updated.  {len(self.fails)} records could not be added or updated.\n\nThese are the reported errors:\n{self.error_message}\nAnd these are the affected records:\n{', '.join(fails)}", call_back = self.close_popup)
+                else:
+                    self.popup = e5_MessageBox('Data Upload', f'\n{self.additions} records were added. {len(self.overwrites)} were updated.', call_back = self.close_popup)
+                self.popup.open()
+                self.event.cancel()
+                self.progress.bar.value = 0
+
+    def update_test_progress(self, dt):
+        if self.test_thread is not None:
+            if self.progress.label.text == 'Done\n':
+                if not self.error_message:
+                    if len(self.overwrites) > 0:
+                        self.overwrites = list(dict.fromkeys(self.overwrites))
+                        self.popup = e5_MessageBox('Data Upload Test', f"\nTest results.  A data upload would add {self.additions} records and modify {len(self.overwrites)} records.\n\nThe overwritten records would be {', '.join(self.overwrites)}", call_back = self.close_popup)
+                    else:
+                        self.popup = e5_MessageBox('Data Upload Test', f"\nTest results.  A data upload would add {self.additions} records and modify {len(self.overwrites)} records.", call_back = self.close_popup)
+                else:
+                    if len(self.fails) > 0:
+                        self.fails = list(dict.fromkeys(self.fails))
+                        self.popup = e5_MessageBox('Data Upload Test', f"\nA data upload would add {self.additions} records, modify {len(self.overwrites)} records.  However, the upload test produced errors.  Here first is a descripion of the errors:\n{self.error_message}.\n\nHere is a list of the problem cases:\n{', '.join(self.fails)}", call_back = self.close_popup)
+                    else:
+                        self.popup = e5_MessageBox('Data Upload Test', f'\n{self.error_message}', call_back = self.close_popup)
+                self.popup.open()
+                self.event.cancel()
+                self.progress.bar.value = 0
+
+    def do_upload(self):
+        self.overwrites = []
+        self.additions = 0
+        self.fails = []
+        route = self.get_route()
+        self.progress.bar.value = 0
+
+        self.progress.label.text = 'Checking connection\n'
+        self.error_message, route = self.check_connection_issues(route)
+        if self.error_message:
+            self.progress.label.text = 'Done\n'
+            return
+
+        self.progress.label.text = 'Retrieving structure\n'
+        structure = self.get_structure(route)
+        if not structure:
+            self.error_message = 'Something went wrong that should not have.  Could not retreive structure of the data table from website.'
+            self.progress.label.text = 'Done\n'
+            return
+
+        self.error_message = self.check_for_cfg_fields_not_online(structure)
+        if self.error_message:
+            self.progress.label.text = 'Done\n'
+            return
+
+        unique_together = structure['unique_together'][0]
+        self.error_message = ''
+        n_records = len(self.data.db.table(self.data.table))
+        record_counter = 0
+        to_delete = []
+        for record in self.data.db.table(self.data.table).all():
+            doc_id = record.doc_id
+            record = {k.lower(): v for k, v in record.items()}
+            record = self.clean_the_record(record, structure)
+
+            record_counter += 1
+            self.progress.label.text = f'Uploading {self.unique_together_as_humanreadable(record, unique_together)}\n'
+            self.progress.bar.value = record_counter / n_records
+
+            online_record = self.record_already_exists(route, record, unique_together)
+            if online_record and self.overwrite.check.active:
+                url = f"{route['url']}{route['database']}/{route['table']}/update/{online_record['id']}/"
+                record['id'] = online_record['id']
+                response = requests.put(url, data = record, headers = {'Authorization': f"Token {route['api']}"})
+                if response.status_code == 400:
+                    self.error_message += self.parse_error(record, unique_together, json.loads(response.text))
+                    self.fails.append(self.unique_together_as_humanreadable(record, unique_together))
+                elif response.status_code == 500:
+                    self.error_message += f'{self.unique_together_as_humanreadable(record, unique_together)} - {response.reason}'
+                    self.fails.append(self.unique_together_as_humanreadable(record, unique_together))
+                elif response.reason == 'OK':
+                    self.overwrites.append(self.unique_together_as_humanreadable(record, unique_together))
+                    if self.deleteafter.check.active:
+                        to_delete.append(doc_id)
+                else:
+                    self.error_message += f'{self.unique_together_as_humanreadable(record, unique_together)} - Unexpected response - {response.reason}'
+            else:
+                url = f"{route['url']}{route['database']}/{route['table']}/create/"
+                response = requests.post(url, data = record, headers = {'Authorization': f"Token {route['api']}"})
+                if response.status_code == 400:
+                    self.error_message += self.parse_error(record, unique_together, json.loads(response.text))
+                    self.fails.append(self.unique_together_as_humanreadable(record, unique_together))
+                elif response.status_code == 500:
+                    self.error_message += f'{self.unique_together_as_humanreadable(record, unique_together)} - {response.reason}'
+                    self.fails.append(self.unique_together_as_humanreadable(record, unique_together))
+                elif response.reason == 'Created' or response.reason == 'OK':
+                    self.additions += 1
+                    if self.deleteafter.check.active:
+                        to_delete.append(doc_id)
+                else:
+                    self.error_message += f'{self.unique_together_as_humanreadable(record, unique_together)} - Unexpected response - {response.reason}'
+        if self.deleteafter.check.active:
+            self.progress.label.text = 'Deleting uploaded and updated records\n\n'
+            self.data.db.table(self.data.table).remove(doc_ids = to_delete)
+        self.progress.label.text = 'Done\n'
+        return
+
+    def do_test(self):
+        self.overwrites = []
+        self.additions = 0
+        self.fails = []
+        route = self.get_route()
+
+        self.progress.label.text = 'Checking connection\n'
+        self.error_message, route = self.check_connection_issues(route)
+        if self.error_message:
+            self.progress.label.text = 'Done\n'
+            return
+
+        self.progress.label.text = 'Retrieving structure\n'
+        structure = self.get_structure(route)
+        if not structure:
+            self.error_message = 'Something went wrong that should not have.  Could not retreive structure of the data table from website.'
+            self.progress.label.text = 'Done\n'
+            return
+
+        self.error_message = self.check_for_cfg_fields_not_online(structure)
+        if self.error_message:
+            self.progress.label.text = 'Done\n'
+            return
+
+        unique_together = structure['unique_together'][0]
+        unique_keys = {}
+        self.error_message = ''
+        n_records = len(self.data.db.table(self.data.table))
+        record_counter = 0
+        for record in self.data.db.table(self.data.table).all():
+            record = {k.lower(): v for k, v in record.items()}
+            record = self.clean_the_record(record, structure)
+
+            record_counter += 1
+            self.progress.label.text = f'Uploading {self.unique_together_as_humanreadable(record, unique_together)}\n'
+            self.progress.bar.value = record_counter / n_records
+
+            if self.record_already_exists(route, record, unique_together) and self.overwrite.check.active:
+                self.overwrites.append(self.unique_together_as_humanreadable(record, unique_together))
+            else:
+                self.additions += 1
+
+            if self.unique_together_as_humanreadable(record, unique_together) not in unique_keys.keys():
+                unique_keys[self.unique_together_as_humanreadable(record, unique_together) ] = 1
+            else:
+                unique_keys[self.unique_together_as_humanreadable(record, unique_together) ] += 1
+
+            for field, value in record.items():
+                if field not in structure:
+                    self.error_message += f'\n\nRecord {self.unique_together_as_humanreadable(record, unique_together)} - the field {field} is in datafile but not in the online database.'
+                    self.fails.append(self.unique_together_as_humanreadable(record, unique_together))
+                    continue
+                field_online_structure = structure[field]
+                if field_online_structure['type'] == 'CharField':
+                    if len(record[field]) > field_online_structure['length']:
+                        self.error_message += f"\n\nRecord {self.unique_together_as_humanreadable(record, unique_together)} - {record[field]} in {field} exceeds the valid field length. Maximum length is {field_online_structure['length']}.  Actual length is {len(record[field])}."
+                        self.fails.append(self.unique_together_as_humanreadable(record, unique_together))
+                elif field_online_structure['type'] == 'FloatField':
+                    if not self.is_numeric(record[field]):
+                        self.error_message += f'\n\nRecord {self.unique_together_as_humanreadable(record, unique_together)} - the value {record[field]} for {field} must be numeric.'
+                        self.fails.append(self.unique_together_as_humanreadable(record, unique_together))
+                elif field_online_structure['type'] == 'IntegerField':
+                    if not self.is_integer(record[field]):
+                        self.error_message += f'\n\nRecord {self.unique_together_as_humanreadable(record, unique_together)} - the value {record[field]} for {field} must be an integer.'
+                        self.fails.append(self.unique_together_as_humanreadable(record, unique_together))
+                elif field_online_structure['type'] == 'DateTimeField':
+                    pass
+                elif field_online_structure['type'] == 'BooleanField':
+                    if record[field] not in [True, False, None]:
+                        self.error_message += f'\n\nRecord {self.unique_together_as_humanreadable(record, unique_together)} - the value {record[field]} for {field} must be True or False.'
+                        self.fails.append(self.unique_together_as_humanreadable(record, unique_together))
+                elif field_online_structure['type'] == 'ForeignKey':
+                    pass    # TODO look up in related table
+
+        if len(unique_keys) != record_counter:
+            self.error_message += '\n\nWARNING: The following records are duplicated in the data file.  When they are transfered they will overwrite each other: ' + ', '.join([item for item, value in unique_keys.items() if value > 1])
+
+        self.progress.label.text = 'Done\n'
+        return
+
+    def test(self, instance):
+        self.event = Clock.schedule_interval(self.update_test_progress, 0.5)
+        self.test_thread = Thread(target = self.do_test)
+        self.test_thread.start()
+
+    def upload(self, instance):
+        # backup the data file
+        self.event = Clock.schedule_interval(self.update_upload_progress, 0.5)
+        self.upload_thread = Thread(target = self.do_upload)
+        self.upload_thread.start()
+
+    def close_popup(self, instance):
+        self.popup.dismiss()
+
+
 # region Data Grid
 # Code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py
 
@@ -1572,12 +2152,13 @@ class DataGridMenuList(Popup):
                 self.txt.font_size = colors.text_font_size
         new_item_left.add_widget(self.txt)
         new_item.add_widget(new_item_left)
-        new_item.add_widget(e5_button('Add',
-                                            id = 'add_button',
-                                            selected = True,
-                                            call_back = call_back,
-                                            button_height = .15,
-                                            colors = colors))
+        self.add_button = e5_button('Add',
+                                    id = 'add_button',
+                                    selected = True,
+                                    call_back = call_back,
+                                    button_height = .15,
+                                    colors = colors)
+        new_item.add_widget(self.add_button)
         # new_item.bind(minimum_height = new_item.setter('height'))
         pop_content.add_widget(new_item)
 
@@ -1585,14 +2166,15 @@ class DataGridMenuList(Popup):
         if ncols < 1:
             ncols = 1
 
+        self.menu = None
         if menu_list:
-            menu = e5_scrollview_menu(menu_list, menu_selected,
+            self.menu = e5_scrollview_menu(menu_list, menu_selected,
                                                     widget_id = 'menu',
                                                     call_back = [call_back],
                                                     ncols = ncols,
                                                     colors = colors)
-            pop_content.add_widget(menu)
-            menu.make_scroll_menu_item_visible()
+            pop_content.add_widget(self.menu)
+            self.menu.make_scroll_menu_item_visible()
 
         pop_content.add_widget(e5_button('Back', selected = True,
                                                  call_back = self.dismiss,
@@ -1603,10 +2185,26 @@ class DataGridMenuList(Popup):
         self.title = title
         self.size_hint = (.9, .9 if menu_list else .33)
         self.auto_dismiss = True
+        self.call_back = call_back
 
     def on_open(self):
         self.txt.focus = True
         self.txt.select_all()
+        Window.bind(on_key_down = self._on_keyboard_down)
+
+    def _on_keyboard_down(self, *args):
+        ascii_code = args[1]
+        if ascii_code == 13 and self.txt.focus and self.txt.text != "":
+            self.call_back(self.add_button)
+        elif ascii_code == 13:
+            if self.menu:
+                if self.menu.scroll_menu_get_selected():
+                    self.call_back(self.menu.scroll_menu_get_selected())
+        elif self.menu:
+            self.menu.move_scroll_menu_item(ascii_code)
+
+    def on_dismiss(self):
+        Window.unbind(on_key_down = self._on_keyboard_down)
 
 
 class DataGridTextInput(TextInput):
@@ -1723,7 +2321,7 @@ class DataGridTableData(RecycleView):
 
     datagrid_doc_id = None
     datagrid_background_color = None
-    datagrid_widget_row = []
+    # datagrid_widget_row = []
 
     datatable_widget = None
 
@@ -1774,26 +2372,35 @@ class DataGridTableData(RecycleView):
 
     def clear_highlight_row(self):
         if self.datagrid_doc_id:
-            for widget in self.get_editcell_row(self.datagrid_doc_id):
-                widget.background_color = self.datagrid_background_color
+            for record in self.data:
+                if record['key'] == self.datagrid_doc_id:
+                    if 'background_color' in record:
+                        del record['background_color']
+            self.refresh_from_data()
+            # for widget in self.get_editcell_row(self.datagrid_doc_id):
+            #    widget.background_color = self.datagrid_background_color
             self.datagrid_doc_id = ''
-            self.datagrid_widget_row = []
+            # self.datagrid_widget_row = []
 
     def set_highlight_row(self):
-        if self.datagrid_doc_id:
-            widget_row = self.get_editcell_row(self.datagrid_doc_id)
-            for widget in widget_row:
-                widget.background_color = self.colors.optionbutton_background
-            self.datagrid_widget_row = widget_row
+        # if self.datagrid_doc_id:
+        #    widget_row = self.get_editcell_row(self.datagrid_doc_id)
+        #    for widget in widget_row:
+        #        widget.background_color = self.colors.optionbutton_background
+        #   self.datagrid_widget_row = widget_row
+        for record in self.data:
+            if record['key'] == self.datagrid_doc_id:
+                record['background_color'] = self.colors.optionbutton_background
+        self.refresh_from_data()
 
-    def get_editcell_row(self, key):
-        row_widgets = []
-        for widget in self.walk():
-            if hasattr(widget, 'id'):
-                if widget.id == 'datacell':
-                    if widget.key == key:
-                        row_widgets.append(widget)
-        return(row_widgets)
+    # def get_editcell_row(self, key):
+    #    row_widgets = []
+    #    for widget in self.walk():
+    #        if hasattr(widget, 'id'):
+    #            if widget.id == 'datacell':
+    #                if widget.key == key:
+    #                    row_widgets.append(widget)
+    #    return(row_widgets)
 
     def get_editcell(self, key, field):
         for widget in self.walk():
@@ -1805,6 +2412,9 @@ class DataGridTableData(RecycleView):
 
     def editcell(self, key, field, db):
         # self.key = key
+        if field == 'doc_id' and self.datagrid_doc_id == key:
+            self.clear_highlight_row()
+            return
         self.clear_highlight_row()
         self.datagrid_doc_id = key
         editcell_widget = self.get_editcell(key, field)
@@ -1832,21 +2442,37 @@ class DataGridTableData(RecycleView):
         self.popup.dismiss()
         if self.inputtype in ['MENU', 'BOOLEAN']:
             new_data = {self.field: instance.text if not instance.text == 'Add' else self.datatable_widget.popup_textbox.text}
+        elif self.inputtype == 'NUMERIC':
+            try:
+                if '.' in self.datatable_widget.popup_textbox.text:
+                    new_data = {self.field: float(self.datatable_widget.popup_textbox.text)}
+                else:
+                    new_data = {self.field: int(self.datatable_widget.popup_textbox.text)}
+            except ValueError:
+                new_data = {self.field: self.datatable_widget.popup_textbox.text}
         else:
             new_data = {self.field: self.datatable_widget.popup_textbox.text}
         is_valid = self.e5_cfg.validate_datafield(new_data, self.tb)
         if is_valid is True:
             self.tb.update(new_data, doc_ids = [int(self.datagrid_doc_id)])
-            for widget in self.walk():
-                if hasattr(widget, 'id'):
-                    if widget.id == 'datacell':
-                        if widget.key == self.datagrid_doc_id and widget.field == self.field:
-                            widget.text = new_data[self.field]
+            self.update_recycle_data(self.datagrid_doc_id, self.field, new_data[self.field])
+            # for widget in self.walk():
+            #    if hasattr(widget, 'id'):
+            #        if widget.id == 'datacell':
+            #            if widget.key == self.datagrid_doc_id and widget.field == self.field:
+            #                widget.text = str(new_data[self.field])
             self.datatable_widget.popup_scrollmenu = None
             self.datatable_widget.popup_textbox = None
         else:
             self.popup = e5_MessageBox('Data error', is_valid)
             self.popup.open()
+
+    def update_recycle_data(self, doc_id, field, value):
+        for record in self.data:
+            if record['key'] == doc_id and record['field'] == field:
+                record['text'] = str(value)
+                self.refresh_from_data()
+                break
 
 
 class DataGridTable(BoxLayout):
@@ -1890,8 +2516,9 @@ class DataGridGridPanel(BoxLayout):
                 reformatted_row[field] = str(tb_row[field]) if field in tb_row else ''
             data.append(reformatted_row)
         data = sorted(data, key=lambda k: int(k['doc_id']), reverse = True)
-        self.add_widget(DataGridTable(list_dicts = data, column_names = self.column_names,
-                                        tb = self.tb, e5_cfg = self.tb_fields, colors = self.colors))
+        self.recycleview_box = DataGridTable(list_dicts = data, column_names = self.column_names,
+                                                tb = self.tb, e5_cfg = self.tb_fields, colors = self.colors)
+        self.add_widget(self.recycleview_box)
 
 
 class DataGridCasePanel(BoxLayout):
@@ -1908,6 +2535,38 @@ class DataGridCasePanel(BoxLayout):
 
     def next_field(self, instance):
         pass
+
+
+class DataGridLabelAndProgressBar(BoxLayout):
+
+    def __init__(self, col, active = False, colors = None, popup = False, **kwargs):
+        super(DataGridLabelAndProgressBar, self).__init__(**kwargs)
+        self.colors = colors if colors is not None else ColorScheme()
+        self.size_hint = (0.9, None)
+        self.bind(minimum_height = self.setter('height'))
+        self.spacing = 10
+        self.label = e5_label(text = col, id = '__label', colors = self.colors, popup = popup, size_hint_y = None)
+        self.label.bind(texture_size = self.label.setter('size'))
+        self.bar = ProgressBar(max = 1)
+        self.bar.height = 50
+        self.add_widget(self.label)
+        self.add_widget(self.bar)
+
+
+class DataGridLabelAndToggle(BoxLayout):
+
+    def __init__(self, col, active = False, colors = None, popup = False, **kwargs):
+        super(DataGridLabelAndToggle, self).__init__(**kwargs)
+        self.colors = colors if colors is not None else ColorScheme()
+        self.size_hint = (0.9, None)
+        self.bind(minimum_height = self.setter('height'))
+        self.spacing = 10
+        label = e5_label(text = col, id = '__label', colors = self.colors, popup = popup)
+        label.bind(texture_size = label.setter('size'))
+        self.check = Switch(active = active, size_hint = (0.75, None))
+        self.check.height = 30
+        self.add_widget(label)
+        self.add_widget(self.check)
 
 
 class DataGridLabelAndField(BoxLayout):
@@ -1980,8 +2639,12 @@ class DataGridAddNewPanel(GridLayout):
                 self.call_back = call_back
             else:
                 self.clear_widgets()
-                self.add_widget(e5_scrollview_label('\nAdding records in this way is not enabled in E5 because it would bipass conditions and error checking (but it is enabled in EDM which is why it appears in this list of tabs).',
-                                                    popup = False, colors = self.colors))
+                if __program__ == 'EDM':
+                    self.add_widget(e5_scrollview_label('\nAdding records in this way is not enabled for the main points table but is enabled for datums, units and prisms.',
+                                                        popup = False, colors = self.colors))
+                else:
+                    self.add_widget(e5_scrollview_label('\nAdding records in this way is not enabled in E5 because it would bipass conditions and error checking (but it is enabled in EDM which is why it appears in this list of tabs).',
+                                                        popup = False, colors = self.colors))
 
     def next_field(self, instance):
         if instance.get_focus_next() == self.button:
@@ -2071,7 +2734,7 @@ class DataGridWidget(TabbedPanel):
     def open_panel2(self):
         datatable = self.get_widget_by_id(self.get_tab_by_name('Data').content, 'datatable')
         if datatable is not None:
-            if datatable.datagrid_doc_id is not None:
+            if datatable.datagrid_doc_id is not None and datatable.datagrid_doc_id != '':
                 data_record = self.data.get(doc_id = int(datatable.datagrid_doc_id))
                 for widget in self.ids.edit_panel.children[0].walk():
                     if hasattr(widget, 'id'):
@@ -2171,18 +2834,40 @@ class DataGridWidget(TabbedPanel):
             self.popup.open()
             self.popup_open = True
 
+    def get_field_type(self, fieldname):
+        f = self.cfg.get(fieldname)
+        return(f.inputtype)
+
     def update_db(self, instance, value):
         if self.textboxes_will_update_db:
             datatable = self.get_widget_by_id(self.get_tab_by_name('Data').content, 'datatable')
             if datatable is not None:
-                update = {instance.id: value}
+                if self.get_field_type(instance.id) == 'NUMERIC':
+                    try:
+                        if '.' in value:
+                            update = {instance.id: float(value)}
+                        else:
+                            update = {instance.id: int(value)}
+                    except ValueError:
+                        update = {instance.id: value}
+                else:
+                    update = {instance.id: value}
                 is_valid = self.cfg.validate_datafield(update, self.data)
                 if is_valid is True:
-                    for widget in datatable.datagrid_widget_row:
-                        if widget.field == instance.id and widget.key == datatable.datagrid_doc_id:
-                            self.data.update(update, doc_ids = [int(datatable.datagrid_doc_id)])
-                            widget.text = value
-                            break
+                    self.data.update(update, doc_ids = [int(datatable.datagrid_doc_id)])
+                    self.update_datagrid(datatable.datagrid_doc_id, instance.id, value)
+                    # for widget in datatable.datagrid_widget_row:
+                    #     if widget.field == instance.id and widget.key == datatable.datagrid_doc_id:
+                    #         widget.text = str(value)
+                    #         break
+
+    def update_datagrid(self, doc_id, field, value):
+        datatable = self.get_widget_by_id(self.get_tab_by_name('Data').content, 'datatable')
+        for record in datatable.data:
+            if record['key'] == doc_id and record['field'] == field:
+                record['text'] = str(value)
+                self.get_tab_by_name('Data').content.recycleview_box.table_data.refresh_from_data()
+                break
 
     def delete_record1(self, instance):
         self.popup = e5_MessageBox('Delete record', '\nAre you sure you want to delete this record?',
@@ -2199,7 +2884,7 @@ class DataGridWidget(TabbedPanel):
             doc_id = int(datatable.datagrid_doc_id)
             self.data.remove(doc_ids = [doc_id])
             datatable.datagrid_doc_id = None
-            datatable.datagrid_widget_row = None
+            # datatable.datagrid_widget_row = None
             self.reload_data()
             self.panel3.populate(colors = self.colors)
             self.switch_to(self.get_tab_by_name('Data'))

@@ -31,8 +31,8 @@
 
 # TODO Need to fix ASAP conditions in e4 not comma delimited
 
-__version__ = '1.3.7'
-__date__ = 'July, 2022'
+__version__ = '1.3.8'
+__date__ = 'October, 2022'
 __program__ = 'E5'
 
 # region Imports
@@ -79,7 +79,7 @@ import logging
 from e5py.lib.blockdata import blockdata
 from e5py.lib.dbs import dbs
 from e5py.lib.e5_widgets import e5_MainScreen, e5_scrollview_menu, e5_scrollview_label, e5_button, e5_label, e5_side_by_side_buttons, e5_LoadDialog, e5_MessageBox, e5_textinput, e5_RecordEditScreen
-from e5py.lib.e5_widgets import e5_DatagridScreen, e5_InfoScreen, e5_LogScreen, e5_CFGScreen, e5_INIScreen, e5_SettingsScreen
+from e5py.lib.e5_widgets import e5_DatagridScreen, e5_InfoScreen, e5_LogScreen, e5_CFGScreen, e5_INIScreen, e5_SettingsScreen, DataUploadScreen
 from e5py.lib.colorscheme import ColorScheme
 from e5py.lib.misc import platform_name, restore_window_size_position, locate_file, filename_only
 
@@ -87,10 +87,10 @@ from e5py.lib.misc import platform_name, restore_window_size_position, locate_fi
 from tinydb import where
 from tinydb import __version__ as __tinydb_version__
 
-
 # endregion
 
 # region Data Classes
+
 
 class db(dbs):
     MAX_FIELDS = 300
@@ -946,6 +946,10 @@ class MainScreen(e5_MainScreen):
                                     colors = self.colors,
                                     ini = self.ini))
         sm.add_widget(AboutScreen(name = 'AboutScreen',
+                                        colors = self.colors))
+        sm.add_widget(DataUploadScreen(name = 'UploadScreen',
+                                        data = self.data,
+                                        cfg = self.cfg,
                                         colors = self.colors))
         sm.add_widget(EditLastRecordScreen(name = 'EditLastRecordScreen',
                                             data = self.data,

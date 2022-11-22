@@ -1,6 +1,6 @@
 # Windows distribution without installing Python
 
-The dist folder here contains a one file executable of the E5 program (e5.exe).  On Windows, download this file to a folder for the program, and it should run without the need to install Python or Python packages.  It works fine on my own Windows 10 computer.  If someone runs it on Windows 11, please let me know the results.
+The [dist folder](https://github.com/surf3s/E5/tree/master/Windows/dist) here contains a one file executable of the E5 program [e5.exe](https://github.com/surf3s/E5/blob/master/Windows/dist/e5.exe).  On Windows, download this file (either click on the just list link or right-click on the file at GitHub to save link as) to a folder for the program, and it should run without the need to install Python or Python packages.  It works fine on my own Windows 10 computer.  If someone runs it on Windows 11, please let me know the results.
 
 At times the source code might get ahead of this executable, but I will do my best to update it when major changes occur.
 

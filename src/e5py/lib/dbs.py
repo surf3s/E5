@@ -1,5 +1,7 @@
 from tinydb import TinyDB, where
 from typing import Dict
+import json
+from os import path
 
 
 class dbs:
@@ -23,6 +25,18 @@ class dbs:
         except FileNotFoundError:
             self.db = None
             self.filename = ''
+
+    def valid_format(self, filename):
+        try:
+            if path.getsize(filename) == 0:
+                return(True)
+            with open(filename) as f:
+                json.load(f)
+            return True
+        except ValueError:
+            return False
+        except FileNotFoundError:
+            return True
 
     def close(self):
         if self.db is not None:
@@ -80,7 +94,7 @@ class dbs:
         self.new_data[self.table] = True
 
     def delete_all(self, table_name = None):
-        if self.db:
+        if self.db is not None:
             if table_name is None:
                 self.db.drop_tables()
             else:
@@ -97,7 +111,7 @@ class dbs:
     def last_record(self):
         try:
             last = self.db.table(self.table).all()[-1]
-        except IndexError:
+        except (IndexError, AttributeError):
             last = None
         return(last)
 
