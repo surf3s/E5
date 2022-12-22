@@ -31,8 +31,8 @@
 
 # TODO Need to fix ASAP conditions in e4 not comma delimited
 
-__version__ = '1.3.8'
-__date__ = 'October, 2022'
+__version__ = '1.3.9'
+__date__ = 'December, 2022'
 __program__ = 'E5'
 
 # region Imports
@@ -53,6 +53,7 @@ from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
 from kivy.core.window import Window
 from kivy import __version__ as __kivy_version__
+from kivy.core.clipboard import Clipboard
 
 # The explicit mention of this package here
 # triggers its inclusions in the pyinstaller spec file.
@@ -269,7 +270,7 @@ class cfg(blockdata):
         if data_to_insert and data_table and len(data_to_insert) == 1:
             for field, value in data_to_insert.items():
                 f = self.get(field)
-                if f.required and value.strip() == "":
+                if f.required and str(value).strip() == "":
                     error_message = f'\nThe field {field} is set to unique or required.  Enter a value to save this record.'
                     return(error_message)
                 if f.inputtype == 'NUMERIC':
@@ -1166,48 +1167,56 @@ class MainScreen(e5_MainScreen):
     #    self._keyboard = None
 
     def _on_keyboard_down(self, *args):
-        ascii_code = args[1]
-        text_str = args[3]
-        # print('INFO: The key %s has been pressed %s' % (ascii_code, text_str))
-        if not self.popup_open:
-            if ascii_code in [8, 127]:
-                return False
-            if ascii_code == 9:
-                if self.widget_with_focus.id == 'menu_scroll':
-                    self.widget_with_focus = self.field_data
-                    self.widget_with_focus.focus = True
-                elif self.widget_with_focus.id == 'field_data' and self.cfg.current_field.inputtype in ['MENU', 'BOOLEAN']:
-                    self.widget_with_focus.focus = False
-                    self.widget_with_focus = self.get_widget_by_id('menu_scroll')
-                return False
-            if ascii_code == 27:
-                if self.cfg.filename:
-                    self.go_back(None)
-            if ascii_code == 13:
-                if self.cfg.filename:
-                    self.go_next(None)
-                elif self.cfg_files:
-                    self.cfg_selected(self.scroll_menu.scroll_menu_get_selected())
-            if ascii_code == 51:
-                return True
-            if ascii_code in [273, 274, 275, 276, 278, 279] and self.scroll_menu:
-                self.scroll_menu.move_scroll_menu_item(ascii_code)
-                return False
-            if ascii_code in [276, 275, 278, 279] and not self.scroll_menu:
-                return False
-            # if text_str:
-            #    if text_str.upper() in ascii_uppercase:
-            #        self.add_scroll_content(self.get_widget_by_id('scroll_content'),
-            #                                self.get_widget_by_id('field_data').text + text_str)
-            #        return True
+        if self.parent:
+            if self.parent.current == 'MainScreen':
+                ascii_code = args[1]
+                text_str = args[3]
+                # print('INFO: The key %s has been pressed %s' % (ascii_code, text_str))
+                if not self.popup_open:
+                    if ascii_code in [8, 127]:
+                        return False
+                    if ascii_code == 9:
+                        if self.widget_with_focus.id == 'menu_scroll':
+                            self.widget_with_focus = self.field_data
+                            self.widget_with_focus.focus = True
+                        elif self.widget_with_focus.id == 'field_data' and self.cfg.current_field.inputtype in ['MENU', 'BOOLEAN']:
+                            self.widget_with_focus.focus = False
+                            self.widget_with_focus = self.get_widget_by_id('menu_scroll')
+                        return False
+                    if ascii_code == 27:
+                        if self.cfg.filename:
+                            self.go_back(None)
+                    if ascii_code == 13:
+                        if self.cfg.filename:
+                            self.go_next(None)
+                        elif self.cfg_files:
+                            self.cfg_selected(self.scroll_menu.scroll_menu_get_selected())
+                    if ascii_code == 51:
+                        return True
+                    if ascii_code in [273, 274, 275, 276, 278, 279] and self.scroll_menu:
+                        self.scroll_menu.move_scroll_menu_item(ascii_code)
+                        return False
+                    if ascii_code in [276, 275, 278, 279] and not self.scroll_menu:
+                        return False
+                    #if 'ctrl' in args[4] and args[3] == 'c':
+                    #    Clipboard.copy(self.field_data.text)
+                    #if 'ctrl' in args[4] and args[3] == 'v':
+                    #    self.field_data.text = Clipboard.paste()
+                    # if text_str:
+                    #    if text_str.upper() in ascii_uppercase:
+                    #        self.add_scroll_content(self.get_widget_by_id('scroll_content'),
+                    #                                self.get_widget_by_id('field_data').text + text_str)
+                    #        return True
+                else:
+                    if ascii_code == 13:
+                        self.close_popup(None)
+                        self.widget_with_focus.focus = True
+                        return False
+                    elif ascii_code in [275, 276]:
+                        return(False)
+                return False  # return True to accept the key. Otherwise, it will be used by the system.
         else:
-            if ascii_code == 13:
-                self.close_popup(None)
-                self.widget_with_focus.focus = True
-                return False
-            elif ascii_code in [275, 276]:
-                return(False)
-        return True  # return True to accept the key. Otherwise, it will be used by the system.
+            return False
 
     def copy_from_menu_to_textbox(self):
         if self.cfg.current_field.inputtype in ['MENU', 'BOOLEAN']:

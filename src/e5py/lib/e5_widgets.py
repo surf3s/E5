@@ -1732,6 +1732,7 @@ class DataUploadScreen(Screen):
             self.username.txt.text = username
         self.scroll_grid.add_widget(self.username)
         self.password = DataGridLabelAndField(col = 'Password', colors = self.colors)
+        password = 'Atak!3147216649'
         if password:
             self.password.txt.text = password
         self.password.txt.password = True
@@ -1837,17 +1838,44 @@ class DataUploadScreen(Screen):
         response = requests.get(f"{route['url']}{route['database']}/{route['table']}/detail{detail_keys}/", headers = {'Authorization': f"Token {route['api']}"})
         return json.loads(response.text)
 
-    def unique_together_as_url(self, record, unique_together):
-        detail = [record[field] if field in record.keys() else '' for field in unique_together]
-        return '/' + '/'.join([details if details != '' else 'None' for details in detail])
+    def replace_keyfields(self, route, record, unique_together, structure):
+        new_record = record.copy()
+        for field in unique_together:
+            if structure[field]['type'] == 'ForeignKey' and field != 'squid':
+                second_route = route.copy()
+                second_route['table'] = field
+                detail = '/' + record[field]
+                response = self.get_details(second_route, detail)
+                if 'id' in response:
+                    new_record[field] = response['id']
+        return(new_record)
+
+    def unique_together_as_url(self, route, record, unique_together, structure):
+        details = []
+        for field in unique_together:
+            if structure[field]['type'] == 'ForeignKey' and field != 'squid':
+                second_route = route.copy()
+                second_route['table'] = field
+                detail = '/' + record[field]
+                response = self.get_details(second_route, detail)
+                if 'id' in response:
+                    details.append(str(response['id']))
+                else:
+                    details.append('None')
+            else:
+                details.append(record[field])
+        # detail = [record[field] if field in record.keys() else '' for field in unique_together]
+        return '/' + '/'.join([detail if detail != '' else 'None' for detail in details])
 
     def unique_together_as_humanreadable(self, record, unique_together):
-        detail = [record[field] if field in record.keys() else '' for field in unique_together]
+        detail = [str(record[field]) if field in record.keys() else '' for field in unique_together]
         return '-'.join(detail)
 
-    def record_already_exists(self, route, record, unique_together):
-        detail = self.unique_together_as_url(record, unique_together)
+    def record_already_exists(self, route, record, unique_together, structure):
+        detail = self.unique_together_as_url(route, record, unique_together, structure)
         response = self.get_details(route, detail)
+        if response == {}:
+            return 'Lookup error.'
         if 'detail' in response.keys():
             if response['detail'] == 'Not found.':
                 return False
@@ -1994,10 +2022,14 @@ class DataUploadScreen(Screen):
             self.progress.label.text = f'Uploading {self.unique_together_as_humanreadable(record, unique_together)}\n'
             self.progress.bar.value = record_counter / n_records
 
-            online_record = self.record_already_exists(route, record, unique_together)
-            if online_record and self.overwrite.check.active:
+            online_record = self.record_already_exists(route, record, unique_together, structure)
+            if online_record == 'Lookup error':
+                self.error_message += f"\n\nRecord {self.unique_together_as_humanreadable(record, unique_together)} - Unable to test whether this record already exists."
+                self.fails.append(self.unique_together_as_humanreadable(record, unique_together))
+            elif online_record and self.overwrite.check.active:
                 url = f"{route['url']}{route['database']}/{route['table']}/update/{online_record['id']}/"
                 record['id'] = online_record['id']
+                record = self.replace_keyfields(route, record, unique_together, structure)
                 response = requests.put(url, data = record, headers = {'Authorization': f"Token {route['api']}"})
                 if response.status_code == 400:
                     self.error_message += self.parse_error(record, unique_together, json.loads(response.text))
@@ -2013,6 +2045,7 @@ class DataUploadScreen(Screen):
                     self.error_message += f'{self.unique_together_as_humanreadable(record, unique_together)} - Unexpected response - {response.reason}'
             else:
                 url = f"{route['url']}{route['database']}/{route['table']}/create/"
+                record = self.replace_keyfields(route, record, unique_together, structure)
                 response = requests.post(url, data = record, headers = {'Authorization': f"Token {route['api']}"})
                 if response.status_code == 400:
                     self.error_message += self.parse_error(record, unique_together, json.loads(response.text))
@@ -2069,7 +2102,11 @@ class DataUploadScreen(Screen):
             self.progress.label.text = f'Uploading {self.unique_together_as_humanreadable(record, unique_together)}\n'
             self.progress.bar.value = record_counter / n_records
 
-            if self.record_already_exists(route, record, unique_together) and self.overwrite.check.active:
+            already_in_db = self.record_already_exists(route, record, unique_together, structure) 
+            if already_in_db == 'Lookup error.':
+                self.error_message += f"\n\nRecord {self.unique_together_as_humanreadable(record, unique_together)} - Unable to test whether this record already exists."
+                self.fails.append(self.unique_together_as_humanreadable(record, unique_together))
+            elif already_in_db and self.overwrite.check.active:
                 self.overwrites.append(self.unique_together_as_humanreadable(record, unique_together))
             else:
                 self.additions += 1
