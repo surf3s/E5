@@ -1,3 +1,6 @@
+### I think the new code from EDM didn't copy over.  Check this.
+### On data upload, change it to patch for existing records.
+
 from decimal import DivisionByZero
 from kivy.clock import Clock
 from kivy.uix.textinput import TextInput
@@ -1721,7 +1724,7 @@ class DataUploadScreen(Screen):
                                         size_hint_y = None)
         instructions = 'Here the data are uploaded to an online database repository like OSA.  The URL of the repository and your credentials are needed.  '
         instructions += 'You also need the database and table names for the online repository.  If you select overwrite, all data for existing matching records in the online repository will be overwritten with the data here.  Normally you do not want to do this, but if you are making changes here to already uploaded data, you may want to select this option. '
-        instructions += 'A local backup of your JSON datafile is made before the upload.  Select Delete to remove the data here after the upload (this is good practise).'
+        instructions += 'A local backup of your JSON datafile is made before the upload.  Select Delete to remove the data here after the upload (this is good practice).'
         self.scroll_grid.add_widget(e5_label_wrapped(text = instructions, colors = self.colors))
         self.url = DataGridLabelAndField(col = 'URL', colors = self.colors)
         if url:
@@ -1822,7 +1825,7 @@ class DataUploadScreen(Screen):
             response = requests.get(route['url'] + 'connected/', headers = {'Authorization': f"Token {route['api']}"})
             if response.status_code == 401:
                 return(False, response.reason)
-            return (True, str(response))
+            return (True, json.loads(response.text))
         except urllib.error.HTTPError as e:
             return (False, e.code)
         except urllib.error.URLError as e:
@@ -1832,15 +1835,21 @@ class DataUploadScreen(Screen):
 
     def get_structure(self, route):
         response = requests.get(f"{route['url']}structure/{route['database']}/{route['table']}/", headers = {'Authorization': f"Token {route['api']}"})
-        return json.loads(response.text)
+        try:
+            return json.loads(response.text)
+        except:
+            return ''
 
     def get_details(self, route, detail_keys):
-        response = requests.get(f"{route['url']}{route['database']}/{route['table']}/detail{detail_keys}/", headers = {'Authorization': f"Token {route['api']}"})
+        if route['type'] == 'Standard':
+            response = requests.get(f"{route['url']}{route['database']}/{route['table']}{detail_keys}/", headers = {'Authorization': f"Token {route['api']}"})
+        else:
+            response = requests.get(f"{route['url']}{route['database']}/{route['table']}/detail{detail_keys}/", headers = {'Authorization': f"Token {route['api']}"})
         return json.loads(response.text)
 
     def replace_keyfields(self, route, record, unique_together, structure):
         new_record = record.copy()
-        for field in unique_together:
+        for field in record.keys():
             if structure[field]['type'] == 'ForeignKey' and field != 'squid':
                 second_route = route.copy()
                 second_route['table'] = field
@@ -1849,6 +1858,24 @@ class DataUploadScreen(Screen):
                 if 'id' in response:
                     new_record[field] = response['id']
         return(new_record)
+
+    def fix_numeric_fields(self, record, structure):
+        new_record = record.copy()
+        for field in record.keys():
+            if structure[field]['type'] in ['IntegerField', 'FloatField'] and record[field] == "":
+                new_record[field] = None
+        return(new_record)
+
+    def remove_non_e5_cfg_fields(self, record, cfg_fields):
+        delete_list = []
+        cfg_fields_lower = [field.lower() for field in cfg_fields]
+        for key in record.keys():
+            if key.lower() not in cfg_fields_lower:
+                delete_list.append(key)
+        if delete_list:
+            for key in delete_list:
+                record.pop(key, None)
+        return(record)
 
     def unique_together_as_url(self, route, record, unique_together, structure):
         details = []
@@ -1882,18 +1909,24 @@ class DataUploadScreen(Screen):
         return response
 
     def is_numeric(self, value):
-        try:
-            float(value)
+        if value is None:
             return(True)
-        except ValueError:
-            return(False)
+        else:
+            try:
+                float(value)
+                return(True)
+            except (ValueError, TypeError) as e:
+                return(False)
 
     def is_integer(self, value):
-        try:
-            int(value)
-            return(True)
-        except ValueError:
-            return(False)
+        if value is None:
+            return True
+        else:
+            try:
+                int(value)
+                return(True)
+            except ValueError:
+                return(False)
 
     def get_route(self):
         return {'url': self.url.txt.text, 'api': '',
@@ -1916,6 +1949,7 @@ class DataUploadScreen(Screen):
             return(f"Could not connect to the URL provided above with those credentials.  This URL should look something like https://www.oldstoneage.com/api/ but modified for your database. The exact error message was '{status}'.", route)
         if not self.dbname.txt.text or not self.tablename.txt.text:
             return('Provide a database and table name.', route)
+        route['type'] = status['type']
         return('', route)
 
     def check_for_cfg_fields_not_online(self, structure):
@@ -1970,7 +2004,7 @@ class DataUploadScreen(Screen):
                 if not self.error_message:
                     if len(self.overwrites) > 0:
                         self.overwrites = list(dict.fromkeys(self.overwrites))
-                        self.popup = e5_MessageBox('Data Upload Test', f"\nTest results.  A data upload would add {self.additions} records and modify {len(self.overwrites)} records.\n\nThe overwritten records would be {', '.join(self.overwrites)}", call_back = self.close_popup)
+                        self.popup = e5_MessageBox('Data Upload Test', f"\nTest results.  A data upload would add {self.additions} records and modify {len(self.overwrites)} records.\n\nThe modified records would be {', '.join(self.overwrites)}", call_back = self.close_popup)
                     else:
                         self.popup = e5_MessageBox('Data Upload Test', f"\nTest results.  A data upload would add {self.additions} records and modify {len(self.overwrites)} records.", call_back = self.close_popup)
                 else:
@@ -1999,7 +2033,7 @@ class DataUploadScreen(Screen):
         self.progress.label.text = 'Retrieving structure\n'
         structure = self.get_structure(route)
         if not structure:
-            self.error_message = 'Something went wrong that should not have.  Could not retreive structure of the data table from website.'
+            self.error_message = 'Something went wrong that should not have.  Could not retreive structure of the data table from website.  Make sure the name of the database and the name of the table are correct.'
             self.progress.label.text = 'Done\n'
             return
 
@@ -2027,10 +2061,15 @@ class DataUploadScreen(Screen):
                 self.error_message += f"\n\nRecord {self.unique_together_as_humanreadable(record, unique_together)} - Unable to test whether this record already exists."
                 self.fails.append(self.unique_together_as_humanreadable(record, unique_together))
             elif online_record and self.overwrite.check.active:
-                url = f"{route['url']}{route['database']}/{route['table']}/update/{online_record['id']}/"
+                if route['type'] == 'Standard':
+                    url = f"{route['url']}{route['database']}/{route['table']}/{online_record['squid']}/"
+                else:
+                    url = f"{route['url']}{route['database']}/{route['table']}/update/{online_record['id']}/"
                 record['id'] = online_record['id']
                 record = self.replace_keyfields(route, record, unique_together, structure)
-                response = requests.put(url, data = record, headers = {'Authorization': f"Token {route['api']}"})
+                record = self.fix_numeric_fields(record, structure)
+                record = self.remove_non_e5_cfg_fields(record, self.cfg.fields())
+                response = requests.patch(url, data = record, headers = {'Authorization': f"Token {route['api']}"})
                 if response.status_code == 400:
                     self.error_message += self.parse_error(record, unique_together, json.loads(response.text))
                     self.fails.append(self.unique_together_as_humanreadable(record, unique_together))
@@ -2043,9 +2082,14 @@ class DataUploadScreen(Screen):
                         to_delete.append(doc_id)
                 else:
                     self.error_message += f'{self.unique_together_as_humanreadable(record, unique_together)} - Unexpected response - {response.reason}'
-            else:
-                url = f"{route['url']}{route['database']}/{route['table']}/create/"
+            elif not online_record:
                 record = self.replace_keyfields(route, record, unique_together, structure)
+                record = self.fix_numeric_fields(record, structure)
+                record = self.remove_non_e5_cfg_fields(record, self.cfg.fields())
+                if route['type'] == 'Standard':
+                    url = f"{route['url']}{route['database']}/{route['table']}/"
+                else:
+                    url = f"{route['url']}{route['database']}/{route['table']}/create/"
                 response = requests.post(url, data = record, headers = {'Authorization': f"Token {route['api']}"})
                 if response.status_code == 400:
                     self.error_message += self.parse_error(record, unique_together, json.loads(response.text))
@@ -2058,7 +2102,10 @@ class DataUploadScreen(Screen):
                     if self.deleteafter.check.active:
                         to_delete.append(doc_id)
                 else:
-                    self.error_message += f'{self.unique_together_as_humanreadable(record, unique_together)} - Unexpected response - {response.reason}'
+                    self.error_message += f'{self.unique_together_as_humanreadable(record, unique_together)} - Unexpected response - {response.reason}\n'
+            else:
+                self.error_message += f'{self.unique_together_as_humanreadable(record, unique_together)} - Record already exists and overwrite set to false.\n'
+
         if self.deleteafter.check.active:
             self.progress.label.text = 'Deleting uploaded and updated records\n\n'
             self.data.db.table(self.data.table).remove(doc_ids = to_delete)
@@ -2108,6 +2155,9 @@ class DataUploadScreen(Screen):
                 self.fails.append(self.unique_together_as_humanreadable(record, unique_together))
             elif already_in_db and self.overwrite.check.active:
                 self.overwrites.append(self.unique_together_as_humanreadable(record, unique_together))
+            elif already_in_db and not self.overwrite.check.active:
+                self.error_message += f"\n\nRecord {self.unique_together_as_humanreadable(record, unique_together)} - Already exists but overwrite is set to False."
+                self.fails.append(self.unique_together_as_humanreadable(record, unique_together))
             else:
                 self.additions += 1
 
@@ -2115,6 +2165,9 @@ class DataUploadScreen(Screen):
                 unique_keys[self.unique_together_as_humanreadable(record, unique_together) ] = 1
             else:
                 unique_keys[self.unique_together_as_humanreadable(record, unique_together) ] += 1
+
+            record = self.remove_non_e5_cfg_fields(record, self.cfg.fields())
+            record = self.fix_numeric_fields(record, structure)
 
             for field, value in record.items():
                 if field not in structure:

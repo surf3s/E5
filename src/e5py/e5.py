@@ -31,8 +31,8 @@
 
 # TODO Need to fix ASAP conditions in e4 not comma delimited
 
-__version__ = '1.3.9'
-__date__ = 'December, 2022'
+__version__ = '1.3.10'
+__date__ = 'January, 2023'
 __program__ = 'E5'
 
 # region Imports
@@ -53,7 +53,6 @@ from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
 from kivy.core.window import Window
 from kivy import __version__ as __kivy_version__
-from kivy.core.clipboard import Clipboard
 
 # The explicit mention of this package here
 # triggers its inclusions in the pyinstaller spec file.
