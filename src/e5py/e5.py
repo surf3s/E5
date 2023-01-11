@@ -135,7 +135,7 @@ class ini(blockdata):
                 elif test > 200:
                     test = 200
                 self.update_value(__program__, 'BACKUPINTERVAL', test)
-            except:
+            except ValueError:
                 self.update_value(__program__, 'BACKUPINTERVAL', 0)
         else:
             self.update_value(__program__, 'BACKUPINTERVAL', 0)
@@ -143,6 +143,8 @@ class ini(blockdata):
     def update(self, e5_colors, e5_cfg):
         self.update_value(__program__, 'CFG', e5_cfg.filename)
         self.update_value(__program__, 'ColorScheme', e5_colors.color_scheme)
+        self.update_value(__program__, 'ButtonFontSize', e5_colors.button_font_size)
+        self.update_value(__program__, 'TextFontSize', e5_colors.text_font_size)
         self.update_value(__program__, 'DarkMode', 'TRUE' if e5_colors.darkmode else 'FALSE')
         self.update_value(__program__, 'IncrementalBackups', self.incremental_backups)
         self.update_value(__program__, 'BackupInterval', self.backup_interval)
@@ -779,10 +781,20 @@ class cfg(blockdata):
                 csv_row = ''
                 for fieldname in cfg_fields:
                     if fieldname in row.keys():
-                        if self.get(fieldname).inputtype in ['NUMERIC', 'INSTRUMENT']:
-                            csv_row += ',%s' % row[fieldname] if csv_row else "%s" % row[fieldname]
+                        if row[fieldname] is not None:
+                            if self.get(fieldname).inputtype in ['NUMERIC', 'INSTRUMENT']:
+                                csv_row += ',%s' % row[fieldname] if csv_row else "%s" % row[fieldname]
+                            else:
+                                csv_row += ',"%s"' % row[fieldname] if csv_row else '"%s"' % row[fieldname]
                         else:
-                            csv_row += ',"%s"' % row[fieldname] if csv_row else '"%s"' % row[fieldname]
+                            if self.get(fieldname).inputtype in ['NUMERIC', 'INSTRUMENT']:
+                                if csv_row:
+                                    csv_row = csv_row + ','     # Not sure this works if there is an entirely empty row of numeric values
+                            else:
+                                if csv_row:
+                                    csv_row = csv_row + ',""'
+                                else:
+                                    csv_row = '""'
                     else:
                         if self.get(fieldname).inputtype in ['NUMERIC', 'INSTRUMENT']:
                             if csv_row:
@@ -795,7 +807,7 @@ class cfg(blockdata):
                 f.write(csv_row + '\n')
             f.close()
             return(None)
-        except:
+        except OSError:
             return('\nCould not write data to %s.' % (filename))
 
     def write_geojson(self, filename, table):
@@ -815,11 +827,12 @@ class cfg(blockdata):
                 comma = ' '
                 for fieldname in cfg_fields:
                     if fieldname in row.keys():
-                        geojson_row += comma + '"%s": ' % fieldname
-                        if self.get(fieldname).inputtype in ['NUMERIC', 'INSTRUMENT']:
-                            geojson_row += '%s' % row[fieldname]
-                        else:
-                            geojson_row += '"%s"' % row[fieldname]
+                        if row[fieldname] != '':
+                            geojson_row += comma + '"%s": ' % fieldname
+                            if self.get(fieldname).inputtype in ['NUMERIC', 'INSTRUMENT']:
+                                geojson_row += '%s' % row[fieldname]
+                            else:
+                                geojson_row += '"%s"' % row[fieldname]
                     comma = ', '
                 geojson_row += ' },\n'
                 geojson_row += '"geometry": { "type": "Point", "coordinates": [ '
