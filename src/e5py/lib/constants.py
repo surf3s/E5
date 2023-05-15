@@ -1,3 +1,7 @@
+'''
+As the lib folder is shared between EDM and E5, I place here the only things that are specific to each program.
+In this way I can copy the other library code between programs without modifying it.
+'''
 
 __SPLASH_HELP__ = "\nE5 is a generalized data entry program intended "
 __SPLASH_HELP__ += "for archaeologists but likely useful for others as well.  It works with a "
@@ -16,4 +20,4 @@ __SPLASH_HELP__ += "database, statistics or spreadsheet software.\n\n"
 __SPLASH_HELP__ += "To start using this program, you will need to open CFG file.  Example CFG files "
 __SPLASH_HELP__ += "and documentation on writing your own CFG file can be found at the E5 GitHub site."
 
-__program__ = 'E5'
+APP_NAME = 'E5'
