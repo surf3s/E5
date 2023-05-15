@@ -115,7 +115,6 @@ dmypy.json
 
 # My stuff
 *.json
-*.txt
 backup/
 *.pptx
 *.apk

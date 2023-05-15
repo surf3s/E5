@@ -1,0 +1,63 @@
+1   Levallois flake
+2   Atypical Levallois flake
+3   Levallois Point
+4   Retouched Levallois Point
+5   Pseudo Levallois Point
+6   Mousterian Point
+7   Elongated Mousterian Point
+8   Limace   
+9   Single Straight Scraper
+10  Single Convex Scraper
+11  Single Concave Scraper
+12  Double Straight Scraper
+13  Double Straight-Convex Scraper
+14  Double Straight-Concave Scraper
+15  Double Convex Scraper
+16  Double Concave Scraper
+17  Double Convex-Concave Scraper
+18  Straight Convergent Scraper
+19  Convex Convergent Scraper
+20  Concave Convergent Scraper
+21  Dejete Scraper
+22  Straight Transverse Scraper
+23  Convex Transverse Scraper
+24  Concave Transverse Scraper
+25  Scraper on Interior Surface
+26  Abrupt Scraper
+27  Scraper with Thinned Back
+28  Scraper with Bifacial Retouch
+29  Alternate Scraper
+30  Typical Endscraper
+31  Atypical Endscraper
+32  Typical Burin
+33  Atypical Burin
+34  Typical Percoir
+35  Atypical Percoir
+36  Typical Backed Knife
+37  Atypical Backed Knife
+38  Naturally Backed Knife
+39  Raclette
+40  Truncation
+41  Mousterian Tranchet
+42  Notch
+43  Denticulate
+44  Alternate Retouched Bec
+45  Flake with Irregular Retouch on Interior
+46-49   Flake with Abrupt and Alternating Retouch
+50  Bifacially Retouched Flake
+51  Tayac Point
+52  Notched Triangle
+53  Pseudo-microburin
+54  End-notched Flake
+55  Hachoir
+56  Rabot
+57  Stemmed Point
+58  Stemmed Tool
+59  Chopper
+60  Inverse Chopper
+61  Chopping-Tool
+62  Miscellaneous
+63  Bifacial Foliate
+64  Truncated-Facetted Piece
+65  Scraper on the Platform
+
