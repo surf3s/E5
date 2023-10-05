@@ -41,12 +41,15 @@ A Windows exe file can be found in the folder [Windows](https://github.com/surf3
 
 I have tested E5 on several Windows 10 machines, and it worked well (though in some instance some of the time it was slow to load and then this problem went away).  I doubt it works on Windows 7 and it almost certainly does not work on Windows XP.  If you have to use Windows XP (and you really, really shouldn't) or Windows 7 (and you really, really shouldn't) then I recommend using my previous software (E4 or Entrer Trois).
 
+If you know Python, you can also install the source code and run the program directly that way.
+
 ##### Mac OS
 
-These instructions are similar to what is required for Linux.  They have been tested on two separate computers.  Let me know if these instructions do not work.  I am not sure about python3-pip versus pip.  You may need to install pip instead of python3-pip with sudo apt install pip.  If python3 does not work, then try typing just python.  This will put you into python and tell you the version number.  Exit python with quit().  If the version is 3.0 or above, then you can replace python3 below with python.
+These instructions are similar to what is required for Linux.  Several things can vary.  Sometimes you type python to run Python and sometimes it is python3.  Just try them both.  You need one that gives you a version of Python of 3 or greater.  The same is true for pip.  Sometimes you use pip and sometimes pip3.  Again, just try it.  I think I would start in each case with python3 and pip3 and go from there.  If pip or pip3 do not work, you can try python3 -m pip instead of pip3 in the lines below.
 
 ```
-pip install e5 --user
+pip3 install --upgrade pip wheel setuptools
+pip3 install e5 --user
 python3 -m e5py
 ```
 
@@ -56,14 +59,45 @@ Works but I am still working on getting the code uploaded to the Google Play sto
 
 ##### Linux
 
-The following has been tested on clean installs of Ubuntu.  There may be some small differences in the code base from what it stored on GitHub and what is pulled from PyPi using pip, but I will try to maintain both equally.
+The following has been tested on clean installs of Ubuntu.  There may be some small differences in the code base from what it stored on GitHub and what is pulled from PyPi using pip, but I will try to maintain both equally.  As with the Mac OS instructions above, you may need to replace the initial pip command with pip3 or maybe with python -m pip.  And you may need to replace python with python3.
 
 ```
+pip install --upgrade pip wheel setuptools
 pip install e5
 python -m e5py
 ```
 
-##### Bug Fixes in Version 1.3 (June, 2022)
+I prefer to do installations in a virtual environment to avoid Python conflicts.  To this you can use the following.  Again, you may need to use python3 instead of python and pip3 instead of pip.  These instructions assume you are in your home directory.
+
+```
+mkdir e5
+cd e5
+python -m venv ./venv
+source venv/bin/activate
+pip install --upgrade pip wheel setuptools
+pip install e5
+python -m e5py
+```
+
+When you leave the virtual environment (either shutting down your computer or with the command source venv/bin/deactivate), you will need to reactivate your virtual environment before starting E5.  So navigate to your e5 folder again and do the following.
+
+```
+source venv/bin/activate
+python -m e5py
+```
+
+##### Bug Fixes 
+
+Version 1.3.12 (October, 2023)
+1.  Moved fixes done in EDM over to E5 (should resolve a Mac formatting issue as well)
+2.  Resolved a ton of data entry issues mostly related to keyboard entry
+
+Version 1.3.11
+1.  Brought in all changes made to EDMpy interface
+2.  Fixed issue with parsing conditions - matches starting with NOT did not work (e.g. NOTCH)
+3.  Put classes into separate files
+
+Version 1.3 (June, 2022)
 
 I finally had a chance to work on this and EDM.  The main effort here was to upgrade the program to Kivy 2.0 so that it would once again easily work across platforms.  This is done in the new version.  Additionally, I fixed a number of buys/annoyances including:
 1.  Delete key now works in addition to backspace

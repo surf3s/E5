@@ -34,10 +34,14 @@
 #  Fixed issue with parsing conditions - matches starting with NOT did not work (e.g. NOTCH)
 #  Put classes into separate files
 
+# Version 1.3.12
+#  Moved fixes done in EDM over to E5 (should resolve a Mac formatting issue as well)
+#  Resolved a ton of data entry issues mostly related to keyboard entry
+
 # TODO Need to fix ASAP conditions in e4 not comma delimited
 
-__version__ = '1.3.11'
-__date__ = 'May, 2023'
+__version__ = '1.3.12'
+__date__ = 'October, 2023'
 __program__ = 'E5'
 
 from kivy.config import Config
@@ -328,6 +332,7 @@ class MainScreen(e5_MainScreen):
 
         # mainscreen = self.get_widget_by_id('mainscreen')
         # inputbox.bind(minimum_height = inputbox.setter('height'))
+        # print(self.cfg.current_record)
 
         label = e5_label(text=self.cfg.current_field.prompt,
                             size_hint=(1, size_hints['field_label']),
@@ -380,7 +385,7 @@ class MainScreen(e5_MainScreen):
             self.mainscreen.add_widget(buttons)
 
         self.field_data.textbox.select_all()
-        self.event = Clock.schedule_once(self.field_data_set_focus, .2)
+        self.event = Clock.schedule_once(self.field_data_set_focus, .1)
 
     def field_data_set_focus(self, dt):
         self.field_data.textbox.focus = True
@@ -423,6 +428,7 @@ class MainScreen(e5_MainScreen):
                     if ascii_code == 13:
                         if self.cfg.filename:
                             self.go_next(None)
+                            return True
                         elif self.cfg_files:
                             self.cfg_selected(self.scroll_menu.scroll_menu_get_selected())
                     if ascii_code == 51:
@@ -462,6 +468,8 @@ class MainScreen(e5_MainScreen):
                 if not textbox.upper() == menubox.upper():
                     if textbox.upper() == menubox.upper()[0:len(textbox)]:
                         self.field_data.textbox.text = menubox
+                else:
+                    self.field_data.textbox.text = menubox
 
     def copy_from_gps_to_textbox(self):
         if self.cfg.current_field.inputtype in ['GPS']:
@@ -609,9 +617,8 @@ class MainScreen(e5_MainScreen):
         self.data_entry()
 
     def save_field(self):
-        widget = self.field_data.textbox
-        self.cfg.current_record[self.cfg.current_field.name] = widget.text
-        widget.text = ''
+        self.cfg.current_record[self.cfg.current_field.name] = self.field_data.textbox.text.replace('\n', '')
+        self.field_data.textbox.text = ''
 
     def go_back(self, *args):
         if self.cfg.filename:
@@ -791,10 +798,10 @@ class StatusScreen(e5_InfoScreen):
 
 class AboutScreen(e5_InfoScreen):
     def on_pre_enter(self):
-        self.content.text = '\n\nE5 by Shannon P. McPherron\n\nVersion ' + __version__ + ' Beta\nBlueberry Pie\n\n'
+        self.content.text = '\n\nE5 by Shannon P. McPherron\n\nVersion ' + __version__ + '\nCoconut Pie\n\n'
         self.content.text += 'Built on Python 3.8, Kivy 2.0.0, TinyDB 4.4.0 and Plyer 2.0.0\n\n'
         self.content.text += 'An OldStoneAge.Com Production\n\n' + __date__
-        self.content.text += '\n\nSpecial thanks to Marcel Weiss (debugging)\nand Jonathan Reeves (platform testing).\n\n'
+        self.content.text += '\n\nSpecial thanks to Marcel Weiss,\n Jonathan Reeves and Li Li.\n\n'
         self.content.halign = 'center'
         self.content.valign = 'middle'
         self.content.color = self.colors.text_color

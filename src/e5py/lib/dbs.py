@@ -12,16 +12,16 @@ class dbs():
     table = '_default'
     new_data = {}  # type: Dict[str, bool]
 
-    def __init__(self, filename = None, **kwargs):
+    def __init__(self, filename=None, **kwargs):
         if filename:
             self.filename = filename
             return self.open(self.filename)
 
-    def open(self, filename = ''):
+    def open(self, filename=''):
         if filename:
             self.filename = filename
             try:
-                self.db = TinyDB(self.filename, sort_keys = True, indent = 4, separators = (',', ': '))
+                self.db = TinyDB(self.filename, sort_keys=True, indent=4, separators=(',', ': '))
                 self.new_data[self.table] = True
                 return True
             except FileNotFoundError:
@@ -67,7 +67,7 @@ class dbs():
             txt = '\nA data file has not been opened.\n'
         return txt
 
-    def fields(self, tablename = ''):
+    def fields(self, tablename=''):
         fieldnames = []
         for row in self.db.table(tablename if tablename else self.table):
             for fieldname in row.keys():
@@ -93,10 +93,10 @@ class dbs():
         pass
 
     def delete(self, doc_id):
-        self.db.table(self.table).remove(doc_ids = [doc_id])
+        self.db.table(self.table).remove(doc_ids=[doc_id])
         self.new_data[self.table] = True
 
-    def delete_all(self, table_name = None):
+    def delete_all(self, table_name=None):
         if self.db is not None:
             if table_name is None:
                 self.db.drop_tables()
