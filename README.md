@@ -53,6 +53,12 @@ pip3 install e5 --user
 python3 -m e5py
 ```
 
+To upgrade E5, you should be able to do the following.  Sometimes this does not work for me, so check the version number once you upgrade.
+
+```
+pip install --upgrade e5
+```
+
 ##### Android
 
 Works but I am still working on getting the code uploaded to the Google Play store.
@@ -84,6 +90,12 @@ When you leave the virtual environment (either shutting down your computer or wi
 ```
 source venv/bin/activate
 python -m e5py
+```
+
+To upgrade E5, you should be able to do the following.  Sometimes this does not work for me, so check the version number once you upgrade.
+
+```
+pip install --upgrade e5
 ```
 
 ##### Bug Fixes 

@@ -38,9 +38,13 @@
 #  Moved fixes done in EDM over to E5 (should resolve a Mac formatting issue as well)
 #  Resolved a ton of data entry issues mostly related to keyboard entry
 
+# Version 1.3.13
+#   Fixed UNIQUE issue
+#   Fixed one glitch in enter key
+
 # TODO Need to fix ASAP conditions in e4 not comma delimited
 
-__version__ = '1.3.12'
+__version__ = '1.3.13'
 __date__ = 'October, 2023'
 __program__ = 'E5'
 
@@ -150,8 +154,6 @@ class MainScreen(e5_MainScreen):
         self.add_screens()
         restore_window_size_position(__program__, self.ini)
         self.if_camera_setup_camera()
-        if 'exit' in sys.argv:
-            self.exit_program()
 
     def setup_logger(self):
         logger = logging.getLogger(__name__)
@@ -453,7 +455,7 @@ class MainScreen(e5_MainScreen):
                     if ascii_code == 13:
                         self.close_popup(None)
                         self.widget_with_focus.focus = True
-                        return False
+                        return True
                     elif ascii_code in [275, 276]:
                         return False
                 return False  # return True to accept the key. Otherwise, it will be used by the system.
@@ -636,7 +638,7 @@ class MainScreen(e5_MainScreen):
         self.copy_from_menu_to_textbox()
         self.copy_from_gps_to_textbox()
         self.save_field()
-        valid_data = self.cfg.data_is_valid(db=self.data.db)
+        valid_data = self.cfg.data_is_valid(db=self.data.db.table(self.data.table))
         if valid_data is True:
             self.cfg.next()
             if self.cfg.EOF:
@@ -829,6 +831,8 @@ class E5App(App):
         sm.add_widget(MainScreen(name='MainScreen'))
         sm.current = 'MainScreen'
         self.title = __program__ + " " + __version__
+        if 'exit' in sys.argv:
+            self.stop()
         return sm
 
 

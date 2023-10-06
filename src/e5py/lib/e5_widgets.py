@@ -257,6 +257,7 @@ class e5_textinput_without_clear(TextInput):
             self.height = (height * 4 + self.border[0] + self.border[2]) * 1.2
         else:
             self.height = (height + self.border[0] + self.border[2]) * 1.2
+        self.multiline = multiline
 
     def do_coordinate_math(self, instance):
         if instance.text:
@@ -268,6 +269,8 @@ class e5_textinput_without_clear(TextInput):
     def insert_text(self, substring, from_undo=False):
         if self.text_length:
             s = '' if len(self.text) > self.text_length else substring
+        elif not self.multiline and substring == '\n':
+            s = ''
         else:
             s = substring
         return super().insert_text(s, from_undo=from_undo)
