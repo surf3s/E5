@@ -830,7 +830,6 @@ class e5_MainScreen(Screen):
             self.popup_open = True
             return
 
-
         if not table_name:
             message_text = '\n You are asking to delete all of the records in the current database table. Are you sure you want to do this?'
             self.delete_table = self.data.table
@@ -862,7 +861,7 @@ class e5_MainScreen(Screen):
             self.update_info_label()
 
     def show_save_csvs(self, *args):
-        if self.cfg.filename and self.data.filename:            
+        if self.cfg.filename and self.data.filename:
             self.csv_data_type = args[0].id.lower() if len(args) > 0 else self.data.table
             filename = ntpath.split(self.cfg.filename)[1].split(".")[0]
             filename = filename + "_" + self.csv_data_type + self.date_stamp() + '.csv'

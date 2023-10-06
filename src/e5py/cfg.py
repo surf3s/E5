@@ -5,7 +5,7 @@ from os import path
 import ntpath
 
 from plyer import gps
-from plyer import camera
+# from plyer import camera
 
 from e5py.lib.misc import locate_file
 

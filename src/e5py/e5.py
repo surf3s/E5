@@ -150,6 +150,8 @@ class MainScreen(e5_MainScreen):
         self.add_screens()
         restore_window_size_position(__program__, self.ini)
         self.if_camera_setup_camera()
+        if 'exit' in sys.argv:
+            self.exit_program()
 
     def setup_logger(self):
         logger = logging.getLogger(__name__)

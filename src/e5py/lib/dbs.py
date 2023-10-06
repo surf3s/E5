@@ -1,5 +1,4 @@
 from tinydb import TinyDB, where
-from typing import Dict
 import json
 from os import path
 
