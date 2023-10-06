@@ -100,6 +100,10 @@ pip install --upgrade e5
 
 ##### Bug Fixes 
 
+Version 1.3.13 (October, 2023)
+1.  Fixed issue with UNIQUE fields
+2.  Fixed another issue with the Enter key
+
 Version 1.3.12 (October, 2023)
 1.  Moved fixes done in EDM over to E5 (should resolve a Mac formatting issue as well)
 2.  Resolved a ton of data entry issues mostly related to keyboard entry
