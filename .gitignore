@@ -121,7 +121,9 @@ backup/
 /test*.*
 bin/
 /temp*.*
-test*.*
+test*.py
+test*.cfg
+test*.geojson
 temp*.*
 *.xml
 *.iml
