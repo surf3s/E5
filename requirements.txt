@@ -1,4 +1,4 @@
-kivy==2.0.0
+kivy>=2.0.0
 plyer==2.0.0
 tinydb==4.4.0
 pyenchant==3.2.2  # not needed but supresses a Kivy load error when present
