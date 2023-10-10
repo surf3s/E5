@@ -259,6 +259,8 @@ class cfg(blockdata):
         menulist = [item.strip() for item in menulist]
         # and remove empty items.
         menulist = list(filter(('').__ne__, menulist))
+        # remove duplicates
+        menulist = list(dict.fromkeys(menulist))
         return menulist
 
     def put(self, field_name, f):
@@ -435,7 +437,7 @@ class cfg(blockdata):
                         logger.info('GPS Errors in cfg.is_valid')
 
                 if f.inputtype == 'MENU' and (len(f.menu) == 0 and f.menufile == ''):
-                    self.errors.append('Error: The field %s is listed as a menu, but no menu list or menu file was provided with a MENU or MENUFILE option.' % field_name)
+                    self.errors.append(f'Error: The field {field_name} is listed as a menu, but no menu list or menu file was provided with a MENU or MENUFILE option.')
                     self.has_errors = True
 
                 if f.menufile:
@@ -446,7 +448,7 @@ class cfg(blockdata):
                         self.errors.append("Warning: Could not locate the menu file '%s' for the field %s." % (f.menufile, field_name))
 
                 if any((c in set(r' !@#$%^&*()?/\{}<.,.|+=~`')) for c in field_name):
-                    self.errors.append('Warning: The field %s has non-standard characters in it.  E5 will attempt to work with it, but it is highly recommended that you rename it as it will likely cause problems elsewhere.' % field_name)
+                    self.errors.append(f'Warning: The field {field_name} has non-standard characters in it.  E5 will attempt to work with it, but it is highly recommended that you rename it as it will likely cause problems elsewhere.')
                     self.has_warnings = True
 
                 if len(f.conditions) > 0:

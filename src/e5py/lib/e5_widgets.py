@@ -394,17 +394,20 @@ class e5_scrollview_menu(ScrollView):
     def __init__(self, menu_list, menu_selected, widget_id='', call_back=[None], ncols=1, colors=None, **kwargs):
         super(e5_scrollview_menu, self).__init__(**kwargs)
         self.colors = colors
-        self.scrollbox = GridLayout(cols=ncols,
-                                    size_hint_y=None,
-                                    spacing=5)
+        self.scrollbox = GridLayout(cols=ncols, size_hint_y=None, spacing=5)
         self.scrollbox.bind(minimum_height=self.scrollbox.setter('height'))
 
         self.menu_selected_widget = None
         if menu_list:
             if len(call_back) == 1:
                 call_back = call_back * len(menu_list)
+            instance = Text(text='Test', font_size=23)
+            width, base_height = instance.render()
+            instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+            width, font_height = instance.render()
+            height = int(100 * (font_height / base_height))
             for menu_item in menu_list:
-                menu_button = e5_button(menu_item, menu_item,
+                menu_button = e5_button(menu_item, menu_item, height=height,
                                         selected=(menu_item == menu_selected),
                                         call_back=call_back[menu_list.index(menu_item)],
                                         colors=colors)

@@ -42,9 +42,14 @@
 #   Fixed UNIQUE issue
 #   Fixed one glitch in enter key
 
+# Version 1.3.14
+#   Fixed button sizing issues to work better on a variety of computers
+#   In menus, button height now tied to font size for button text
+#   In menus, number of menu columns tied to longest menu item and font size
+
 # TODO Need to fix ASAP conditions in e4 not comma delimited
 
-__version__ = '1.3.13'
+__version__ = '1.3.14'
 __date__ = 'October, 2023'
 __program__ = 'E5'
 
@@ -64,6 +69,7 @@ from kivy.properties import StringProperty, ObjectProperty
 from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
 from kivy.core.window import Window
+from kivy.core.text import Text
 from kivy import __version__ as __kivy_version__
 
 # The explicit mention of this package here
@@ -392,6 +398,8 @@ class MainScreen(e5_MainScreen):
         self.event = Clock.schedule_once(self.field_data_set_focus, .1)
 
     def field_data_set_focus(self, dt):
+        if self.cfg.current_field.inputtype in ['BOOLEAN', 'MENU']:
+            self.scroll_content.children[0].children[0].cols = self.calc_column_count(self.scroll_content)
         self.field_data.textbox.focus = True
         self.field_data.textbox.select_all()
 
@@ -533,11 +541,7 @@ class MainScreen(e5_MainScreen):
                 if not selected_menu and menu_list:
                     selected_menu = menu_list[0]
 
-                if platform_name() == 'Android':
-                    ncols = 1 if info_exists else 2
-                else:
-                    ncols = int(content_area.width / 400) if info_exists else int(content_area.width / 200)
-                    ncols = max(ncols, 1)
+                ncols = self.calc_column_count(content_area)
 
                 self.scroll_menu = e5_scrollview_menu(menu_list,
                                                            selected_menu,
@@ -549,6 +553,27 @@ class MainScreen(e5_MainScreen):
 
             if info_exists:
                 content_area.add_widget(e5_scrollview_label(self.get_info(), colors=self.colors))
+
+    def calc_longest_menu_item(self):
+        maxlen = 5
+        for item in self.cfg.current_field.menu:
+            if len(item) > maxlen:
+                maxlen = len(item)
+        maxlen = min(maxlen, 30)
+        return maxlen
+
+    def calc_column_count(self, content_area):
+        instance = Text(text=self.calc_longest_menu_item() * '#' + '  ', font_size=self.colors.button_font_size.replace("sp", '') if self.colors.button_font_size else None)
+        width, height = instance.render()
+        width = min(content_area.width, width)
+
+        info_exists = self.cfg.current_field.info or self.cfg.current_field.infofile
+        if platform_name() == 'Android':
+            ncols = 1 if info_exists else 2
+        else:
+            ncols = int(content_area.width / (width * 2)) if info_exists else int(content_area.width / width)
+            ncols = max(ncols, 1)
+        return ncols
 
     def gps_manage(self, value):
         logger = logging.getLogger(__name__)
