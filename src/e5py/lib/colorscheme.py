@@ -3,6 +3,8 @@ from e5py.lib.misc import platform_name
 
 BLACK = 0x000000
 WHITE = 0xFFFFFF
+MIDDLE_GREY = (.5, .5, .5, 1)
+DARK_GREY = (.2, .2, .2, 1)
 
 # Color from Google material design
 # https://material.io/design/color/the-color-system.html#tools-for-picking-colors
@@ -26,15 +28,15 @@ GOOGLE_COLORS = {'red': [0xFF8A80, BLACK, 0xFF1744, WHITE],
 
 
 def make_rgb(hex_color):
-    return([((hex_color >> 16) & 0xFF) / 255.0,
+    return [((hex_color >> 16) & 0xFF) / 255.0,
             ((hex_color >> 8) & 0xFF) / 255.0,
             (hex_color & 0xFF) / 255.0,
-            1])
+            1]
 
 
 class ColorScheme:
 
-    def __init__(self, color_name = 'light blue'):
+    def __init__(self, color_name='light blue'):
 
         if platform_name() == 'Android':
             self.optionbutton_font_size = "10sp"
@@ -48,7 +50,7 @@ class ColorScheme:
             self.datagrid_font_size = "15sp"
         else:
             self.optionbutton_font_size = None
-            self.button_font_size = '23sp'
+            self.button_font_size = '23'
             self.text_font_size = None
             self.datagrid_font_size = None
 
@@ -91,7 +93,7 @@ class ColorScheme:
         Window.clearcolor = self.window_background
 
     def color_names(self):
-        return(list(self.valid_colors.keys()))
+        return list(self.valid_colors.keys())
 
     def set_to(self, name):
         self.need_redraw = True
@@ -102,4 +104,4 @@ class ColorScheme:
             self.button_color = make_rgb(self.valid_colors[name][3])
             self.color_scheme = name
         else:
-            return('Error: %s is not a valid color scheme.' % (name))
+            return f'Error: {name} is not a valid color scheme.'

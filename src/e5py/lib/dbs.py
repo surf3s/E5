@@ -1,10 +1,9 @@
 from tinydb import TinyDB, where
-from typing import Dict
 import json
 from os import path
 
 
-class dbs:
+class dbs():
 
     db = None
     filename = None
@@ -12,24 +11,27 @@ class dbs:
     table = '_default'
     new_data = {}  # type: Dict[str, bool]
 
-    def __init__(self, filename = None):
+    def __init__(self, filename=None, **kwargs):
         if filename:
             self.filename = filename
+            return self.open(self.filename)
 
-    def open(self, filename = ''):
+    def open(self, filename=''):
         if filename:
             self.filename = filename
-        try:
-            self.db = TinyDB(self.filename)
-            self.new_data[self.table] = True
-        except FileNotFoundError:
-            self.db = None
-            self.filename = ''
+            try:
+                self.db = TinyDB(self.filename, sort_keys=True, indent=4, separators=(',', ': '))
+                self.new_data[self.table] = True
+                return True
+            except FileNotFoundError:
+                self.db = None
+                self.filename = ''
+        return False
 
     def valid_format(self, filename):
         try:
             if path.getsize(filename) == 0:
-                return(True)
+                return True
             with open(filename) as f:
                 json.load(f)
             return True
@@ -62,26 +64,26 @@ class dbs:
                 txt += 'The data file is empty or has not been initialized.\n'
         else:
             txt = '\nA data file has not been opened.\n'
-        return(txt)
+        return txt
 
-    def fields(self, tablename = ''):
+    def fields(self, tablename=''):
         fieldnames = []
         for row in self.db.table(tablename if tablename else self.table):
             for fieldname in row.keys():
                 if fieldname not in fieldnames:
                     fieldnames.append(fieldname)
-        return(fieldnames)
+        return fieldnames
 
     def save(self, data_record):
         self.db.table(self.table).insert(data_record)
         self.new_data[self.table] = True
-        return(True)
+        return True
 
     # def __len__(self):
     #    return(len(self.db) if self.db else 0)
 
     def names(self, fieldname):
-        return([row[fieldname] for row in self.db.table(self.table)])
+        return [row[fieldname] for row in self.db.table(self.table)]
 
     def replace(self, data_record):
         pass
@@ -90,10 +92,10 @@ class dbs:
         pass
 
     def delete(self, doc_id):
-        self.db.table(self.table).remove(doc_ids = [doc_id])
+        self.db.table(self.table).remove(doc_ids=[doc_id])
         self.new_data[self.table] = True
 
-    def delete_all(self, table_name = None):
+    def delete_all(self, table_name=None):
         if self.db is not None:
             if table_name is None:
                 self.db.drop_tables()
@@ -104,16 +106,16 @@ class dbs:
         unit, idno = name.split('-')
         p = self.db.table(self.table).search((where('unit') == unit.strip()) & (where('id') == idno.strip()))
         if p:
-            return(p)
+            return p
         else:
-            return(None)
+            return None
 
     def last_record(self):
         try:
             last = self.db.table(self.table).all()[-1]
         except (IndexError, AttributeError):
             last = None
-        return(last)
+        return last
 
     def doc_ids(self):
-        return([r.doc_id for r in self.db.table(self.table).all()])
+        return [r.doc_id for r in self.db.table(self.table).all()]

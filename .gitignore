@@ -115,14 +115,15 @@ dmypy.json
 
 # My stuff
 *.json
-*.txt
 backup/
 *.pptx
 *.apk
 /test*.*
 bin/
 /temp*.*
-test*.*
+test*.py
+test*.cfg
+test*.geojson
 temp*.*
 *.xml
 *.iml
@@ -137,3 +138,4 @@ CFGs/PechIV_L8_20220720_teeth.cfg
 CFGs/pivl8_stratigraphy.cfg
 CFGs/pivl8_stratigraphy.cfg
 CFGs/pivl8_stratigraphy.cfg
+CFGs/gk_fauna.cfg
