@@ -50,7 +50,7 @@ class ColorScheme:
             self.datagrid_font_size = "15sp"
         else:
             self.optionbutton_font_size = None
-            self.button_font_size = '23'
+            self.button_font_size = '20sp'
             self.text_font_size = None
             self.datagrid_font_size = None
 

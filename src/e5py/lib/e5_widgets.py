@@ -96,7 +96,7 @@ class e5_PopUpMenu(Popup):
         pop_content.add_widget(menu)
         menu.make_scroll_menu_item_visible()
 
-        pop_content.add_widget(e5_button('Back', selected=True,
+        pop_content.add_widget(e5_button('Back', selected=True, height=self.calc_button_height(),
                                                  call_back=self.dismiss,
                                                  colors=colors))
 
@@ -104,6 +104,14 @@ class e5_PopUpMenu(Popup):
         self.title = title
         self.size_hint = (.9, .9)
         self.auto_dismiss = True
+
+    def calc_button_height(self):
+        instance = Text(text='Test', font_size=28)
+        width, base_height = instance.render()
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        width, font_height = instance.render()
+        height = int(100 * (font_height / base_height))
+        return height
 
 
 class db_filter(Popup):
@@ -353,7 +361,7 @@ class e5_side_by_side_buttons(GridLayout):
             self.add_widget(e5_button(text[i],
                             id=id[i],
                             selected=selected[i], call_back=call_back[i],
-                            button_height=button_height, colors=colors))
+                            button_height=button_height, colors=colors, **kwargs))
 
 
 class e5_button(FocusBehavior, Button):
@@ -401,11 +409,8 @@ class e5_scrollview_menu(ScrollView):
         if menu_list:
             if len(call_back) == 1:
                 call_back = call_back * len(menu_list)
-            instance = Text(text='Test', font_size=23)
-            width, base_height = instance.render()
-            instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
-            width, font_height = instance.render()
-            height = int(100 * (font_height / base_height))
+
+            height = self.calc_button_height()
             for menu_item in menu_list:
                 menu_button = e5_button(menu_item, menu_item, height=height,
                                         selected=(menu_item == menu_selected),
@@ -421,6 +426,14 @@ class e5_scrollview_menu(ScrollView):
         self.size_hint = (1, 1)
         self.id = widget_id + '_scroll'
         self.add_widget(self.scrollbox)
+
+    def calc_button_height(self):
+        instance = Text(text='Test', font_size=28)
+        width, base_height = instance.render()
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        width, font_height = instance.render()
+        height = int(100 * (font_height / base_height))
+        return height
 
     def set_text_width(self, instance, value):
         instance.text_size = (instance.width, None)
@@ -541,6 +554,7 @@ class e5_MainScreen(Screen):
     text_color = (0, 0, 0, 1)
     title = APP_NAME
     app_paths = AppDataPaths(APP_NAME)
+    menu_height = .1
 
     def setup_program(self):
         warnings, errors = [], []
@@ -874,7 +888,8 @@ class e5_MainScreen(Screen):
             content = e5_SaveDialog(filename=filename,
                                     start_path=self.cfg.path,
                                     save=self.save_csvs,
-                                    cancel=self.dismiss_popup)
+                                    cancel=self.dismiss_popup,
+                                    colors=self.colors)
             self.popup = Popup(title="Export CSV file",
                                 content=content,
                                 size_hint=(0.9, 0.9))
@@ -1072,7 +1087,7 @@ class e5_SettingsScreen(Screen):
 
         button_font_size = GridLayout(cols=2, size_hint_y=.1, spacing=5, padding=5)
         button_font_size_value = int(self.colors.button_font_size.replace("sp", '')) if self.colors.button_font_size else 12
-        self.button_font_size_label = e5_label('Button font\nsize is %s' % button_font_size_value,
+        self.button_font_size_label = e5_label('Button size is %s' % button_font_size_value,
                                                 id='label_font_size',
                                                 colors=self.colors)
         self.labels.append(self.button_font_size_label)
@@ -1094,10 +1109,18 @@ class e5_SettingsScreen(Screen):
         scrollview.add_widget(layout)
         settings_layout.add_widget(scrollview)
 
-        self.back_button = e5_button('Back', selected=True, call_back=self.go_back, colors=self.colors)
+        self.back_button = e5_button('Back', selected=True, call_back=self.go_back, colors=self.colors, height=self.calc_button_height())
         self.buttons.append(self.back_button)
         settings_layout.add_widget(self.back_button)
         self.add_widget(settings_layout)
+
+    def calc_button_height(self):
+        instance = Text(text='Test', font_size=28)
+        width, base_height = instance.render()
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        width, font_height = instance.render()
+        height = int(100 * (font_height / base_height))
+        return height
 
     def update_text_font_size(self, intance, value):
         self.text_font_size_label.text = 'Text font size is %s' % int(value)
@@ -1105,7 +1128,7 @@ class e5_SettingsScreen(Screen):
         self.refresh_screen()
 
     def update_button_font_size(self, intance, value):
-        self.button_font_size_label.text = 'Button font size is %s' % int(value)
+        self.button_font_size_label.text = 'Button size is %s' % int(value)
         self.colors.button_font_size = '%ssp' % value
         self.refresh_screen()
 
@@ -1129,10 +1152,19 @@ class e5_SettingsScreen(Screen):
     def refresh_screen(self):
         for widget in self.buttons:
             widget.font_size = self.colors.button_font_size
+            widget.height = self.calc_button_height()
         for widget in self.labels:
             widget.font_size = self.colors.text_font_size
 
     def go_back(self, instance):
+        self.popup = e5_MessageBox('E5', '\n Note that some changes to colors and size will not take effect until the program is restarted.',
+                                    call_back=self.dismiss_popup,
+                                    colors=self.colors)
+        self.popup.open()
+        self.popup_open = True
+
+    def dismiss_popup(self, *args):
+        self.popup.dismiss()
         self.ini.update(self.colors, self.cfg)
         self.parent.current = 'MainScreen'
 
@@ -1146,7 +1178,7 @@ class e5_InfoScreen(Screen):
         self.colors = colors if colors else ColorScheme()
         layout = GridLayout(cols=1, size_hint_y=1, spacing=5, padding=5)
         layout.add_widget(e5_scrollview_label(text='', widget_id='content', colors=self.colors))
-        layout.add_widget(e5_side_by_side_buttons(['Back', 'Copy'],
+        layout.add_widget(e5_side_by_side_buttons(['Back', 'Copy'], height=self.calc_button_height(),
                                                     id=['back_button', 'copy_button'],
                                                     selected=[False, False],
                                                     call_back=[self.go_back, self.copy],
@@ -1164,6 +1196,14 @@ class e5_InfoScreen(Screen):
 
     def copy(self, instance):
         Clipboard.copy(self.content.text)
+
+    def calc_button_height(self):
+        instance = Text(text='Test', font_size=28)
+        width, base_height = instance.render()
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        width, font_height = instance.render()
+        height = int(100 * (font_height / base_height))
+        return height
 
 
 class e5_JSONScreen(e5_InfoScreen):
@@ -1251,6 +1291,7 @@ class e5_LoadDialog(FloatLayout):
     button_background = ObjectProperty(None)
     filters = ObjectProperty(['*.cfg', '*.CFG'])
     font_size = ObjectProperty(None)
+    button_height = ObjectProperty(None)
 
 
 class e5_SaveDialog(BoxLayout):
@@ -1279,14 +1320,24 @@ class e5_SaveDialog(BoxLayout):
         self.txt.bind(minimum_height=self.txt.setter('height'))
         content.add_widget(self.txt)
 
+        button_height = self.calc_button_height()
         content.add_widget(e5_side_by_side_buttons(text=['Cancel', 'Save'],
                                                     id=['cancel', 'save'],
                                                     call_back=[self.cancel, self.does_file_exist],
                                                     selected=[True, True],
-                                                    colors=self.colors))
+                                                    colors=self.colors,
+                                                    button_height=button_height))
 
         self.add_widget(content)
         self.path = self.start_path
+
+    def calc_button_height(self):
+        instance = Text(text='Test', font_size=28)
+        width, base_height = instance.render()
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        width, font_height = instance.render()
+        height = .2 * (font_height / base_height)
+        return height
 
     def update_filename(self, instance, value):
         self.filename = value
@@ -1372,18 +1423,19 @@ class e5_RecordEditScreen(Screen):
         scroll = ScrollView(size_hint=(1, 1))
         scroll.add_widget(self.data_fields)
         self.layout.add_widget(scroll)
+        button_height = self.calc_button_height()
         if not self.one_record_only:
             self.layout.add_widget(e5_side_by_side_buttons(text=['First', 'Previous', 'Next', 'Last'],
                                                             id=['first', 'previous', 'next', 'last'],
                                                             call_back=[self.first_record, self.previous_record,
                                                                          self.next_record, self.last_record],
                                                             selected=[True, True, True, True],
-                                                            colors=self.colors))
+                                                            colors=self.colors, height=button_height))
             back_and_filter = e5_side_by_side_buttons(text=['Back', 'Save', 'Filter'],
                                                             id=['back', 'save', 'filter'],
                                                             call_back=[self.call_back, self.save_record, self.filter],
                                                             selected=[True, True, True],
-                                                            colors=self.colors)
+                                                            colors=self.colors, height=button_height)
             self.filter_button = back_and_filter.children[0]
             self.layout.add_widget(back_and_filter)
         else:
@@ -1391,11 +1443,19 @@ class e5_RecordEditScreen(Screen):
                                                             id=['cancel', 'save'],
                                                             call_back=[self.cancel_record, self.save_record_and_exit],
                                                             selected=[True, True],
-                                                            colors=self.colors))
+                                                            colors=self.colors, height=button_height))
 
         self.add_widget(self.layout)
         self.filter_field = 'Unit-ID'
         self.loading = True
+
+    def calc_button_height(self):
+        instance = Text(text='Test', font_size=28)
+        width, base_height = instance.render()
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        width, font_height = instance.render()
+        height = int(100 * (font_height / base_height))
+        return height
 
     def on_pre_enter(self):
         self.loading = True
@@ -2044,11 +2104,12 @@ class e5_MessageBox(Popup):
         contents = GridLayout(cols=1, spacing=5)
         self.txt = e5_scrollview_label(message, popup=True, colors=self.colors)
         contents.add_widget(self.txt)
+        button_height = self.calc_button_height()
         if self.response_type == 'OK':
             self.widget_with_focus = e5_button('OK',
                                                 call_back=self.call_back,
                                                 selected=True,
-                                                button_height=.2,
+                                                button_height=button_height,
                                                 colors=self.colors)
             self.widget_with_focus.bind(on_key_up=self.keystroke)
             contents.add_widget(self.widget_with_focus)
@@ -2056,27 +2117,35 @@ class e5_MessageBox(Popup):
             contents.add_widget(e5_button('CANCEL',
                                                 call_back=self.call_back,
                                                 selected=True,
-                                                button_height=.2,
+                                                button_height=button_height,
                                                 colors=self.colors))
         elif self.response_type == 'YESNO':
             contents.add_widget(e5_side_by_side_buttons(text=['Yes', 'No'],
                                                                 call_back=self.call_back,
                                                                 selected=[False, False],
-                                                                button_height=.2,
+                                                                button_height=button_height,
                                                                 colors=self.colors))
         elif self.response_type == 'YESNOCANCEL':
             contents.add_widget(e5_side_by_side_buttons(text=['Yes', 'No', 'Cancel'],
                                                                 call_back=self.call_back,
                                                                 selected=[True, True, True],
-                                                                button_height=.2,
+                                                                button_height=button_height,
                                                                 colors=self.colors))
         else:
             contents.add_widget(e5_side_by_side_buttons(text=self.response_text,
                                                                 call_back=self.call_back,
                                                                 selected=[True, True],
-                                                                button_height=.2,
+                                                                button_height=button_height,
                                                                 colors=self.colors))
         return contents
+
+    def calc_button_height(self):
+        instance = Text(text='Test', font_size=28)
+        width, base_height = instance.render()
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        width, font_height = instance.render()
+        height = .2 * (font_height / base_height)
+        return height
 
     def refresh_text(self, text):
         self.content = self.build_contents(text)
@@ -2905,6 +2974,8 @@ class DataGridMenuList(Popup):
     def __init__(self, title, menu_list, menu_selected='', call_back=None, colors=None, text_length=0, **kwargs):
         super(DataGridMenuList, self).__init__(**kwargs)
 
+        self.colors = colors if colors else ColorScheme()
+        button_height = self.calc_button_height()
         pop_content = GridLayout(cols=1, size_hint_y=1, spacing=5, padding=5)
 
         new_item = GridLayout(cols=2, spacing=5, size_hint_y=None)
@@ -2941,6 +3012,7 @@ class DataGridMenuList(Popup):
 
         pop_content.add_widget(e5_button('Back', selected=True,
                                                  call_back=self.dismiss,
+                                                 button_height=button_height,
                                                  colors=colors))
 
         self.content = pop_content
@@ -2949,6 +3021,14 @@ class DataGridMenuList(Popup):
         self.size_hint = (.9, .9 if menu_list else .33)
         self.auto_dismiss = True
         self.call_back = call_back
+
+    def calc_button_height(self):
+        instance = Text(text='Test', font_size=28)
+        width, base_height = instance.render()
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        width, font_height = instance.render()
+        height = .2 * (font_height / base_height)
+        return height
 
     def on_open(self):
         self.txt.textbox.focus = True
@@ -3014,8 +3094,10 @@ class DataGridTextBox(Popup):
         self.txt.textbox.bind(text=self.update)
         self.txt.textbox.bind(on_text_validate=self.accept_value)
         content.add_widget(self.txt)
+        button_height = self.calc_button_height()
+        # button_height = 80
         buttons = e5_side_by_side_buttons(button_text,
-                                            button_height=None,
+                                            # button_height=.5,
                                             id=[title, 'add_button'],
                                             selected=[True, True],
                                             call_back=[self.dismiss, call_back],
@@ -3033,10 +3115,18 @@ class DataGridTextBox(Popup):
 
         self.event = Clock.schedule_once(self.set_focus, .35)
 
+    def calc_button_height(self):
+        instance = Text(text='Test', font_size=28)
+        width, base_height = instance.render()
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        width, font_height = instance.render()
+        height = .2 * (font_height / base_height)
+        return height
+
     def fix_height(self, *args):
         instance = Text(text=self.title, font_size=self.title_size)
         width, height = instance.render()
-        self.height = self.content.minimum_height + height + 40
+        self.height = self.content.minimum_height + height + 60
 
     def set_focus(self, instance):
         self.txt.textbox.focus = True
@@ -3113,6 +3203,7 @@ class DataGridTableData(RecycleView):
 
         self.data = []
         black = make_rgb(BLACK)
+        button_height = self.calc_button_height()
         if len(list_dicts) == 1:
             # This is a hack to deal with a Kivy but where the grid does not display if there is
             # only one row.  So the solution is to insert a dummy row.
@@ -3126,6 +3217,7 @@ class DataGridTableData(RecycleView):
                                     'id': 'datacell',
                                     'datagrid_even': self.colors.datagrid_even,
                                     'datagrid_odd': self.colors.datagrid_odd,
+                                    'height': button_height,
                                     'color': black})
         for i, ord_dict in enumerate(list_dicts):
             is_even = i % 2 == 0
@@ -3140,10 +3232,19 @@ class DataGridTableData(RecycleView):
                             'id': 'datacell',
                             'datagrid_even': self.colors.datagrid_even,
                             'datagrid_odd': self.colors.datagrid_odd,
+                            'height': button_height,
                             'color': black}
                 if self.colors.datagrid_font_size:
                     content['font_size'] = self.colors.datagrid_font_size
                 self.data.append(content)
+
+    def calc_button_height(self):
+        instance = Text(text='Test', font_size=28)
+        width, base_height = instance.render()
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        width, font_height = instance.render()
+        height = int(100 * (font_height / base_height))
+        return height
 
     def is_numeric(self, value):
         try:
@@ -3324,7 +3425,8 @@ class DataGridCasePanel(BoxLayout):
                 label_and_text.txt.textbox.bind(text=self.changes)
             self.add_widget(e5_side_by_side_buttons(text=['Revert', 'Save'],
                                                     call_back=[revert, call_back],
-                                                    colors=self.colors))
+                                                    colors=self.colors,
+                                                    button_height=self.calc_button_height()))
         self.changed = False
 
     def next_field(self, instance):
@@ -3332,6 +3434,14 @@ class DataGridCasePanel(BoxLayout):
 
     def changes(self, instance, value):
         self.changed = True
+
+    def calc_button_height(self):
+        instance = Text(text='Test', font_size=28)
+        width, base_height = instance.render()
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        width, font_height = instance.render()
+        height = .2 * (font_height / base_height)
+        return height
 
 
 class DataGridLabelAndProgressBar(BoxLayout):
@@ -3419,11 +3529,19 @@ class DataGridDeletePanel(GridLayout):
         self.spacing = 5
         if message is not None:
             self.add_widget(e5_scrollview_label(message, popup=False, colors=self.colors))
-            self.add_widget(e5_button('Delete', id='delete', selected=True, call_back=call_back, colors=self.colors))
+            self.add_widget(e5_button('Delete', id='delete', selected=True, call_back=call_back, colors=self.colors, button_height=self.calc_button_height()))
         else:
             self.add_widget(e5_scrollview_label('\nHighlight a record in the grid view (data tab) by clicking on its doc_id, '
                                                 'and then delete that record here.',
                                                 popup=False, colors=self.colors))
+
+    def calc_button_height(self):
+        instance = Text(text='Test', font_size=28)
+        width, base_height = instance.render()
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        width, font_height = instance.render()
+        height = .2 * (font_height / base_height)
+        return height
 
 
 class DataGridAddNewPanel(GridLayout):

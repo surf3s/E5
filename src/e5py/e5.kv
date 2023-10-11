@@ -7,7 +7,7 @@
         orientation: 'vertical'
         BoxLayout:
             ActionView:
-                size_hint_y : .1
+                size_hint_y : root.menu_height
                 use_separator: True
                 pos_hint: {'top':1}
                 background_color: (.5, .5, .5, 1)
@@ -137,12 +137,14 @@
                 color: root.button_color
                 background_color: root.button_background
                 background_normal: ''
+                size_hint_y: root.button_height
             Button:
                 text: "Open"
                 on_release: root.load(filechooser.path, filechooser.selection)
                 color: root.button_color
                 background_color: root.button_background
                 background_normal: ''
+                size_hint_y: root.button_height
 
 #region code from https://github.com/MichaelStott/DataframeGUIKivy/blob/master/dfguik.py
 

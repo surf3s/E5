@@ -100,6 +100,15 @@ pip install --upgrade e5
 
 ##### Bug Fixes 
 
+Version 1.3.15 (October, 2023)
+1.  A lot more fixes to button and font sizing throughout (though some issues remain)
+2.  Warning on settings changes that restart is required.
+
+Version 1.3.14 (October, 2023)
+1.  Fixed button sizing issues to work better on a variety of computers
+2.  In menus, button height now tied to font size for button text
+3.  In menus, number of menu columns tied to longest menu item and font size
+
 Version 1.3.13 (October, 2023)
 1.  Fixed issue with UNIQUE fields
 2.  Fixed another issue with the Enter key

@@ -47,9 +47,14 @@
 #   In menus, button height now tied to font size for button text
 #   In menus, number of menu columns tied to longest menu item and font size
 
+# Version 1.3.15
+#   A lot more fixes to button and font sizing throughout (though some issues remain)
+#   Warning on settings changes that restart is required.
+
+
 # TODO Need to fix ASAP conditions in e4 not comma delimited
 
-__version__ = '1.3.14'
+__version__ = '1.3.15'
 __date__ = 'October, 2023'
 __program__ = 'E5'
 
@@ -160,6 +165,7 @@ class MainScreen(e5_MainScreen):
         self.add_screens()
         restore_window_size_position(__program__, self.ini)
         self.if_camera_setup_camera()
+        self.children[1].children[0].children[0].size_hint_y = self.calc_menu_height()
 
     def setup_logger(self):
         logger = logging.getLogger(__name__)
@@ -329,6 +335,9 @@ class MainScreen(e5_MainScreen):
 
     def data_entry(self):
 
+        button_height = self.calc_button_height()
+        button_height_ratio = min(.08, .2 * button_height / 100)
+        scroll_content_ratio = .8 - button_height_ratio
         if platform_name() == 'Android':
             size_hints = {'field_label': .13,
                             'field_input': .07 if not self.cfg.current_field.inputtype == 'NOTE' else .07 * 5,
@@ -337,8 +346,8 @@ class MainScreen(e5_MainScreen):
         else:
             size_hints = {'field_label': .13,
                             'field_input': .07 if not self.cfg.current_field.inputtype == 'NOTE' else .07 * 5,
-                            'scroll_content': .6 if not self.cfg.current_field.inputtype == 'NOTE' else .6 - .07 * 4,
-                            'prev_next_buttons': .2}
+                            'scroll_content': scroll_content_ratio if not self.cfg.current_field.inputtype == 'NOTE' else scroll_content_ratio - .07 * 4,
+                            'prev_next_buttons': button_height_ratio}
 
         # mainscreen = self.get_widget_by_id('mainscreen')
         # inputbox.bind(minimum_height = inputbox.setter('height'))
@@ -381,10 +390,10 @@ class MainScreen(e5_MainScreen):
 
         buttons = GridLayout(cols=2, size_hint=(1, size_hints['prev_next_buttons']), spacing=20)
 
-        buttons.add_widget(e5_button('Back', id='back', selected=True,
+        buttons.add_widget(e5_button('Back', id='back', selected=True, height=button_height,
                                      call_back=self.go_back, colors=self.colors))
 
-        buttons.add_widget(e5_button('Next', id='next', selected=True,
+        buttons.add_widget(e5_button('Next', id='next', selected=True, height=button_height,
                                      call_back=self.go_next, colors=self.colors))
 
         if platform_name() == 'Android':
@@ -396,6 +405,22 @@ class MainScreen(e5_MainScreen):
 
         self.field_data.textbox.select_all()
         self.event = Clock.schedule_once(self.field_data_set_focus, .1)
+
+    def calc_button_height(self):
+        instance = Text(text='Test', font_size=28)
+        width, base_height = instance.render()
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        width, font_height = instance.render()
+        height = int(100 * (font_height / base_height))
+        return height
+
+    def calc_menu_height(self):
+        instance = Text(text='Test', font_size=28)
+        width, base_height = instance.render()
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        width, font_height = instance.render()
+        height = .15 * (font_height / base_height)
+        return height
 
     def field_data_set_focus(self, dt):
         if self.cfg.current_field.inputtype in ['BOOLEAN', 'MENU']:
@@ -563,7 +588,7 @@ class MainScreen(e5_MainScreen):
         return maxlen
 
     def calc_column_count(self, content_area):
-        instance = Text(text=self.calc_longest_menu_item() * '#' + '  ', font_size=self.colors.button_font_size.replace("sp", '') if self.colors.button_font_size else None)
+        instance = Text(text='#' * self.calc_longest_menu_item() + ' ' * 3, font_size=self.colors.button_font_size.replace("sp", '') if self.colors.button_font_size else None)
         width, height = instance.render()
         width = min(content_area.width, width)
 
@@ -632,7 +657,8 @@ class MainScreen(e5_MainScreen):
                                 cancel=self.dismiss_popup,
                                 start_path=start_path,
                                 button_color=self.colors.button_color,
-                                button_background=self.colors.button_background)
+                                button_background=self.colors.button_background,
+                                button_height=self.calc_button_height() / 100)
         self.popup = Popup(title="Load CFG file", content=content,
                             size_hint=(0.9, 0.9))
         self.popup.open()
