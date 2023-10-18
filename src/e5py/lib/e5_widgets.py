@@ -36,12 +36,13 @@ import urllib
 import random
 import string
 from threading import Thread
-from appdata import AppDataPaths
+# from appdata import AppDataPaths
+from platformdirs import *
 
-from e5py.lib.constants import __SPLASH_HELP__
-from e5py.lib.constants import APP_NAME
-from e5py.lib.colorscheme import ColorScheme, make_rgb, BLACK, WHITE, GOOGLE_COLORS, MIDDLE_GREY, DARK_GREY
-from e5py.lib.misc import platform_name, locate_file
+from constants import __SPLASH_HELP__
+from constants import APP_NAME
+from colorscheme import ColorScheme, make_rgb, BLACK, WHITE, GOOGLE_COLORS, MIDDLE_GREY, DARK_GREY
+from misc import platform_name, locate_file
 
 
 SCROLLBAR_WIDTH = 5
@@ -402,6 +403,8 @@ class e5_scrollview_menu(ScrollView):
     def __init__(self, menu_list, menu_selected, widget_id='', call_back=[None], ncols=1, colors=None, **kwargs):
         super(e5_scrollview_menu, self).__init__(**kwargs)
         self.colors = colors
+        self.scroll_type = ['bars', 'content']
+        self.effect_cls = 'ScrollEffect'
         self.scrollbox = GridLayout(cols=ncols, size_hint_y=None, spacing=5)
         self.scrollbox.bind(minimum_height=self.scrollbox.setter('height'))
 
@@ -521,6 +524,8 @@ class e5_scrollview_label(ScrollView):
         super(e5_scrollview_label, self).__init__(**kwargs)
         self.colors = colors if colors else ColorScheme()
         self.text = text
+        self.scroll_type = ['bars', 'content']
+        self.effect_cls = 'ScrollEffect'
         scrollbox = GridLayout(cols=1, size_hint_y=None, spacing=5)
         scrollbox.bind(minimum_height=scrollbox.setter('height'))
 
@@ -553,12 +558,12 @@ class e5_MainScreen(Screen):
     widget_with_focus = ObjectProperty(None)
     text_color = (0, 0, 0, 1)
     title = APP_NAME
-    app_paths = AppDataPaths(APP_NAME)
+    ini_path = os.path.join(user_data_dir(APP_NAME, 'OSA'), APP_NAME + '.ini')
     menu_height = .1
 
     def setup_program(self):
         warnings, errors = [], []
-        self.ini.open(self.app_paths.config_path)
+        self.ini.open(self.ini_path)
         if not self.ini.first_time:
             if self.ini.get_value(APP_NAME, 'ColorScheme'):
                 self.colors.set_to(self.ini.get_value(APP_NAME, 'ColorScheme'))
@@ -586,7 +591,7 @@ class e5_MainScreen(Screen):
         if self.ini.get_value(APP_NAME, "CFG"):
             return ntpath.split(self.ini.get_value(APP_NAME, "CFG"))[0]
         else:
-            return os.getcwd()
+            return user_documents_dir()
 
     def get_files(self, fpath, exts=None):
         files = []
@@ -1092,7 +1097,7 @@ class e5_SettingsScreen(Screen):
                                                 colors=self.colors)
         self.labels.append(self.button_font_size_label)
         button_font_size.add_widget(self.button_font_size_label)
-        button_font_slide = Slider(min=8, max=20, step=1, value=button_font_size_value,
+        button_font_slide = Slider(min=8, max=30, step=1, value=button_font_size_value,
                                     orientation='horizontal',
                                     value_track=True, value_track_color=self.colors.button_background)
         button_font_size.add_widget(button_font_slide)
@@ -1100,7 +1105,7 @@ class e5_SettingsScreen(Screen):
         layout.add_widget(button_font_size)
 
         settings_layout = GridLayout(cols=1,
-                                        size_hint_max_x=400,
+                                        size_hint_max_x=400 if not platform_name() == 'Android' else None,
                                         size_hint_y=1,
                                         spacing=5, padding=5,
                                         pos_hint={'center_x': .5, 'center_y': .5})
@@ -1157,7 +1162,7 @@ class e5_SettingsScreen(Screen):
             widget.font_size = self.colors.text_font_size
 
     def go_back(self, instance):
-        self.popup = e5_MessageBox('E5', '\n Note that some changes to colors and size will not take effect until the program is restarted.',
+        self.popup = e5_MessageBox('E5', '\nNote that some changes to colors and size will not take effect until the program is restarted.',
                                     call_back=self.dismiss_popup,
                                     colors=self.colors)
         self.popup.open()

@@ -1,5 +1,5 @@
 from kivy.core.window import Window
-from e5py.lib.misc import platform_name
+from misc import platform_name
 
 BLACK = 0x000000
 WHITE = 0xFFFFFF
@@ -39,11 +39,11 @@ class ColorScheme:
     def __init__(self, color_name='light blue'):
 
         if platform_name() == 'Android':
-            self.optionbutton_font_size = "10sp"
-            self.button_font_size = "5dp"
-            self.text_font_size = "15sp"
-            self.datagrid_font_size = "10sp"
-        if platform_name() == 'Linux':
+            self.optionbutton_font_size = "20sp"
+            self.button_font_size = "20sp"
+            self.text_font_size = "20sp"
+            self.datagrid_font_size = "20sp"
+        elif platform_name() == 'Linux':
             self.optionbutton_font_size = "15sp"
             self.button_font_size = "15sp"
             self.text_font_size = "15sp"
