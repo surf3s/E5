@@ -51,10 +51,12 @@
 #   A lot more fixes to button and font sizing throughout (though some issues remain)
 #   Warning on settings changes that restart is required.
 
+# Version 1.3.16
+#   Substantial structural changes to accomodate moving the program to Google Play store
 
 # TODO Need to fix ASAP conditions in e4 not comma delimited
 
-__version__ = '1.3.15'
+__version__ = '1.3.16'
 __date__ = 'October, 2023'
 __program__ = 'E5'
 
@@ -87,7 +89,7 @@ except ModuleNotFoundError:
     pass
 
 import sys
-from os import path
+from os import path, makedirs
 from random import random
 from platform import python_version
 
@@ -96,21 +98,27 @@ from plyer import camera
 from plyer import __version__ as __plyer_version__
 
 import logging
-from appdata import AppDataPaths
+from platformdirs import user_data_dir, user_log_dir, user_documents_dir
 
 # My libraries for this project
-from e5py.lib.dbs import dbs
-from e5py.lib.e5_widgets import e5_MainScreen, e5_scrollview_menu, e5_scrollview_label, e5_button, e5_label, e5_side_by_side_buttons, e5_LoadDialog, e5_MessageBox, e5_textinput, e5_RecordEditScreen
-from e5py.lib.e5_widgets import e5_DatagridScreen, e5_InfoScreen, e5_LogScreen, e5_CFGScreen, e5_INIScreen, e5_SettingsScreen, DataUploadScreen
-from e5py.lib.colorscheme import ColorScheme
-from e5py.lib.misc import platform_name, restore_window_size_position, filename_only
-from e5py.constants import APP_NAME
-from e5py.cfg import cfg
-from e5py.ini import ini
+sys.path.append(path.join(sys.path[0], 'lib'))
+from dbs import dbs
+from e5_widgets import e5_MainScreen, e5_scrollview_menu, e5_scrollview_label, e5_button, e5_label, e5_side_by_side_buttons, e5_LoadDialog, e5_MessageBox
+from e5_widgets import e5_DatagridScreen, e5_InfoScreen, e5_LogScreen, e5_CFGScreen, e5_INIScreen, e5_SettingsScreen, DataUploadScreen
+from e5_widgets import e5_textinput, e5_RecordEditScreen
+from colorscheme import ColorScheme
+from misc import platform_name, restore_window_size_position, filename_only
+from constants import APP_NAME
+from cfg import cfg
+from ini import ini
+
+if platform_name() == 'Android':
+    import android
+    from androidstorage4kivy import SharedStorage, Chooser
+    Environment = android.autoclass('android.os.Environment')
 
 # The database - pure Python
 from tinydb import __version__ as __tinydb_version__
-
 
 class db(dbs):
     MAX_FIELDS = 300
@@ -134,8 +142,8 @@ class MainScreen(e5_MainScreen):
         self.data = db()
         self.warnings, self.errors = self.setup_program()
 
-        if platform_name() == 'Android':
-            self.colors.button_font_size = "14sp"
+        # if platform_name() == 'Android':
+        #     self.colors.button_font_size = "14sp"
 
         # Used for KV file settings
         self.text_color = self.colors.text_color
@@ -161,17 +169,21 @@ class MainScreen(e5_MainScreen):
                                     padding=20,
                                     spacing=20)
         self.add_widget(self.mainscreen)
-        self.build_mainscreen()
+        # self.build_mainscreen()
         self.add_screens()
         restore_window_size_position(__program__, self.ini)
         self.if_camera_setup_camera()
         self.children[1].children[0].children[0].size_hint_y = self.calc_menu_height()
 
+        if platform_name() == 'Android':
+            from android.permissions import request_permissions, Permission
+            request_permissions([Permission.WRITE_EXTERNAL_STORAGE, Permission.READ_EXTERNAL_STORAGE])
+
     def setup_logger(self):
         logger = logging.getLogger(__name__)
         logger.setLevel(logging.INFO)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        fh = logging.FileHandler(self.app_paths.log_file_path)
+        fh = logging.FileHandler(path.join(user_log_dir(APP_NAME, 'OSA'), APP_NAME + '.log'))
         fh.setLevel(logging.INFO)
         fh.setFormatter(formatter)
         logger.addHandler(fh)
@@ -306,8 +318,11 @@ class MainScreen(e5_MainScreen):
             self.widget_with_focus = self.scroll_menu
 
         else:
-            label_text = '\nBefore data entry can begin, you need to have a CFG file.\n\nThe current folder %s contains none.  Either use File Open to switch a folder that contains CFG files or create a new one.' % self.get_path()
-            lb = e5_scrollview_label(text=label_text, id='label', colors=self.colors)
+            label_text = f'\nBefore data entry can begin, you need to have a CFG file.\n\nThe current folder {self.get_path()} contains no CFG files.  '
+            label_text += 'Either use File Open to switch to a folder that contains CFG files or use a text editor to create a new one '
+            label_text += f'and place it somewhere easily accessible (like {self.get_path()}).  You can also download sample CFG files from '
+            label_text += f'the GitHub site where this program is located (https://github.com/surf3s/E5).'
+            lb = e5_label(text=label_text, id='label', colors=self.colors)
             lb.halign = 'center'
             self.mainscreen.add_widget(lb)
             self.widget_with_focus = self.mainscreen
@@ -647,25 +662,46 @@ class MainScreen(e5_MainScreen):
             pass
 
     def show_load_cfg(self):
-        if self.cfg.filename and self.cfg.path:
-            start_path = self.cfg.path
+        if platform_name() == "Android":
+            self.chooser = Chooser(self.android_load)
+            self.chooser.choose_content()
         else:
-            start_path = self.ini.get_value(__program__, 'APP_PATH')
-        if not path.exists(start_path):
-            start_path = path.abspath(path.dirname(__file__))
-        content = e5_LoadDialog(load=self.load,
-                                cancel=self.dismiss_popup,
-                                start_path=start_path,
-                                button_color=self.colors.button_color,
-                                button_background=self.colors.button_background,
-                                button_height=self.calc_button_height() / 100)
-        self.popup = Popup(title="Load CFG file", content=content,
-                            size_hint=(0.9, 0.9))
-        self.popup.open()
+            if self.cfg.filename and self.cfg.path:
+                start_path = self.cfg.path
+            else:
+                start_path = user_documents_dir()
+            if not path.exists(start_path):
+                start_path = user_documents_dir()
+            content = e5_LoadDialog(load=self.load,
+                                    cancel=self.dismiss_popup,
+                                    start_path=start_path,
+                                    button_color=self.colors.button_color,
+                                    button_background=self.colors.button_background,
+                                    button_height=self.calc_button_height() / 100)
+            self.popup = Popup(title="Load CFG file", content=content,
+                                size_hint=(0.9, 0.9))
+            self.popup.open()
+
+    def android_load(self, shared_file_list):
+        if shared_file_list:
+            self.private_files = []
+            ss = SharedStorage()
+            for shared_file in shared_file_list:
+                self.private_files.append(ss.copy_from_shared(shared_file))
+            self.load_cfg(self.private_files[0])
+        else:
+            self.popup = e5_MessageBox('File Open CFG Error', "\n Select a CFG file by clicking on it.", call_back=self.close_popup, colors=self.colors)
+            self.popup.open()
+            self.popup_open = True
 
     def load(self, path, filename):
         self.dismiss_popup()
-        self.load_cfg(filename[0])
+        if filename:
+            self.load_cfg(filename[0])
+        else:
+            self.popup = e5_MessageBox('File Open CFG Error', "\n Select a CFG file by clicking on it.", call_back=self.close_popup, colors=self.colors)
+            self.popup.open()
+            self.popup_open = True
 
     def update_mainscreen(self):
         self.mainscreen.clear_widgets()
@@ -708,9 +744,48 @@ class MainScreen(e5_MainScreen):
         self.field_data.textbox.text = value.text
         self.go_next(value)
 
-    def exit_program(self):
-        self.save_window_location()
+    def android_copy_to_shared(self):
+        ss = SharedStorage()
+        message = ""
+        json_copied = None
+        cfg_copied = None
+        if self.cfg.filename:
+            cfg_copied = ss.copy_to_shared(self.cfg.filename)
+            if cfg_copied:
+                message += f"\nThe configuration file {filename_only(self.cfg.filename)} was copied to shared storage.\n"
+            else:
+                message += f"\nThe configuration file {filename_only(self.cfg.filename)} could not be copied to shared storage."
+        if self.data.filename:
+            json_copied = ss.copy_to_shared(self.data.filename)
+            if json_copied:
+                message += f"\nThe data file {filename_only(self.data.filename)} was copied to shared storage."
+            else:
+                message += f"\nThe configuration file {filename_only(self.cfg.filename)} could not be copied to shared storage."
+        if json_copied or cfg_copied:
+            message += "\n\nTo find these files on your phone, open the Files app and search for 'cfg' or for 'json'.  "
+            message += "You can then move them to a more accessible location or share them using email, messaging etc."
+        return message
+
+    def android_before_exit(self):
+        message = self.android_copy_to_shared()
+        if message:
+            self.popup = e5_MessageBox('Exiting E5 for Android', message, call_back=self.android_exit, colors=self.colors)
+            self.popup.open()
+            self.popup_open = True
+        else:
+            self.android_exit()
+
+    def android_exit(self, *args):
+        if self.popup_open:
+            self.popup.dismiss()
         App.get_running_app().stop()
+
+    def exit_program(self):
+        if platform_name() == 'Android':
+            self.android_before_exit()
+        else:
+            self.save_window_location()
+            App.get_running_app().stop()
 
 # region Edit Screens
 
@@ -838,13 +913,22 @@ class StatusScreen(e5_InfoScreen):
         txt = self.e5_data.status() if self.e5_data else 'A data file has not been initialized or opened.\n\n'
         txt += self.e5_cfg.status() if self.e5_cfg else 'A CFG is not open.\n\n'
         txt += self.e5_ini.status() if self.e5_ini else 'An INI file is not available.\n\n'
-        txt += '\nThe default user path is %s.\n' % self.e5_ini.get_value(__program__, "APP_PATH")
+        txt += '\nThe default user path is %s.\n' % path.abspath(path.dirname(__file__))
         txt += '\nThe operating system is %s.\n' % platform_name()
         txt += '\nPython buid is %s.\n' % (python_version())
         txt += '\nLibraries installed include Kivy %s, TinyDB %s and Plyer %s.\n' % (__kivy_version__, __tinydb_version__, __plyer_version__)
-        txt += '\nE5 was tested and distributed on Python 3.6, Kivy 1.10.1, TinyDB 3.11.1 and Plyer 1.4.0.\n'
+        txt += '\nE5 was tested and distributed on Python 3.8, Kivy 2.2.1, TinyDB 4.4.0 and Plyer 2.0.0\n'
         if self.e5_ini.debug:
             txt += '\nProgram is running in debug mode.\n'
+        if platform_name() == 'Android':
+            from android.storage import app_storage_path
+            settings_path = app_storage_path()
+
+            from android.storage import primary_external_storage_path
+            primary_ext_storage = primary_external_storage_path()            
+            txt += f'\n\nSettings path: {settings_path}'
+            txt += f'\n\nExt storage path: {primary_ext_storage}'
+
         self.content.text = txt
         self.content.color = self.colors.text_color
         self.back_button.background_color = self.colors.button_background
@@ -854,7 +938,7 @@ class StatusScreen(e5_InfoScreen):
 class AboutScreen(e5_InfoScreen):
     def on_pre_enter(self):
         self.content.text = '\n\nE5 by Shannon P. McPherron\n\nVersion ' + __version__ + '\nCoconut Pie\n\n'
-        self.content.text += 'Built on Python 3.8, Kivy 2.0.0, TinyDB 4.4.0 and Plyer 2.0.0\n\n'
+        self.content.text += 'Built on Python 3.8, Kivy 2.2.1, TinyDB 4.4.0 and Plyer 2.0.0\n\n'
         self.content.text += 'An OldStoneAge.Com Production\n\n' + __date__
         self.content.text += '\n\nSpecial thanks to Marcel Weiss,\n Jonathan Reeves and Li Li.\n\n'
         self.content.halign = 'center'
@@ -875,8 +959,23 @@ class E5App(App):
     def __init__(self, **kwargs):
         super(E5App, self).__init__(**kwargs)
 
-        self.app_paths = AppDataPaths(APP_NAME)
-        self.app_paths.setup()
+        # self.app_paths = AppDataPaths(APP_NAME)
+        # self.app_paths.setup()
+        self.setup_paths()
+
+    def setup_paths(self):
+        ini_file_path = user_data_dir(APP_NAME, 'OSA')
+        self.make_path(ini_file_path)
+
+        log_file_path = user_log_dir(APP_NAME, 'OSA')
+        self.make_path(log_file_path)
+
+        doc_file_path = user_documents_dir()
+        self.make_path(doc_file_path)
+
+    def make_path(self, pathname):
+        if not path.isdir(pathname):
+            makedirs(pathname, exist_ok=True)
 
     def build(self):
         sm.add_widget(MainScreen(name='MainScreen'))
@@ -900,9 +999,3 @@ def resourcePath():
     return path.join(path.abspath("."))
 
 
-if __name__ == '__main__':
-    # This line goes with the function above
-    resources.resource_add_path(resourcePath())  # add this line
-    Config.set('input', 'mouse', 'mouse,multitouch_on_demand')      # Removes red dot
-    Config.set('kivy', 'exit_on_escape', '0')
-    E5App().run()
