@@ -100,12 +100,15 @@ from plyer import __version__ as __plyer_version__
 import logging
 from platformdirs import user_data_dir, user_log_dir, user_documents_dir
 
+# The database - pure Python
+from tinydb import __version__ as __tinydb_version__
+
 # My libraries for this project
 sys.path.append(path.join(sys.path[0], 'lib'))
 from dbs import dbs
 from e5_widgets import e5_MainScreen, e5_scrollview_menu, e5_scrollview_label, e5_button, e5_label, e5_side_by_side_buttons, e5_LoadDialog, e5_MessageBox
 from e5_widgets import e5_DatagridScreen, e5_InfoScreen, e5_LogScreen, e5_CFGScreen, e5_INIScreen, e5_SettingsScreen, DataUploadScreen
-from e5_widgets import e5_textinput, e5_RecordEditScreen
+from e5_widgets import e5_textinput, e5_RecordEditScreen, e5_label_wrapped
 from colorscheme import ColorScheme
 from misc import platform_name, restore_window_size_position, filename_only
 from constants import APP_NAME
@@ -113,12 +116,12 @@ from cfg import cfg
 from ini import ini
 
 if platform_name() == 'Android':
-    import android
-    from androidstorage4kivy import SharedStorage, Chooser
-    Environment = android.autoclass('android.os.Environment')
-
-# The database - pure Python
-from tinydb import __version__ as __tinydb_version__
+    try:
+        import android
+        from androidstorage4kivy import SharedStorage, Chooser
+        Environment = android.autoclass('android.os.Environment')
+    except ModuleNotFoundError:
+        print('Andoid libraries could not be loaded.')
 
 class db(dbs):
     MAX_FIELDS = 300
@@ -164,7 +167,7 @@ class MainScreen(e5_MainScreen):
 
         self.mainscreen = BoxLayout(orientation='vertical',
                                     size_hint_y=.9,
-                                    size_hint_x=.8,
+                                    size_hint_x=1 if platform_name() == 'Android' else .8,
                                     pos_hint={'center_x': .5},
                                     padding=20,
                                     spacing=20)
@@ -176,8 +179,11 @@ class MainScreen(e5_MainScreen):
         self.children[1].children[0].children[0].size_hint_y = self.calc_menu_height()
 
         if platform_name() == 'Android':
-            from android.permissions import request_permissions, Permission
-            request_permissions([Permission.WRITE_EXTERNAL_STORAGE, Permission.READ_EXTERNAL_STORAGE])
+            try:
+                from android.permissions import request_permissions, Permission
+                request_permissions([Permission.WRITE_EXTERNAL_STORAGE, Permission.READ_EXTERNAL_STORAGE])
+            except ModuleNotFoundError:
+                pass
 
     def setup_logger(self):
         logger = logging.getLogger(__name__)
@@ -352,27 +358,28 @@ class MainScreen(e5_MainScreen):
 
         button_height = self.calc_button_height()
         button_height_ratio = min(.08, .2 * button_height / 100)
-        scroll_content_ratio = .8 - button_height_ratio
+        scroll_content_ratio = 1 - button_height_ratio
         if platform_name() == 'Android':
             size_hints = {'field_label': .13,
                             'field_input': .07 if not self.cfg.current_field.inputtype == 'NOTE' else .07 * 5,
                             'scroll_content': .6 if not self.cfg.current_field.inputtype == 'NOTE' else .6 - .07 * 4,
-                            'prev_next_buttons': .2}
+                            'prev_next_buttons': button_height_ratio}
         else:
-            size_hints = {'field_label': .13,
-                            'field_input': .07 if not self.cfg.current_field.inputtype == 'NOTE' else .07 * 5,
-                            'scroll_content': scroll_content_ratio if not self.cfg.current_field.inputtype == 'NOTE' else scroll_content_ratio - .07 * 4,
+            size_hints = {
+                            # 'field_label': .05,
+                            # 'field_input': .02 if not self.cfg.current_field.inputtype == 'NOTE' else .07 * 5,
+                            # 'scroll_content': scroll_content_ratio if not self.cfg.current_field.inputtype == 'NOTE' else scroll_content_ratio - .07 * 4,
+                            'scroll_content': .1,
                             'prev_next_buttons': button_height_ratio}
 
         # mainscreen = self.get_widget_by_id('mainscreen')
         # inputbox.bind(minimum_height = inputbox.setter('height'))
         # print(self.cfg.current_record)
 
-        label = e5_label(text=self.cfg.current_field.prompt,
-                            size_hint=(1, size_hints['field_label']),
-                            color=self.colors.text_color,
-                            id='field_prompt',
-                            halign='center')
+        label = e5_label_wrapped(text=self.cfg.current_field.prompt)
+                            # size_hint=(1, size_hints['field_label']),
+                            # color=self.colors.text_color,
+                            # halign='center')
         if self.colors:
             if self.colors.text_font_size:
                 label.font_size = self.colors.text_font_size
@@ -381,11 +388,13 @@ class MainScreen(e5_MainScreen):
         label.bind(size_hint_min_x=label.setter('width'))
 
         self.field_data = e5_textinput(text=self.cfg.current_record[self.cfg.current_field.name] if self.cfg.current_field.name in self.cfg.current_record.keys() else '',
-                                        size_hint=(1, size_hints['field_input']),
+                                        # size_hint=(1, size_hints['field_input']),
+                                        size_hint_y=None,
                                         multiline=(self.cfg.current_field.inputtype == 'NOTE'),
                                         input_filter=None if self.cfg.current_field.inputtype not in ['NUMERIC', 'INSTRUMENT'] else 'float',
                                         write_tab=False,
                                         id='field_data')
+        self.field_data.height = self.calc_textbox_height(self.cfg.current_field.inputtype == 'NOTE')
         if self.colors:
             if self.colors.text_font_size:
                 self.field_data.textbox.font_size = self.colors.text_font_size
@@ -395,13 +404,14 @@ class MainScreen(e5_MainScreen):
         self.field_data.textbox.focus = True
 
         self.scroll_menu = None
+        scroll_content_height = .65 - button_height_ratio - self.calc_textbox_height(self.cfg.current_field.inputtype == 'NOTE') / 1000 - label.height / 1000 - self.children[1].children[0].children[0].height / 1000
         self.scroll_content = BoxLayout(orientation='horizontal',
-                                        size_hint=(1, size_hints['scroll_content']),
+                                        size_hint=(1, scroll_content_height),
                                         spacing=20)
         self.add_scroll_content(self.scroll_content, self.field_data.textbox.text)
 
-        if self.cfg.current_field.inputtype in ['BOOLEAN', 'MENU']:
-            self.scroll_menu_setup()
+        # if self.cfg.current_field.inputtype in ['BOOLEAN', 'MENU']:
+        #     self.scroll_menu_setup()
 
         buttons = GridLayout(cols=2, size_hint=(1, size_hints['prev_next_buttons']), spacing=20)
 
@@ -420,6 +430,14 @@ class MainScreen(e5_MainScreen):
 
         self.field_data.textbox.select_all()
         self.event = Clock.schedule_once(self.field_data_set_focus, .1)
+
+    def calc_textbox_height(self, multiline):
+        instance = Text(text='Shannon', font_size=self.colors.text_font_size.replace('sp', ''))
+        width, height = instance.render()
+        if multiline:
+            return (height * 4) * 2
+        else:
+            return (height) * 2
 
     def calc_button_height(self):
         instance = Text(text='Test', font_size=28)
@@ -832,7 +850,7 @@ class EditCFGScreen(Screen):
             bx.add_widget(e5_label("Type", colors=self.colors))
             bx.add_widget(Spinner(text="Text", values=("Text", "Numeric", "Menu"),
                                         size_hint=(None, None),
-                                        pos_hint={'center_x': .5, 'center_y': .5},
+                                        pos_hint={'center_x': .8, 'center_y': .5},
                                         color=self.colors.optionbutton_color,
                                         background_color=self.colors.optionbutton_background,
                                         background_normal=''))
@@ -921,14 +939,16 @@ class StatusScreen(e5_InfoScreen):
         if self.e5_ini.debug:
             txt += '\nProgram is running in debug mode.\n'
         if platform_name() == 'Android':
-            from android.storage import app_storage_path
-            settings_path = app_storage_path()
+            try:
+                from android.storage import app_storage_path
+                settings_path = app_storage_path()
 
-            from android.storage import primary_external_storage_path
-            primary_ext_storage = primary_external_storage_path()            
-            txt += f'\n\nSettings path: {settings_path}'
-            txt += f'\n\nExt storage path: {primary_ext_storage}'
-
+                from android.storage import primary_external_storage_path
+                primary_ext_storage = primary_external_storage_path()            
+                txt += f'\n\nSettings path: {settings_path}'
+                txt += f'\n\nExt storage path: {primary_ext_storage}'
+            except ModuleNotFoundError:
+                txt += '\n\nSystem shows Android but Android libraries not found.'
         self.content.text = txt
         self.content.color = self.colors.text_color
         self.back_button.background_color = self.colors.button_background

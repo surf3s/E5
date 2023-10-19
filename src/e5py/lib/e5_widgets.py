@@ -405,7 +405,7 @@ class e5_scrollview_menu(ScrollView):
         self.colors = colors
         self.scroll_type = ['bars', 'content']
         self.effect_cls = 'ScrollEffect'
-        self.scrollbox = GridLayout(cols=ncols, size_hint_y=None, spacing=5)
+        self.scrollbox = GridLayout(cols=ncols, size_hint_y=None, spacing=[5, 20 if platform_name() == 'Android' else 5])
         self.scrollbox.bind(minimum_height=self.scrollbox.setter('height'))
 
         self.menu_selected_widget = None
@@ -426,7 +426,7 @@ class e5_scrollview_menu(ScrollView):
                     self.menu_selected_widget = menu_button
         else:
             self.scrollbox.add_widget(Button(text='', background_normal=''))
-        self.size_hint = (1, 1)
+        # self.size_hint = (1, 1)
         self.id = widget_id + '_scroll'
         self.add_widget(self.scrollbox)
 
@@ -472,7 +472,8 @@ class e5_scrollview_menu(ScrollView):
 
     def make_scroll_menu_item_visible(self):
         if self.menu_selected_widget is not None:
-            self.scroll_to(self.menu_selected_widget)
+            if self.scrollbox.height > self.height:
+                self.scroll_to(self.menu_selected_widget)
 
     def move_scroll_menu_item(self, ascii_code):
         menu_list = self.scroll_menu_list()
@@ -1413,8 +1414,8 @@ class e5_RecordEditScreen(Screen):
         self.one_record_only = one_record_only
         self.can_update_data_table = False
         self.layout = GridLayout(cols=1,
-                                 size_hint_y=.9,
-                                 size_hint_x=width_calculator(.9, 600),
+                                 size_hint_y=.9 if platform_name() != 'Android' else 1,
+                                 size_hint_x=width_calculator(.9, 600) if platform_name() != 'Android' else 1,
                                  spacing=5,
                                  padding=5,
                                  pos_hint={'center_x': .5, 'center_y': .5})

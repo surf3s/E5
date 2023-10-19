@@ -28,6 +28,7 @@ def filename_only(filename=None):
 
 
 def platform_name():
+    # return "Android"
     return (['Windows', 'Linux', 'Android', 'MacOSX', 'IOS', 'Unknown'][['win', 'linux', 'android', 'macosx', 'ios', 'unknown'].index(platform)])
 
 
