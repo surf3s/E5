@@ -4,8 +4,8 @@ from kivy_deps import sdl2, glew
 block_cipher = None
 
 
-a = Analysis(['..\\src\\e5py\\e5.py'],
-             pathex=[],
+a = Analysis(['..\\src\\e5py\\main.py'],
+             pathex=['..\\src\\e5py\\', '..\\src\\e5py\\lib\\'],
              binaries=[],
              datas=[],
              hiddenimports=[],

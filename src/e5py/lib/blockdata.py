@@ -41,7 +41,7 @@ class blockdata:
         self.blocks = []
         try:
             if os.path.isfile(self.filename):
-                with open(self.filename) as f:
+                with open(self.filename, 'r', encoding="utf-8") as f:
                     for line in f:
                         if len(line) > 2:
                             if line.strip()[0] == "[":
@@ -54,7 +54,12 @@ class blockdata:
             else:
                 f = open(self.filename, mode='w')
                 f.close()
+        # except UnicodeDecodeError:
+        #     f.close
+        #     pass
         except Exception as ex:
+            f.close()
+            self.blocks = []
             template = "An exception of type {0} occurred. Arguments:\n{1!r}"
             message = template.format(type(ex).__name__, ex.args)
             logging.exception(message)

@@ -100,6 +100,18 @@ pip install --upgrade e5
 
 ##### Bug Fixes 
 
+Version 1.3.17 (important - please update version)
+1.  Fixed a huge bug with selecting items with the mouse.
+2.  Fixed some issues with screen size and placement
+3.  Fixed some issues with clicking outside a window
+4.  Fixed an issue with how menus are displayed
+      (this may fix the bouncing that sometimes happens)
+      (and definitely makes the menus refresh smoother)
+5.  Fixed an issue with moving MacOS CFGs to Windows
+
+Version 1.3.16
+1.  Substantial structural changes to accomodate moving the program to Google Play store
+
 Version 1.3.15 (October, 2023)
 1.  A lot more fixes to button and font sizing throughout (though some issues remain)
 2.  Warning on settings changes that restart is required.

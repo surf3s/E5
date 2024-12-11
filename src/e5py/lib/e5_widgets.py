@@ -675,6 +675,7 @@ class e5_MainScreen(Screen):
             title = APP_NAME
             message_text = __SPLASH_HELP__
         self.popup = e5_MessageBox(title, message_text, call_back=self.close_popup, colors=self.colors)
+        self.popup.auto_dismiss = False
         self.popup.open()
         self.popup_open = True
 
@@ -726,6 +727,7 @@ class e5_MainScreen(Screen):
                 pass
         else:
             self.popup = e5_MessageBox('Save Error', valid, call_back=self.close_popup, colors=self.colors)
+            self.popup.auto_dismiss = False
             self.popup.open()
             self.popup_open = True
 
@@ -748,6 +750,7 @@ class e5_MainScreen(Screen):
                 self.popup = e5_MessageBox('Backup Error', "\n An error occurred while attempting to make a backup.  "
                                             "Check the backup settings and that the disk has enough space for a backup.",
                                             call_back=self.close_popup, colors=self.colors)
+                self.popup.auto_dismiss = False
                 self.popup.open()
                 self.popup_open = True
 
@@ -798,6 +801,7 @@ class e5_MainScreen(Screen):
             self.popup = e5_MessageBox('Delete last object', '\n No records in table to delete.',
                                         call_back=self.close_popup,
                                         colors=self.colors)
+        self.popup.auto_dismiss = False
         self.popup.open()
         self.popup_open = True
 
@@ -831,6 +835,7 @@ class e5_MainScreen(Screen):
             self.popup = e5_MessageBox('E5', '\nOpen a CFG before trying to edit records.',
                                         call_back=self.dismiss_popup,
                                         colors=self.colors)
+        self.popup.auto_dismiss = False
         self.popup.open()
         self.popup_open = True
 
@@ -845,6 +850,7 @@ class e5_MainScreen(Screen):
             self.popup = e5_MessageBox('E5', '\nOpen a CFG before trying to edit records.',
                                         call_back=self.dismiss_popup,
                                         colors=self.colors)
+            self.popup.auto_dismiss = False
             self.popup.open()
             self.popup_open = True
             return
@@ -852,6 +858,7 @@ class e5_MainScreen(Screen):
             self.popup = e5_MessageBox('E5', '\nThere are no data records to delete.',
                                         call_back=self.dismiss_popup,
                                         colors=self.colors)
+            self.popup.auto_dismiss = False
             self.popup.open()
             self.popup_open = True
             return
@@ -865,6 +872,7 @@ class e5_MainScreen(Screen):
         self.popup = e5_MessageBox('Delete All Records', message_text, response_type="YESNO",
                                     call_back=[self.delete_all_records1, self.close_popup],
                                     colors=self.colors)
+        self.popup.auto_dismiss = False
         self.popup.open()
         self.popup_open = True
 
@@ -875,6 +883,7 @@ class e5_MainScreen(Screen):
         self.popup = e5_MessageBox('Delete All Records', message_text, response_type="YESNO",
                                     call_back=[self.delete_all_records2, self.close_popup],
                                     colors=self.colors)
+        self.popup.auto_dismiss = False
         self.popup.open()
         self.popup_open = True
 
@@ -903,6 +912,7 @@ class e5_MainScreen(Screen):
             self.popup = e5_MessageBox('E5', '\n Open a CFG before exporting to CSV',
                                         call_back=self.dismiss_popup,
                                         colors=self.colors)
+        self.popup.auto_dismiss = False
         self.popup.open()
         self.popup_open = True
 
@@ -1454,6 +1464,7 @@ class e5_RecordEditScreen(Screen):
         self.add_widget(self.layout)
         self.filter_field = 'Unit-ID'
         self.loading = True
+        self.first_time = True
 
     def calc_button_height(self):
         instance = Text(text='Test', font_size=28)
@@ -1474,25 +1485,27 @@ class e5_RecordEditScreen(Screen):
         self.put_data_in_frame()
 
     def on_enter(self):
-        if not self.e5_cfg.filename or not self.data.filename:
-            self.popup = e5_MessageBox('E5', '\nOpen a CFG before trying to edit records.',
-                                        call_back=self.back_without_save,
-                                        colors=self.colors)
-            self.popup.open()
-            self.popup_open = True
-            return
-        if len(self.data.db.table(self.data.table).all()) == 0:
-            self.popup = e5_MessageBox('E5', '\nThere are no data records to edit.',
-                                        call_back=self.back_without_save,
-                                        colors=self.colors)
-            self.popup.open()
-            self.popup_open = True
-            return
+        if not self.first_time:
+            if not self.e5_cfg.filename or not self.data.filename:
+                self.popup = e5_MessageBox('E5', '\nOpen a CFG before trying to edit records.',
+                                            call_back=self.back_without_save,
+                                            colors=self.colors)
+                self.popup.open()
+                self.popup_open = True
+                return
+            if len(self.data.db.table(self.data.table).all()) == 0:
+                self.popup = e5_MessageBox('E5', '\nThere are no data records to edit.',
+                                            call_back=self.back_without_save,
+                                            colors=self.colors)
+                self.popup.open()
+                self.popup_open = True
+                return
 
         if self.first_field_widget:
             self.first_field_widget.focus = True
         self.loading = False
         self.changes_made = False
+        self.first_time = False
 
     def on_leave(self):
         # This helps insure that saving on lost focus works properly
@@ -1512,6 +1525,7 @@ class e5_RecordEditScreen(Screen):
         else:
             self.popup = db_filter(default_field=self.filter_field, fields=['doc_id', 'Unit-ID'] + self.e5_cfg.fields(),
                                     colors=self.colors, call_back=self.apply_filter)
+            self.popup.auto_dismiss = False
             self.popup.open()
 
     def get_matching_doc_ids(self, filter_field, filter_value):
@@ -1577,6 +1591,7 @@ class e5_RecordEditScreen(Screen):
                                     response_type="YESNO",
                                     call_back=[self.leave_record_without_save, self.close_popup],
                                     colors=self.colors)
+        self.popup.auto_dismiss = False
         self.popup.open()
 
     def first_record(self, value):
@@ -1901,6 +1916,7 @@ class e5_RecordEditScreen(Screen):
                     self.popup = DataGridMenuList(cfg_field.prompt if cfg_field.prompt else instance.id, cfg_field.menu,
                                                     instance.text, self.menu_selection,
                                                     colors=self.colors, text_length=text_length)
+                    self.popup.auto_dismiss = False
                     self.popup.open()
                     self.popup_scrollmenu = self.get_widget_by_id(self.popup, 'menu_scroll')
                     self.popup_textbox = self.get_widget_by_id(self.popup, 'new_item')
@@ -1967,6 +1983,7 @@ class e5_RecordEditScreen(Screen):
             self.z_new = z_old + self.prism_height_old - prism_height_new
             message = f"\nUpdate the Z as well from {round(z_old, 3)} to {round(self.z_new, 3)}?"
             self.popup = e5_MessageBox('Update', message, response_type="YESNO", call_back=[self.update_z, self.close_popup], colors=self.colors)
+            self.popup.auto_dismiss = False
             self.popup.open()
 
     def update_z(self, instance):
@@ -1991,6 +2008,7 @@ class e5_RecordEditScreen(Screen):
                                         response_type="YESNO",
                                         call_back=[self.back_without_save, self.close_popup],
                                         colors=self.colors)
+            self.popup.auto_dismiss = False
             self.popup.open()
         else:
             self.go_mainscreen()
@@ -2042,6 +2060,7 @@ class e5_DatagridScreen(Screen):
             self.popup = e5_MessageBox('E5', '\nOpen a CFG before trying to edit records.',
                                         call_back=self.go_back,
                                         colors=self.colors)
+            self.popup.auto_dismiss = False
             self.popup.open()
             self.popup_open = True
             return
@@ -2257,6 +2276,7 @@ class DataUploadScreen(Screen):
             self.popup = e5_MessageBox('E5', '\nOpen a CFG before trying upload records.',
                                         call_back=self.go_back,
                                         colors=self.colors)
+            self.popup.auto_dismiss = False
             self.popup.open()
             self.popup_open = True
             return
@@ -2492,6 +2512,7 @@ class DataUploadScreen(Screen):
                     self.popup = e5_MessageBox('Data Upload',
                                                 f'\n{self.additions} records were added. {len(self.overwrites)} were updated.',
                                                 call_back=self.close_popup)
+                self.popup.auto_dismiss = False
                 self.popup.open()
                 self.event.cancel()
                 self.progress.bar.value = 0
@@ -2519,6 +2540,7 @@ class DataUploadScreen(Screen):
                         self.popup = e5_MessageBox('Data Upload Test',
                                                     f'\n{self.error_message}',
                                                     call_back=self.close_popup)
+                self.popup.auto_dismiss = False
                 self.popup.open()
                 self.event.cancel()
                 self.progress.bar.value = 0
@@ -3310,12 +3332,14 @@ class DataGridTableData(RecycleView):
             self.popup = DataGridMenuList(field, cfg_field.menu,
                                             editcell_widget.text, self.menu_selection,
                                             self.colors, text_length=text_length)
+            self.popup.auto_dismiss = False
             self.popup.open()
         elif self.inputtype in ['TEXT', 'NUMERIC', 'NOTE']:
             self.popup = DataGridTextBox(title=field, text=editcell_widget.text,
                                             multiline=self.inputtype == 'NOTE',
                                             call_back=self.menu_selection,
                                             colors=self.colors, text_length=text_length)
+            self.popup.auto_dismiss = False
             self.popup.open()
         self.datatable_widget.popup_scrollmenu = self.datatable_widget.get_widget_by_id(self.popup, 'menu_scroll')
         self.datatable_widget.popup_textbox = self.datatable_widget.get_widget_by_id(self.popup, 'new_item')
@@ -3357,6 +3381,7 @@ class DataGridTableData(RecycleView):
             self.datatable_widget.popup_textbox = None
         else:
             self.popup = e5_MessageBox('Data error', is_valid)
+            self.popup.auto_dismiss = False
             self.popup.open()
 
     def update_recycle_data(self, doc_id, field, value):
@@ -3715,6 +3740,7 @@ class DataGridWidget(TabbedPanel):
                 if cfg_field.inputtype in ['MENU', 'BOOLEAN']:
                     self.popup = DataGridMenuList(instance.id, cfg_field.menu,
                                                     instance.text, self.menu_selection, colors=self.colors)
+                    self.popup.auto_dismiss = False
                     self.popup.open()
                     self.popup_scrollmenu = self.get_widget_by_id(self.popup, 'menu_scroll')
                     self.popup_textbox = self.get_widget_by_id(self.popup, 'new_item')
@@ -3793,6 +3819,7 @@ class DataGridWidget(TabbedPanel):
             self.clear_addnew()
         else:
             self.popup = e5_MessageBox("Save error", valid_data, call_back=self.close_popup)
+            self.popup.auto_dismiss = False
             self.popup.open()
             self.popup_open = True
 
@@ -3860,6 +3887,7 @@ class DataGridWidget(TabbedPanel):
                                     response_type="YESNO",
                                     call_back=[self.delete_record, self.close_popup],
                                     colors=self.colors)
+        self.popup.auto_dismiss = False
         self.popup.open()
         self.popup_open = True
 

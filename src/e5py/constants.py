@@ -17,7 +17,7 @@ __SPLASH_HELP__ += "and Android tablets and phones.  For this reason and others,
 __SPLASH_HELP__ += "open database format.  All data are stored in human readable, ASCII formatted "
 __SPLASH_HELP__ += "JSON files.  Data can also be exported to CSV files for easy import into any "
 __SPLASH_HELP__ += "database, statistics or spreadsheet software.\n\n"
-__SPLASH_HELP__ += "To start using this program, you will need to open CFG file.  Example CFG files "
+__SPLASH_HELP__ += "To start using this program, you will need to open a CFG file.  Example CFG files "
 __SPLASH_HELP__ += "and documentation on writing your own CFG file can be found at the E5 GitHub site."
 
 APP_NAME = 'E5'

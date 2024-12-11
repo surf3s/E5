@@ -54,12 +54,22 @@
 # Version 1.3.16
 #   Substantial structural changes to accomodate moving the program to Google Play store
 
+# Version 1.3.17
+#   Fixed a huge bug with selecting items with the mouse.
+#   Fixed some issues with screen size and placement
+#   Fixed some issues with clicking outside a window
+#   Fixed an issue with how menus are displayed
+#       (this may fix the bouncing that sometimes happens)
+#       (and definitely makes the menus refresh smoother)
+#   Fixed an issue with moving MacOS CFGs to Windows
+
 # TODO Need to fix ASAP conditions in e4 not comma delimited
 
-__version__ = '1.3.16'
-__date__ = 'October, 2023'
+__version__ = '1.3.17'
+__date__ = 'December, 2024'
 __program__ = 'E5'
 
+# The next two are not sure here but needed when called by main.py
 from kivy.config import Config
 from kivy import resources
 from kivy.clock import Clock, mainthread
@@ -123,6 +133,7 @@ if platform_name() == 'Android':
     except ModuleNotFoundError:
         print('Andoid libraries could not be loaded.')
 
+
 class db(dbs):
     MAX_FIELDS = 300
     datagrid_doc_id = None
@@ -133,6 +144,8 @@ class MainScreen(e5_MainScreen):
     gps_location = StringProperty(None)
     gps_location_widget = ObjectProperty(None)
     gps_status = StringProperty('Click Start to get GPS location updates')
+    no_update = False
+    scroll_content_area_actual_width = 100
 
     def __init__(self, **kwargs):
         super(MainScreen, self).__init__(**kwargs)
@@ -166,7 +179,7 @@ class MainScreen(e5_MainScreen):
                 self.gps_status = 'GPS is not implemented for your platform'
 
         self.mainscreen = BoxLayout(orientation='vertical',
-                                    size_hint_y=.9,
+                                    size_hint_y=1 if platform_name() == 'Android' else .9,
                                     size_hint_x=1 if platform_name() == 'Android' else .8,
                                     pos_hint={'center_x': .5},
                                     padding=20,
@@ -176,7 +189,9 @@ class MainScreen(e5_MainScreen):
         self.add_screens()
         restore_window_size_position(__program__, self.ini)
         self.if_camera_setup_camera()
-        self.children[1].children[0].children[0].size_hint_y = self.calc_menu_height()
+        # self.children[1].children[0].children[0].size_hint_y = self.calc_menu_height()
+        self.children[1].children[0].children[0].size_hint_y = None
+        self.children[1].children[0].children[0].size_hint_y = .07
 
         if platform_name() == 'Android':
             try:
@@ -404,7 +419,7 @@ class MainScreen(e5_MainScreen):
         self.field_data.textbox.focus = True
 
         self.scroll_menu = None
-        scroll_content_height = .65 - button_height_ratio - self.calc_textbox_height(self.cfg.current_field.inputtype == 'NOTE') / 1000 - label.height / 1000 - self.children[1].children[0].children[0].height / 1000
+        scroll_content_height = .7 - button_height_ratio - self.calc_textbox_height(self.cfg.current_field.inputtype == 'NOTE') / 1000 - label.height / 1000 - .07
         self.scroll_content = BoxLayout(orientation='horizontal',
                                         size_hint=(1, scroll_content_height),
                                         spacing=20)
@@ -432,12 +447,12 @@ class MainScreen(e5_MainScreen):
         self.event = Clock.schedule_once(self.field_data_set_focus, .1)
 
     def calc_textbox_height(self, multiline):
-        instance = Text(text='Shannon', font_size=self.colors.text_font_size.replace('sp', ''))
+        instance = Text(text='Shannon', font_size=str(self.colors.text_font_size).replace('sp', ''))
         width, height = instance.render()
         if multiline:
-            return (height * 4) * 2
+            return (height * 4) + 10
         else:
-            return (height) * 2
+            return (height) + 10
 
     def calc_button_height(self):
         instance = Text(text='Test', font_size=28)
@@ -456,8 +471,12 @@ class MainScreen(e5_MainScreen):
         return height
 
     def field_data_set_focus(self, dt):
+        # Get the actual width after the screen is rendered and use this to calculate columns next time around
         if self.cfg.current_field.inputtype in ['BOOLEAN', 'MENU']:
-            self.scroll_content.children[0].children[0].cols = self.calc_column_count(self.scroll_content)
+            self.scroll_content_area_actual_width = self.scroll_content.width
+            ncol = self.calc_column_count()
+            if ncol != self.scroll_content.children[0].children[0].cols:
+                self.scroll_content.children[0].children[0].cols = ncol
         self.field_data.textbox.focus = True
         self.field_data.textbox.select_all()
 
@@ -467,7 +486,7 @@ class MainScreen(e5_MainScreen):
         self.widget_with_focus = self.scroll_menu if self.scroll_menu else self
 
     def textbox_changed(self, instance, value):
-        if self.cfg.current_field.inputtype in ['BOOLEAN', 'MENU']:
+        if self.cfg.current_field.inputtype in ['BOOLEAN', 'MENU'] and not self.no_update:
             self.add_scroll_content(self.scroll_content, value)
             self.scroll_menu_setup()
 
@@ -599,7 +618,7 @@ class MainScreen(e5_MainScreen):
                 if not selected_menu and menu_list:
                     selected_menu = menu_list[0]
 
-                ncols = self.calc_column_count(content_area)
+                ncols = self.calc_column_count()
 
                 self.scroll_menu = e5_scrollview_menu(menu_list,
                                                            selected_menu,
@@ -620,16 +639,16 @@ class MainScreen(e5_MainScreen):
         maxlen = min(maxlen, 30)
         return maxlen
 
-    def calc_column_count(self, content_area):
+    def calc_column_count(self):
         instance = Text(text='#' * self.calc_longest_menu_item() + ' ' * 3, font_size=self.colors.button_font_size.replace("sp", '') if self.colors.button_font_size else None)
         width, height = instance.render()
-        width = min(content_area.width, width)
+        width = min(self.scroll_content_area_actual_width, width)
 
         info_exists = self.cfg.current_field.info or self.cfg.current_field.infofile
         if platform_name() == 'Android':
             ncols = 1 if info_exists else 2
         else:
-            ncols = int(content_area.width / (width * 2)) if info_exists else int(content_area.width / width)
+            ncols = int(self.scroll_content_area_actual_width / (width * 2)) if info_exists else int(self.scroll_content_area_actual_width / width)
             ncols = max(ncols, 1)
         return ncols
 
@@ -695,9 +714,10 @@ class MainScreen(e5_MainScreen):
                                     start_path=start_path,
                                     button_color=self.colors.button_color,
                                     button_background=self.colors.button_background,
-                                    button_height=self.calc_button_height() / 100)
-            self.popup = Popup(title="Load CFG file", content=content,
-                                size_hint=(0.9, 0.9))
+                                    button_height=self.calc_button_height() / 100,
+                                    font_size=self.colors.button_font_size)
+            self.popup = Popup(title="Load CFG file", content=content, size_hint=(0.9, 0.9))
+            self.popup.auto_dismiss = False
             self.popup.open()
 
     def android_load(self, shared_file_list):
@@ -740,9 +760,11 @@ class MainScreen(e5_MainScreen):
                 self.update_mainscreen()
 
     def go_next(self, *args):
+        self.no_update = True
         self.copy_from_menu_to_textbox()
         self.copy_from_gps_to_textbox()
         self.save_field()
+        self.no_update = False
         valid_data = self.cfg.data_is_valid(db=self.data.db.table(self.data.table))
         if valid_data is True:
             self.cfg.next()
@@ -759,7 +781,8 @@ class MainScreen(e5_MainScreen):
             self.popup_open = True
 
     def menu_selection(self, value):
-        self.field_data.textbox.text = value.text
+        self.scroll_menu.scroll_menu_set_selected(value.text)
+        # self.field_data.textbox.text = value.text
         self.go_next(value)
 
     def android_copy_to_shared(self):
