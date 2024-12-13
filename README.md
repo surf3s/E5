@@ -100,7 +100,10 @@ pip install --upgrade e5
 
 ##### Bug Fixes 
 
-Version 1.3.18 (use this version)
+Version 1.3.19 
+1.    Fix in installation to include missing dependency
+
+Version 1.3.18 
 1.    Refactoring to make PyPi work
       Moved all modules to one folder package folder (dropped lib)
       Dropped the scr folder and instead use e5py directly from root level
