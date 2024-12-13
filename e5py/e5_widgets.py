@@ -21,6 +21,7 @@ from kivy.uix.spinner import Spinner, SpinnerOption
 from kivy.uix.progressbar import ProgressBar
 from kivy.core.text import Text
 from kivy.uix.bubble import Bubble, BubbleButton
+from kivy.metrics import Metrics
 
 from decimal import DivisionByZero
 
@@ -703,8 +704,8 @@ class e5_MainScreen(Screen):
     def save_window_location(self):
         self.ini.update_value(APP_NAME, 'ScreenTop', max(Window.top, 0))
         self.ini.update_value(APP_NAME, 'ScreenLeft', max(Window.left, 0))
-        self.ini.update_value(APP_NAME, 'ScreenWidth', Window.size[0])
-        self.ini.update_value(APP_NAME, 'ScreenHeight', Window.size[1])
+        self.ini.update_value(APP_NAME, 'ScreenWidth', int(Window.size[0] / Metrics.density))
+        self.ini.update_value(APP_NAME, 'ScreenHeight', int(Window.size[1] / Metrics.density))
         self.ini.save()
 
     def open_popup(self):

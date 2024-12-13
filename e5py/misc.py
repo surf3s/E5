@@ -45,10 +45,10 @@ def restore_window_size_position(main_name, main_ini):
     window_width = None
     window_height = None
     if not main_ini.get_value(main_name, "SCREENWIDTH") == '':
-        window_width = max(int(main_ini.get_value(main_name, "SCREENWIDTH")), 450)
-        window_width = min(int(main_ini.get_value(main_name, "SCREENWIDTH")), 5000)
+        window_width = max(int(float(main_ini.get_value(main_name, "SCREENWIDTH"))), 450)
+        window_width = min(window_width, 5000)
     if not main_ini.get_value(main_name, "SCREENHEIGHT") == '':
-        window_height = max(int(main_ini.get_value(main_name, "SCREENHEIGHT")), 450)
-        window_height = min(int(main_ini.get_value(main_name, "SCREENHEIGHT")), 5000)
+        window_height = max(int(float(main_ini.get_value(main_name, "SCREENHEIGHT"))), 450)
+        window_height = min(window_height, 5000)
     if window_width and window_height:
         Window.size = (window_width, window_height)

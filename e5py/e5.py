@@ -74,9 +74,12 @@
 # Version 1.3.20
 #   Fix references to package modules
 
+# Version 1.3.21
+# 1.    Attempting fix of screen size on MacOS issues
+
 # TODO Need to fix ASAP conditions in e4 not comma delimited
 
-__version__ = '1.3.20'
+__version__ = '1.3.21'
 __date__ = 'December, 2024'
 __program__ = 'E5'
 

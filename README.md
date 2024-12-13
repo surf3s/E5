@@ -100,6 +100,9 @@ pip install --upgrade e5
 
 ##### Bug Fixes 
 
+Version 1.3.21
+1.    Attempting fix of screen size on MacOS issues
+
 Version 1.3.20
 1.    Fix references to package modules
 
