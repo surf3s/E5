@@ -4,8 +4,8 @@ from kivy_deps import sdl2, glew
 block_cipher = None
 
 
-a = Analysis(['..\\src\\e5py\\main.py'],
-             pathex=['..\\src\\e5py\\', '..\\src\\e5py\\lib\\'],
+a = Analysis(['..\\e5py\\main.py'],
+             pathex=['..\\e5py\\'],
              binaries=[],
              datas=[],
              hiddenimports=[],
@@ -20,7 +20,7 @@ a = Analysis(['..\\src\\e5py\\main.py'],
 pyz = PYZ(a.pure, a.zipped_data,
              cipher=block_cipher)
 
-exe = EXE(pyz, Tree('..\\src\\e5py\\'),
+exe = EXE(pyz, Tree('..\\e5py\\'),
           a.scripts,
           a.binaries,
           a.zipfiles,

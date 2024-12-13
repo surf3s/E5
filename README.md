@@ -100,6 +100,11 @@ pip install --upgrade e5
 
 ##### Bug Fixes 
 
+Version 1.3.18 (use this version)
+1.    Refactoring to make PyPi work
+      Moved all modules to one folder package folder (dropped lib)
+      Dropped the scr folder and instead use e5py directly from root level
+
 Version 1.3.17 (important - please update version)
 1.  Fixed a huge bug with selecting items with the mouse.
 2.  Fixed some issues with screen size and placement
