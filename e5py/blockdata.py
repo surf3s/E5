@@ -4,7 +4,7 @@
 import logging
 import os
 
-from constants import APP_NAME
+from e5py.constants import APP_NAME
 
 
 class blockdata:

@@ -100,6 +100,9 @@ pip install --upgrade e5
 
 ##### Bug Fixes 
 
+Version 1.3.20
+1.    Fix references to package modules
+
 Version 1.3.19 
 1.    Fix in installation to include missing dependency
 

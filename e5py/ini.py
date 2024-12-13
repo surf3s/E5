@@ -1,5 +1,5 @@
-from blockdata import blockdata
-from constants import APP_NAME
+from e5py.blockdata import blockdata
+from e5py.constants import APP_NAME
 
 
 class ini(blockdata):

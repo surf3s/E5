@@ -7,8 +7,8 @@ import ntpath
 from plyer import gps
 # from plyer import camera
 
-from misc import locate_file
-from blockdata import blockdata
+from e5py.misc import locate_file
+from e5py.blockdata import blockdata
 
 __DEFAULT_FIELDS__ = []
 __DEFAULT_FIELDS_NUMERIC__ = []

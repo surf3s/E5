@@ -71,9 +71,12 @@
 # Version 1.3.19
 #   Fix in installation to include missing dependency
 
+# Version 1.3.20
+#   Fix references to package modules
+
 # TODO Need to fix ASAP conditions in e4 not comma delimited
 
-__version__ = '1.3.19'
+__version__ = '1.3.20'
 __date__ = 'December, 2024'
 __program__ = 'E5'
 
@@ -123,15 +126,15 @@ from tinydb import __version__ as __tinydb_version__
 
 # My libraries for this project
 # sys.path.append(path.join(sys.path[0], 'lib'))
-from dbs import dbs
-from e5_widgets import e5_MainScreen, e5_scrollview_menu, e5_scrollview_label, e5_button, e5_label, e5_side_by_side_buttons, e5_LoadDialog, e5_MessageBox
-from e5_widgets import e5_DatagridScreen, e5_InfoScreen, e5_LogScreen, e5_CFGScreen, e5_INIScreen, e5_SettingsScreen, DataUploadScreen
-from e5_widgets import e5_textinput, e5_RecordEditScreen, e5_label_wrapped
-from colorscheme import ColorScheme
-from misc import platform_name, restore_window_size_position, filename_only
-from constants import APP_NAME
-from cfg import cfg
-from ini import ini
+from e5py.dbs import dbs
+from e5py.e5_widgets import e5_MainScreen, e5_scrollview_menu, e5_scrollview_label, e5_button, e5_label, e5_side_by_side_buttons, e5_LoadDialog, e5_MessageBox
+from e5py.e5_widgets import e5_DatagridScreen, e5_InfoScreen, e5_LogScreen, e5_CFGScreen, e5_INIScreen, e5_SettingsScreen, DataUploadScreen
+from e5py.e5_widgets import e5_textinput, e5_RecordEditScreen, e5_label_wrapped
+from e5py.colorscheme import ColorScheme
+from e5py.misc import platform_name, restore_window_size_position, filename_only
+from e5py.constants import APP_NAME
+from e5py.cfg import cfg
+from e5py.ini import ini
 
 if platform_name() == 'Android':
     try:

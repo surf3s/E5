@@ -39,10 +39,10 @@ from threading import Thread
 # from appdata import AppDataPaths
 from platformdirs import *
 
-from constants import __SPLASH_HELP__
-from constants import APP_NAME
-from colorscheme import ColorScheme, make_rgb, BLACK, WHITE, GOOGLE_COLORS, MIDDLE_GREY, DARK_GREY
-from misc import platform_name, locate_file
+from e5py.constants import __SPLASH_HELP__
+from e5py.constants import APP_NAME
+from e5py.colorscheme import ColorScheme, make_rgb, BLACK, WHITE, GOOGLE_COLORS, MIDDLE_GREY, DARK_GREY
+from e5py.misc import platform_name, locate_file
 
 
 SCROLLBAR_WIDTH = 5
