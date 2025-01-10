@@ -100,6 +100,11 @@ pip install --upgrade e5
 
 ##### Bug Fixes 
 
+Version 1.3.22
+1.    Fixed bug that crashes program intermittantly (had to do with self.colors)
+2.    Gave another attempt at fixing encoding issues (went to latin1 instead of utf-8)
+3.    Worked on layout/font size issues on edit last recod and edit data grid
+
 Version 1.3.21
 1.    Attempting fix of screen size on MacOS issues
 

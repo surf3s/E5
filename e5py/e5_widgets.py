@@ -51,7 +51,7 @@ TEXTBOX_HEIGHT = 30
 
 
 def get_width_hint(text, colors=None):
-    instance = Text(text=text, font_size=colors.text_font_size.replace('sp', '') if colors else 14)
+    instance = Text(text=text, font_size=str(colors.text_font_size).replace('sp', '') if colors else 14)
     width, font_height = instance.render()
     width_hint = width_calculator(.9, width * 2.1) if platform_name() != 'Android' else 1
     if width_hint < .5:
