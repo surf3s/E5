@@ -50,6 +50,15 @@ SCROLLBAR_WIDTH = 5
 TEXTBOX_HEIGHT = 30
 
 
+def get_width_hint(text, colors=None):
+    instance = Text(text=text, font_size=colors.text_font_size.replace('sp', '') if colors else 14)
+    width, font_height = instance.render()
+    width_hint = width_calculator(.9, width * 2.1) if platform_name() != 'Android' else 1
+    if width_hint < .5:
+        width_hint = .5
+    return width_hint
+
+
 def width_calculator(fraction_size=.8, maximum_width=800):
     if Window.size[0] * fraction_size > maximum_width:
         return maximum_width / Window.size[0]
@@ -110,7 +119,7 @@ class e5_PopUpMenu(Popup):
     def calc_button_height(self):
         instance = Text(text='Test', font_size=28)
         width, base_height = instance.render()
-        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', '') if self.colors else 28)
         width, font_height = instance.render()
         height = int(100 * (font_height / base_height))
         return height
@@ -434,7 +443,7 @@ class e5_scrollview_menu(ScrollView):
     def calc_button_height(self):
         instance = Text(text='Test', font_size=28)
         width, base_height = instance.render()
-        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', '') if self.colors else 28)
         width, font_height = instance.render()
         height = int(100 * (font_height / base_height))
         return height
@@ -1031,8 +1040,10 @@ class e5_SettingsScreen(Screen):
 
     def build_screen(self):
         self.clear_widgets()
+        width_hint = get_width_hint("Auto-backup after 99999 records?", self.colors)
+
         layout = GridLayout(cols=1,
-                            # size_hint_x = width_calculator(.9, 600),
+                            # size_hint_x=width_hint,
                             size_hint_y=1,
                             spacing=5,
                             padding=5,
@@ -1067,7 +1078,7 @@ class e5_SettingsScreen(Screen):
         layout.add_widget(colorscheme)
 
         backups = GridLayout(cols=2, size_hint_y=.2, spacing=5, padding=5)
-        self.backup_label = e5_label(f'Auto-backup after\n{self.ini.backup_interval} records.',
+        self.backup_label = e5_label(f'Auto-backup after {self.ini.backup_interval} records.',
                                         colors=self.colors)
         self.labels.append(self.backup_label)
         backups.add_widget(self.backup_label)
@@ -1079,7 +1090,7 @@ class e5_SettingsScreen(Screen):
         backups.add_widget(slide)
         slide.bind(value=self.update_backup_interval)
 
-        incremental_backup_label = e5_label('Use incremental\nbackups?', colors=self.colors)
+        incremental_backup_label = e5_label('Use incremental backups?', colors=self.colors)
         self.labels.append(incremental_backup_label)
         backups.add_widget(incremental_backup_label)
         backups_switch = Switch(active=self.ini.incremental_backups)
@@ -1092,7 +1103,7 @@ class e5_SettingsScreen(Screen):
             text_font_size_value = int(self.colors.text_font_size.replace("sp", '') if 'sp' in str(self.colors.text_font_size) else self.colors.text_font_size)
         else:
             text_font_size_value = 12
-        self.text_font_size_label = e5_label('Text font\nsize is %s' % text_font_size_value, id='label_font_size', colors=self.colors)
+        self.text_font_size_label = e5_label('Text font size is %s' % text_font_size_value, id='label_font_size', colors=self.colors)
         self.labels.append(self.text_font_size_label)
         text_font_size.add_widget(self.text_font_size_label)
         text_font_slide = Slider(min=8, max=20, step=1, value=text_font_size_value,
@@ -1117,7 +1128,8 @@ class e5_SettingsScreen(Screen):
         layout.add_widget(button_font_size)
 
         settings_layout = GridLayout(cols=1,
-                                        size_hint_max_x=400 if not platform_name() == 'Android' else None,
+                                        # size_hint_max_x=400 if not platform_name() == 'Android' else None,
+                                        size_hint_x=width_hint,
                                         size_hint_y=1,
                                         spacing=5, padding=5,
                                         pos_hint={'center_x': .5, 'center_y': .5})
@@ -1134,7 +1146,7 @@ class e5_SettingsScreen(Screen):
     def calc_button_height(self):
         instance = Text(text='Test', font_size=28)
         width, base_height = instance.render()
-        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', '') if self.colors else 28)
         width, font_height = instance.render()
         height = int(100 * (font_height / base_height))
         return height
@@ -1217,7 +1229,7 @@ class e5_InfoScreen(Screen):
     def calc_button_height(self):
         instance = Text(text='Test', font_size=28)
         width, base_height = instance.render()
-        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', '') if self.colors else 28)
         width, font_height = instance.render()
         height = int(100 * (font_height / base_height))
         return height
@@ -1351,7 +1363,7 @@ class e5_SaveDialog(BoxLayout):
     def calc_button_height(self):
         instance = Text(text='Test', font_size=28)
         width, base_height = instance.render()
-        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', '') if self.colors else 28)
         width, font_height = instance.render()
         height = .2 * (font_height / base_height)
         return height
@@ -1424,9 +1436,15 @@ class e5_RecordEditScreen(Screen):
         self.doc_id = doc_id
         self.one_record_only = one_record_only
         self.can_update_data_table = False
+
+        prompt = self.the_longest_prompt()
+        if prompt == "":
+            prompt = "Test Prompt"
+        width_hint = get_width_hint(prompt, self.colors)
+
         self.layout = GridLayout(cols=1,
                                  size_hint_y=.9 if platform_name() != 'Android' else 1,
-                                 size_hint_x=width_calculator(.9, 600) if platform_name() != 'Android' else 1,
+                                 size_hint_x=width_hint,
                                  spacing=5,
                                  padding=5,
                                  pos_hint={'center_x': .5, 'center_y': .5})
@@ -1470,7 +1488,7 @@ class e5_RecordEditScreen(Screen):
     def calc_button_height(self):
         instance = Text(text='Test', font_size=28)
         width, base_height = instance.render()
-        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', '') if self.colors else 28)
         width, font_height = instance.render()
         height = int(100 * (font_height / base_height))
         return height
@@ -1560,6 +1578,16 @@ class e5_RecordEditScreen(Screen):
         else:
             self.filter_button.text = 'Filter'
         self.popup.dismiss()
+
+    def the_longest_prompt(self):
+        fields = self.e5_cfg.fields() 
+        longest_prompt = ''
+        if fields:
+            for col in fields:
+                prompt = self.e5_cfg.get_value(col, 'PROMPT')
+                if len(prompt) > len(longest_prompt):
+                    longest_prompt = prompt
+        return longest_prompt
 
     def make_empty_frame(self):
         self.data_fields.bind(minimum_height=self.data_fields.setter('height'))
@@ -2168,7 +2196,7 @@ class e5_MessageBox(Popup):
     def calc_button_height(self):
         instance = Text(text='Test', font_size=28)
         width, base_height = instance.render()
-        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', '') if self.colors else 28)
         width, font_height = instance.render()
         height = .2 * (font_height / base_height)
         return height
@@ -3054,7 +3082,7 @@ class DataGridMenuList(Popup):
     def calc_button_height(self):
         instance = Text(text='Test', font_size=28)
         width, base_height = instance.render()
-        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', '') if self.colors else 28)
         width, font_height = instance.render()
         height = .2 * (font_height / base_height)
         return height
@@ -3147,7 +3175,7 @@ class DataGridTextBox(Popup):
     def calc_button_height(self):
         instance = Text(text='Test', font_size=28)
         width, base_height = instance.render()
-        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', '') if self.colors else 28)
         width, font_height = instance.render()
         height = .2 * (font_height / base_height)
         return height
@@ -3182,6 +3210,13 @@ class DataGridHeaderCell(Button):
         self.text = text
         if colors.datagrid_font_size:
             self.font_size = colors.datagrid_font_size
+
+        test_text = text
+        if len(test_text) < 12:
+            test_text = "01234566778912"
+        instance = Text(text=test_text + " ", font_size=colors.datagrid_font_size.replace('sp', '') if colors.datagrid_font_size else 14)
+        width, font_height = instance.render()
+        self.width = width
 
 
 class DataGridTableHeader(ScrollView):
@@ -3237,6 +3272,11 @@ class DataGridTableData(RecycleView):
             # This is a hack to deal with a Kivy but where the grid does not display if there is
             # only one row.  So the solution is to insert a dummy row.
             for column in column_names:
+                text = column
+                if len(text) < 12:
+                    text = "01234566778912"
+                instance = Text(text=text + " ", font_size=colors.datagrid_font_size.replace('sp', '') if colors.datagrid_font_size else 14)
+                width, font_height = instance.render()
                 self.data.append({'text': '',
                                     'is_even': False,
                                     'callback': self.editcell,
@@ -3247,10 +3287,16 @@ class DataGridTableData(RecycleView):
                                     'datagrid_even': self.colors.datagrid_even,
                                     'datagrid_odd': self.colors.datagrid_odd,
                                     'height': button_height,
+                                    'width': width,
                                     'color': black})
         for i, ord_dict in enumerate(list_dicts):
             is_even = i % 2 == 0
             for column in column_names:
+                text = column
+                if len(text) < 12:
+                    text = "01234566778912"
+                instance = Text(text=text + " ", font_size=colors.datagrid_font_size.replace('sp', '') if colors.datagrid_font_size else 14)
+                width, font_height = instance.render()
                 value = ord_dict[column] if column in ord_dict.keys() else ''
                 content = {'text': value,
                             'is_even': is_even,
@@ -3262,6 +3308,7 @@ class DataGridTableData(RecycleView):
                             'datagrid_even': self.colors.datagrid_even,
                             'datagrid_odd': self.colors.datagrid_odd,
                             'height': button_height,
+                            'width': width,
                             'color': black}
                 if self.colors.datagrid_font_size:
                     content['font_size'] = self.colors.datagrid_font_size
@@ -3270,7 +3317,7 @@ class DataGridTableData(RecycleView):
     def calc_button_height(self):
         instance = Text(text='Test', font_size=28)
         width, base_height = instance.render()
-        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', '') if self.colors else 28)
         width, font_height = instance.render()
         height = int(100 * (font_height / base_height))
         return height
@@ -3470,7 +3517,7 @@ class DataGridCasePanel(BoxLayout):
     def calc_button_height(self):
         instance = Text(text='Test', font_size=28)
         width, base_height = instance.render()
-        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', '') if self.colors else 28)
         width, font_height = instance.render()
         height = .2 * (font_height / base_height)
         return height
@@ -3570,7 +3617,7 @@ class DataGridDeletePanel(GridLayout):
     def calc_button_height(self):
         instance = Text(text='Test', font_size=28)
         width, base_height = instance.render()
-        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', '') if self.colors else 28)
         width, font_height = instance.render()
         height = .2 * (font_height / base_height)
         return height

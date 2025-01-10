@@ -77,10 +77,15 @@
 # Version 1.3.21
 # 1.    Attempting fix of screen size on MacOS issues
 
+# Version 1.3.22
+# 1.    Fixed bug that crashes program intermittantly (had to do with self.colors)
+# 2.    Gave another attempt at fixing encoding issues (went to latin1 instead of utf-8)
+# 3.    Worked on layout/font size issues on edit last recod and edit data grid
+
 # TODO Need to fix ASAP conditions in e4 not comma delimited
 
-__version__ = '1.3.21'
-__date__ = 'December, 2024'
+__version__ = '1.3.22'
+__date__ = 'January, 2025'
 __program__ = 'E5'
 
 # The next two are not sure here but needed when called by main.py
@@ -471,7 +476,7 @@ class MainScreen(e5_MainScreen):
     def calc_button_height(self):
         instance = Text(text='Test', font_size=28)
         width, base_height = instance.render()
-        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', '') if self.colors.button_font_size else 28)
         width, font_height = instance.render()
         height = int(100 * (font_height / base_height))
         return height
@@ -479,7 +484,7 @@ class MainScreen(e5_MainScreen):
     def calc_menu_height(self):
         instance = Text(text='Test', font_size=28)
         width, base_height = instance.render()
-        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', ''))
+        instance = Text(text='Test', font_size=self.colors.button_font_size.replace('sp', '') if self.colors.button_font_size else 28)
         width, font_height = instance.render()
         height = .15 * (font_height / base_height)
         return height
@@ -513,6 +518,7 @@ class MainScreen(e5_MainScreen):
             if self.parent.current == 'MainScreen':
                 ascii_code = args[1]
                 text_str = args[3]
+                # print(ascii_code, args[3], args[4])
                 # print('INFO: The key %s has been pressed %s' % (ascii_code, text_str))
                 if not self.popup_open:
                     if ascii_code in [8, 127]:
@@ -541,6 +547,11 @@ class MainScreen(e5_MainScreen):
                         return False
                     if ascii_code in [276, 275, 278, 279] and not self.scroll_menu:
                         return False
+                    if ascii_code == 99 and 'ctrl' in args[4] and args[3] == 'c':
+                        # This is control-c.  Write code to cancel this record
+                        # need to move to the first field
+                        # need to clear values array
+                        pass
                     # if 'ctrl' in args[4] and args[3] == 'c':
                     #    Clipboard.copy(self.field_data.text)
                     # if 'ctrl' in args[4] and args[3] == 'v':
@@ -729,7 +740,7 @@ class MainScreen(e5_MainScreen):
                                     button_color=self.colors.button_color,
                                     button_background=self.colors.button_background,
                                     button_height=self.calc_button_height() / 100,
-                                    font_size=self.colors.button_font_size)
+                                    font_size=self.colors.button_font_size if self.colors.button_font_size else 28)
             self.popup = Popup(title="Load CFG file", content=content, size_hint=(0.9, 0.9))
             self.popup.auto_dismiss = False
             self.popup.open()

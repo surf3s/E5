@@ -41,7 +41,7 @@ class blockdata:
         self.blocks = []
         try:
             if os.path.isfile(self.filename):
-                with open(self.filename, 'r', encoding="utf-8") as f:
+                with open(self.filename, 'r', encoding="latin1") as f:
                     for line in f:
                         if len(line) > 2:
                             if line.strip()[0] == "[":
@@ -106,7 +106,7 @@ class blockdata:
 
     def write_blocks(self):
         try:
-            with open(self.filename, mode='w') as f:
+            with open(self.filename, encoding='latin1', mode='w') as f:
                 for block in self.blocks:
                     f.write(f"[{block['BLOCKNAME']}]\n")
                     for item in block.keys():
