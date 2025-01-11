@@ -4,44 +4,39 @@
 import logging
 import os
 
-from e5py.constants import APP_NAME
+from constants import APP_NAME
 
 
 class blockdata:
 
     filename = ''
-    blocks = []
+    blocks = {}
 
     def update_value(self, blockname, varname, vardata, append=False):
-        block_exists = False
-        for block in self.blocks:
-            if block['BLOCKNAME'] == blockname.upper():
-                block_exists = True
-                if (varname.upper() in block.keys()) and append:
-                    block[varname.upper()] = [block[varname.upper()], vardata]
-                else:
-                    block[varname.upper()] = vardata
-                return True
-        if not block_exists:
-            temp = {}
-            temp['BLOCKNAME'] = blockname.upper()
-            temp[varname.upper()] = vardata
-            self.blocks.append(temp)
+        var = varname.upper()
+        block = blockname.upper()
+        if block in self.blocks.keys():
+            if (var in self.blocks[block].keys()) and append:
+                self.blocks[block][var] = [self.blocks[block][var], vardata]
+            else:
+                self.blocks[block][var] = vardata
+            return True
+        else:
+            self.blocks[block] = {var: vardata}
             return True
         return False
 
     def get_block(self, blockname):
         if self.blocks:
-            for block in self.blocks:
-                if block['BLOCKNAME'] == blockname.upper():
-                    return block
+            if blockname.upper() in self.blocks.keys():
+                return self.block[blockname.upper()]
         return ''
 
     def read_blocks(self):
-        self.blocks = []
+        self.blocks = {}
         try:
             if os.path.isfile(self.filename):
-                with open(self.filename, 'r', encoding="latin1") as f:
+                with open(self.filename, 'r', encoding="utf-8") as f:
                     for line in f:
                         if len(line) > 2:
                             if line.strip()[0] == "[":
@@ -54,12 +49,7 @@ class blockdata:
             else:
                 f = open(self.filename, mode='w')
                 f.close()
-        # except UnicodeDecodeError:
-        #     f.close
-        #     pass
         except Exception as ex:
-            f.close()
-            self.blocks = []
             template = "An exception of type {0} occurred. Arguments:\n{1!r}"
             message = template.format(type(ex).__name__, ex.args)
             logging.exception(message)
@@ -67,52 +57,47 @@ class blockdata:
         return self.blocks
 
     def names(self):
-        name_list = []
-        for block in self.blocks:
-            name_list.append(block['BLOCKNAME'])
-        return name_list
+        return list(self.blocks.keys())
 
     def fields(self):
-        field_names = [field for field in self.names() if field not in [APP_NAME]]
-        return field_names
+        fieldnames = self.names()
+        if APP_NAME in fieldnames:
+            fieldnames.remove(APP_NAME)
+        return fieldnames
 
     def get_value(self, blockname, varname):
-        if self.blocks:
-            for block in self.blocks:
-                if block['BLOCKNAME'] == blockname.upper():
-                    if varname.upper() in block.keys():
-                        return block[varname.upper()]
-                    else:
-                        return ''
+        if blockname.upper() in self.blocks.keys():
+            if varname.upper() in self.blocks[blockname.upper()].keys():
+                return self.blocks[blockname.upper()][varname.upper()]
         return ''
 
     def delete_key(self, blockname, key):
-        for block in self.blocks:
-            if block['BLOCKNAME'] == blockname.upper():
-                block.pop(key)
-                return
+        if blockname.upper() in self.blocks:
+            self.blocks[blockname.upper()].pop(key, None)
 
     def rename_block(self, oldname, newname):
-        for block in self.blocks:
-            if block['BLOCKNAME'] == oldname.upper():
-                block['BLOCKNAME'] = newname.upper()
-                return
+        if oldname.upper() in self.blocks:
+            self.blocks[newname.upper()] = self.blocks.pop(oldname.upper(), None)
 
     def rename_key(self, blockname, old_key, new_key):
-        for block in self.blocks:
-            if block['BLOCKNAME'] == blockname.upper():
+        blockname = blockname.upper()
+        old_key = old_key.upper()
+        new_key = new_key.upper()
+        
+        if blockname in self.blocks:
+            block = self.blocks[blockname]
+            if old_key in block:
                 block[new_key] = block.pop(old_key)
-                return
 
     def write_blocks(self):
         try:
-            with open(self.filename, encoding='latin1', mode='w') as f:
-                for block in self.blocks:
-                    f.write(f"[{block['BLOCKNAME']}]\n")
-                    for item in block.keys():
-                        if not item == 'BLOCKNAME' and not item[:2] == "__":
-                            if block[item] != '' and block[item] is not None:
-                                f.write(f"{item}={block[item]}\n")
+            with open(self.filename, mode='w') as f:
+                for block, values in self.blocks.items():
+                    f.write(f"[{block}]\n")
+                    for item, value in values.items():
+                        if not item[:2] == "__":
+                            if value != '' and value is not None:
+                                f.write(f"{item}={value}\n")
                     f.write("\n")
             return True
         except OSError:
