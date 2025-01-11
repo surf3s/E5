@@ -209,8 +209,11 @@ class MainScreen(e5_MainScreen):
         restore_window_size_position(__program__, self.ini)
         self.if_camera_setup_camera()
         # self.children[1].children[0].children[0].size_hint_y = self.calc_menu_height()
-        self.children[1].children[0].children[0].size_hint_y = None
-        self.children[1].children[0].children[0].size_hint_y = .07
+        try:
+            self.children[1].children[0].children[0].size_hint_y = None
+            self.children[1].children[0].children[0].size_hint_y = .07
+        except IndexError:
+            pass
 
         if platform_name() == 'Android':
             try:
