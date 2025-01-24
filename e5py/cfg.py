@@ -9,6 +9,7 @@ from plyer import gps
 
 from e5py.misc import locate_file
 from e5py.blockdata import blockdata
+from tinydb import TinyDB
 
 __DEFAULT_FIELDS__ = []
 __DEFAULT_FIELDS_NUMERIC__ = []
@@ -79,7 +80,7 @@ class cfg(blockdata):
             self.filename = filename
 
     def initialize(self):
-        self.blocks = []
+        # self.blocks = []
         self.filename = ""
         self.path = ""
         self.current_field = None
@@ -194,6 +195,7 @@ class cfg(blockdata):
             f.carry = self.get_value(field_name, "CARRY").upper() == 'TRUE'
             f.required = self.get_value(field_name, "REQUIRED").upper() == 'TRUE'
             f.sorted = self.get_value(field_name, "SORTED").upper() == 'TRUE'
+            f.lookupfile = self.get_value(field_name, 'LOOKUP FILE')
 
             f.menu = []
             if f.inputtype == 'MENU':
@@ -237,13 +239,6 @@ class cfg(blockdata):
                         f.invalid = fileio.readlines()
                 except:
                     pass
-
-            if f.lookupfile:
-                # convert the name to a json extension
-                # open the db
-                # and return here a handle to it
-                f.lookupdb = None
-                pass
 
             for condition_no in range(1, 6):
                 if self.get_value(field_name, "CONDITION%s" % condition_no):
@@ -346,28 +341,14 @@ class cfg(blockdata):
                             # look for a fieldname match with the current fieldname
                             # create a TinyDB
                             # go through each line and write to TinyDB
-                            fieldnames = []
-                            firstline = True
+                            fields = []
                             with open(filename) as fileio:
-                                lineno = 0
-                                for line in fileio:
-                                    lineno += 1
-                                    data = line.split(',')
-                                    if firstline:
-                                        fieldnames = data
-                                        firstline = False
-                                    else:
-                                        if len(data) == len(fieldnames):
-                                            self.has_errors = True
-                                            self.errors.append("ERROR: The CSV file '%s' had a problem on line %s.  The number of fields provided does not match the expected number of field." % (filename, lineno))
-                                            break
-                                    # TODO What is this?
-                                    # insert data into a data record
-                                    # data_record = {}
-                                    # for field in fieldnames:
-                                    #    data_record[field] = data[field]
-                                    # e5_data.db.insert(e5_cfg.current_record)
-
+                                fields = fileio.readline().strip().split(',')
+                            fields = [field.upper() for field in fields]
+                            fields = [field.replace('"', '') for field in fields]
+                            if field_name not in fields:
+                                self.errors.append(f'Error: The lookup file for the field {field_name} must contain this field name.  Note that case does not matter.')
+                                self.has_errors = True
                         except:
                             pass
                     else:

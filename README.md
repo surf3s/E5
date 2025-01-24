@@ -37,7 +37,7 @@ E5 is a complete re-write of E4 in a language that I am still learning.  It also
 
 ##### Windows
 
-A Windows exe file can be found in the folder [Windows](https://github.com/surf3s/E5/tree/master/E5/Windows).  Download this file, place it in a folder where you want to start your data entry, and launch the program.
+A Windows exe file can be found in the folder [Windows](https://github.com/surf3s/E5/tree/master/Windows).  Download this file, place it in a folder where you want to start your data entry, and launch the program.
 
 I have tested E5 on several Windows 10 machines, and it worked well (though in some instance some of the time it was slow to load and then this problem went away).  I doubt it works on Windows 7 and it almost certainly does not work on Windows XP.  If you have to use Windows XP (and you really, really shouldn't) or Windows 7 (and you really, really shouldn't) then I recommend using my previous software (E4 or Entrer Trois).
 
@@ -99,6 +99,10 @@ pip install --upgrade e5
 ```
 
 ##### Bug Fixes 
+
+Version 1.3.23
+1.    Refactored blockdata.py to by more Pythonic
+2.    Added lookup files for fields
 
 Version 1.3.22
 1.    Fixed bug that crashes program intermittantly (had to do with self.colors)

@@ -82,9 +82,15 @@
 # 2.    Gave another attempt at fixing encoding issues (went to latin1 instead of utf-8)
 # 3.    Worked on layout/font size issues on edit last recod and edit data grid
 
-# TODO Need to fix ASAP conditions in e4 not comma delimited
+# Version 1.3.23
+# 1.    Refactored blockdata.py to by more Pythonic
+# 2.    Added lookup files for fields
 
-__version__ = '1.3.22'
+# TODO 
+#   Impliment unique_together
+#   Impliment force uppercase and lowercase entries
+
+__version__ = '1.3.23'
 __date__ = 'January, 2025'
 __program__ = 'E5'
 
@@ -121,6 +127,7 @@ import sys
 from os import path, makedirs
 from random import random
 from platform import python_version
+import csv
 
 from plyer import gps
 from plyer import camera
@@ -176,6 +183,7 @@ class MainScreen(e5_MainScreen):
         self.cfg = cfg()
         self.data = db()
         self.warnings, self.errors = self.setup_program()
+        self.load_any_lookup_tables()
 
         # if platform_name() == 'Android':
         #     self.colors.button_font_size = "14sp"
@@ -380,10 +388,29 @@ class MainScreen(e5_MainScreen):
         if self.cfg.filename:
             self.open_db()
             self.set_new_data_to_true()
+            self.load_any_lookup_tables()
         self.ini.update(self.colors, self.cfg)
         self.build_mainscreen()
         self.reset_screens()
         self.if_camera_setup_camera()
+
+    def load_any_lookup_tables(self):
+        for field_name in self.cfg.fields():
+            field = self.cfg.get(field_name)
+            if field.lookupfile:
+                lookup_table_name = self.data.table + "_" + field_name
+                self.data.db.drop_table(lookup_table_name)
+                fieldnames, data = self.read_csv_file(field.lookupfile)
+                self.data.db.table(lookup_table_name).insert_multiple(data)
+
+    def read_csv_file(self, full_filename):
+        data = []
+        with open(full_filename, newline='') as csvfile:
+            reader = csv.DictReader(csvfile, quoting=csv.QUOTE_NONNUMERIC)
+            for row in reader:
+                row = {k.upper(): v for k, v in row.items()}
+                data.append(row)
+        return [field.upper() for field in reader.fieldnames], data
 
     def set_new_data_to_true(self, table_name=None):
         if table_name is None:
@@ -791,10 +818,12 @@ class MainScreen(e5_MainScreen):
         self.no_update = True
         self.copy_from_menu_to_textbox()
         self.copy_from_gps_to_textbox()
+        hold_value = self.field_data.textbox.text
         self.save_field()
         self.no_update = False
         valid_data = self.cfg.data_is_valid(db=self.data.db.table(self.data.table))
         if valid_data is True:
+            self.display_lookup_data(hold_value)
             self.cfg.next()
             if self.cfg.EOF:
                 self.save_record()
@@ -805,6 +834,20 @@ class MainScreen(e5_MainScreen):
             widget.text = self.cfg.current_record[self.cfg.current_field.name]
             widget.focus = True
             self.popup = e5_MessageBox(self.cfg.current_field.name, valid_data, call_back=self.close_popup, colors=self.colors)
+            self.popup.open()
+            self.popup_open = True
+
+    def display_lookup_data(self, lookup_value):
+        if self.cfg.current_field.lookupfile and lookup_value:
+            lookup_table_name = self.data.table + "_" + self.cfg.current_field.name
+            result = self.data.db.table(lookup_table_name).get(lambda x: x[self.cfg.current_field.name] == lookup_value)
+            if result:
+                result_text = '\n' + '\n'.join([f"  {k}: {v}" for k, v in result.items()])
+                title = 'Lookup Result'
+            else:
+                result_text = f'\n  The value {lookup_value} was not found in the lookup file for this field.  Note that case matters.\n\n  The lookup file is {self.cfg.current_field.lookupfile}.'
+                title = 'Warning'
+            self.popup = e5_MessageBox(title, result_text, call_back=self.close_popup, colors=self.colors)
             self.popup.open()
             self.popup_open = True
 

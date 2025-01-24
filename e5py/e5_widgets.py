@@ -731,10 +731,8 @@ class e5_MainScreen(Screen):
     def save_record(self):
         valid = self.cfg.validate_current_record()
         if valid:
-            if self.data.save(self.cfg.current_record):
-                self.make_backup()
-            else:
-                pass
+            self.data.save(self.cfg.current_record)
+            self.make_backup()
         else:
             self.popup = e5_MessageBox('Save Error', valid, call_back=self.close_popup, colors=self.colors)
             self.popup.auto_dismiss = False
