@@ -86,11 +86,14 @@
 # 1.    Refactored blockdata.py to by more Pythonic
 # 2.    Added lookup files for fields
 
+# Version 1.3.24
+# 1.    Bug fix on lookup files when multiple hits are possible
+
 # TODO 
 #   Impliment unique_together
 #   Impliment force uppercase and lowercase entries
 
-__version__ = '1.3.23'
+__version__ = '1.3.24'
 __date__ = 'January, 2025'
 __program__ = 'E5'
 
@@ -138,6 +141,7 @@ from platformdirs import user_data_dir, user_log_dir, user_documents_dir
 
 # The database - pure Python
 from tinydb import __version__ as __tinydb_version__
+from tinydb import where
 
 # My libraries for this project
 # sys.path.append(path.join(sys.path[0], 'lib'))
@@ -840,13 +844,19 @@ class MainScreen(e5_MainScreen):
     def display_lookup_data(self, lookup_value):
         if self.cfg.current_field.lookupfile and lookup_value:
             lookup_table_name = self.data.table + "_" + self.cfg.current_field.name
-            result = self.data.db.table(lookup_table_name).get(lambda x: x[self.cfg.current_field.name] == lookup_value)
-            if result:
-                result_text = '\n' + '\n'.join([f"  {k}: {v}" for k, v in result.items()])
-                title = 'Lookup Result'
+            if self.data.table_exists(lookup_table_name):
+                results = self.data.db.table(lookup_table_name).search(where(self.cfg.current_field.name) == lookup_value)
+                if results:
+                    result_text = ''
+                    for result in results:
+                        result_text += '\n' + '\n'.join([f"  {k}: {v}" for k, v in result.items()]) + '\n'
+                    title = 'Lookup Result'
+                else:
+                    result_text = f'\n  The value {lookup_value} was not found in the lookup file for this field.  Note that case matters.\n\n  The lookup file is {self.cfg.current_field.lookupfile}.'
+                    title = 'Warning'
             else:
-                result_text = f'\n  The value {lookup_value} was not found in the lookup file for this field.  Note that case matters.\n\n  The lookup file is {self.cfg.current_field.lookupfile}.'
-                title = 'Warning'
+                result_text = f'\n  Lookup table {lookup_table_name} does not exists in this database.  Normally this should not happen.  Try exiting the program and restarting.  Otherwise, let me know.'
+                title = 'Error'
             self.popup = e5_MessageBox(title, result_text, call_back=self.close_popup, colors=self.colors)
             self.popup.open()
             self.popup_open = True

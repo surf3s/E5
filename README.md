@@ -98,7 +98,10 @@ To upgrade E5, you should be able to do the following.  Sometimes this does not 
 pip install --upgrade e5
 ```
 
-##### Bug Fixes 
+##### Bug Fixes/Feature Additions 
+
+Version 1.3.24
+1.    Bug fix on lookup files when multiple hits are possible
 
 Version 1.3.23
 1.    Refactored blockdata.py to by more Pythonic

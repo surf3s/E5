@@ -119,3 +119,6 @@ class dbs():
 
     def doc_ids(self):
         return [r.doc_id for r in self.db.table(self.table).all()]
+
+    def table_exists(self, tablename):
+        return tablename in self.db.tables()
