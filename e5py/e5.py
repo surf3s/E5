@@ -86,13 +86,13 @@
 # 1.    Refactored blockdata.py to by more Pythonic
 # 2.    Added lookup files for fields
 
-# Version 1.3.24
+# Version 1.3.25
 # 1.    Fixed installation bug when using PyPi
 
 # TODO 
 #   Impliment unique_together
 
-__version__ = '1.3.24'
+__version__ = '1.3.25'
 __date__ = 'January, 2025'
 __program__ = 'E5'
 

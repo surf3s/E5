@@ -100,7 +100,7 @@ pip install --upgrade e5
 
 ##### Bug Fixes 
 
-Version 1.3.24
+Version 1.3.25
 1.    Fixed installation bug (when using PyPi)
 
 Version 1.3.23
