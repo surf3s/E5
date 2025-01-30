@@ -6,11 +6,10 @@ This may seem like a strange way to handle where the code goes (I don't know) bu
 Anyway, it seems to work okay.
 '''
 
-import e5
+import e5py.e5 as e5
 
 if __name__ == '__main__':
-    # This line goes with the function above
-    e5.resources.resource_add_path(e5.resourcePath())  # add this line
+    e5.resources.resource_add_path(e5.resourcePath())
     e5.Config.set('input', 'mouse', 'mouse,multitouch_on_demand')      # Removes red dot
-    e5.Config.set('kivy', 'exit_on_escape', '0')
+    e5.Config.set('kivy', 'exit_on_escape', '0')                       # Changes what escape does
     e5.E5App().run()

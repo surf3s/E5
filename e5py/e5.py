@@ -86,11 +86,13 @@
 # 1.    Refactored blockdata.py to by more Pythonic
 # 2.    Added lookup files for fields
 
+# Version 1.3.24
+# 1.    Fixed installation bug when using PyPi
+
 # TODO 
 #   Impliment unique_together
-#   Impliment force uppercase and lowercase entries
 
-__version__ = '1.3.23'
+__version__ = '1.3.24'
 __date__ = 'January, 2025'
 __program__ = 'E5'
 
@@ -804,6 +806,17 @@ class MainScreen(e5_MainScreen):
         self.cfg.current_record[self.cfg.current_field.name] = self.field_data.textbox.text.replace('\n', '')
         self.field_data.textbox.text = ''
 
+    def fix_case(self):
+        if self.cfg.current_field.case:
+            if self.cfg.current_field.case == 'UPPER':
+                self.field_data.textbox.text = self.field_data.textbox.text.upper()
+            elif self.cfg.current_field.case == 'LOWER':
+                self.field_data.textbox.text = self.field_data.textbox.text.lower()
+            elif self.cfg.current_field.case == 'TITLE':
+                self.field_data.textbox.text = self.field_data.textbox.text.title()
+            elif self.field_data.textbox.text == 'SENTENCE':
+                self.field_data.textbox.text = self.field_data.textbox.text.sentence()
+
     def go_back(self, *args):
         if self.cfg.filename:
             self.save_field()
@@ -818,6 +831,7 @@ class MainScreen(e5_MainScreen):
         self.no_update = True
         self.copy_from_menu_to_textbox()
         self.copy_from_gps_to_textbox()
+        self.fix_case()
         hold_value = self.field_data.textbox.text
         self.save_field()
         self.no_update = False
