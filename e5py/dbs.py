@@ -16,7 +16,7 @@ class dbs():
             self.filename = filename
             self.open(self.filename)
             return
-            
+
     def open(self, filename=''):
         if filename:
             self.filename = filename
