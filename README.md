@@ -103,6 +103,9 @@ pip install --upgrade e5
 Version 1.3.24
 1.    Bug fix on lookup files when multiple hits are possible
 
+Version 1.3.25
+1.    Fixed installation bug (when using PyPi)
+
 Version 1.3.23
 1.    Refactored blockdata.py to by more Pythonic
 2.    Added lookup files for fields

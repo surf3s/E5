@@ -89,11 +89,16 @@
 # Version 1.3.24
 # 1.    Bug fix on lookup files when multiple hits are possible
 
-# TODO 
-#   Impliment unique_together
-#   Impliment force uppercase and lowercase entries
+# Version 1.3.25
+# 1.    Fixed installation bug when using PyPi
+# 2.    Upgraded Python to 3.13 (Warning - this may break installations with older versions of Python)
+# 3.    Upgraded all libraries including especially Kivy (to 2.3)
+# 4.    Added feature to change case on a field
+# 5.    Added feature to find (and stop) duplicates on multiple fields (set unique on multiple fields)
 
-__version__ = '1.3.24'
+# TODO 
+
+__version__ = '1.3.25'
 __date__ = 'January, 2025'
 __program__ = 'E5'
 
@@ -132,8 +137,6 @@ from random import random
 from platform import python_version
 import csv
 
-from plyer import gps
-from plyer import camera
 from plyer import __version__ as __plyer_version__
 
 import logging
@@ -156,6 +159,8 @@ from e5py.cfg import cfg
 from e5py.ini import ini
 
 if platform_name() == 'Android':
+    from plyer import gps
+    from plyer import camera
     try:
         import android
         from androidstorage4kivy import SharedStorage, Chooser
@@ -808,6 +813,17 @@ class MainScreen(e5_MainScreen):
         self.cfg.current_record[self.cfg.current_field.name] = self.field_data.textbox.text.replace('\n', '')
         self.field_data.textbox.text = ''
 
+    def fix_case(self):
+        if self.cfg.current_field.case:
+            if self.cfg.current_field.case == 'UPPER':
+                self.field_data.textbox.text = self.field_data.textbox.text.upper()
+            elif self.cfg.current_field.case == 'LOWER':
+                self.field_data.textbox.text = self.field_data.textbox.text.lower()
+            elif self.cfg.current_field.case == 'TITLE':
+                self.field_data.textbox.text = self.field_data.textbox.text.title()
+            elif self.cfg.current_field.case  == 'SENTENCE':
+                self.field_data.textbox.text = self.field_data.textbox.text.capitalize()
+
     def go_back(self, *args):
         if self.cfg.filename:
             self.save_field()
@@ -822,6 +838,7 @@ class MainScreen(e5_MainScreen):
         self.no_update = True
         self.copy_from_menu_to_textbox()
         self.copy_from_gps_to_textbox()
+        self.fix_case()
         hold_value = self.field_data.textbox.text
         self.save_field()
         self.no_update = False
@@ -1039,7 +1056,7 @@ class StatusScreen(e5_InfoScreen):
         txt += '\nThe operating system is %s.\n' % platform_name()
         txt += '\nPython buid is %s.\n' % (python_version())
         txt += '\nLibraries installed include Kivy %s, TinyDB %s and Plyer %s.\n' % (__kivy_version__, __tinydb_version__, __plyer_version__)
-        txt += '\nE5 was tested and distributed on Python 3.8, Kivy 2.2.1, TinyDB 4.4.0 and Plyer 2.0.0\n'
+        txt += '\nThis version of E5 was tested and distributed on Python 3.13, Kivy 2.3.1, TinyDB 4.8.2 and Plyer 2.1.0\n'
         if self.e5_ini.debug:
             txt += '\nProgram is running in debug mode.\n'
         if platform_name() == 'Android':
@@ -1061,10 +1078,12 @@ class StatusScreen(e5_InfoScreen):
 
 class AboutScreen(e5_InfoScreen):
     def on_pre_enter(self):
-        self.content.text = '\n\nE5 by Shannon P. McPherron\n\nVersion ' + __version__ + '\nCoconut Pie\n\n'
-        self.content.text += 'Built on Python 3.8, Kivy 2.2.1, TinyDB 4.4.0 and Plyer 2.0.0\n\n'
+        self.content.text = f'\n\nE5 by Shannon P. McPherron\n\nVersion ' + __version__ + '\nDonut Pie\n\n'
+        self.content.text += f'Built on Python {python_version()}, Kivy {__kivy_version__}, TinyDB {__tinydb_version__} and Plyer {__plyer_version__}\n\n'
         self.content.text += 'An OldStoneAge.Com Production\n\n' + __date__
-        self.content.text += '\n\nSpecial thanks to Marcel Weiss,\n Jonathan Reeves and Li Li.\n\n'
+        self.content.text += '\n\nSpecial thanks to Marcel Weiss,\n Jonathan Reeves and Li Li.\n'
+        self.content.text += 'Also thanks to all others that reported bugs to me and tested new versions.\n'
+        self.content.text += 'This help is greatly appreciated.\n\n'
         self.content.halign = 'center'
         self.content.valign = 'middle'
         self.content.color = self.colors.text_color

@@ -4,7 +4,7 @@
 import logging
 import os
 
-from constants import APP_NAME
+from e5py.constants import APP_NAME
 
 
 class blockdata:
@@ -36,7 +36,7 @@ class blockdata:
         self.blocks = {}
         try:
             if os.path.isfile(self.filename):
-                with open(self.filename, 'r', encoding="utf-8") as f:
+                with open(self.filename, 'r', encoding="latin1") as f:
                     for line in f:
                         if len(line) > 2:
                             if line.strip()[0] == "[":

@@ -14,7 +14,8 @@ class dbs():
     def __init__(self, filename=None, **kwargs):
         if filename:
             self.filename = filename
-            return self.open(self.filename)
+            self.open(self.filename)
+            return
 
     def open(self, filename=''):
         if filename:

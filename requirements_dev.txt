@@ -5,7 +5,7 @@ pytest>=7.4.2
 pytest-cov>=2.12.1
 mypy>=0.910
 PyInstaller==4.10
-build==0.8.0
+build>=0.8.0
 twine>=4.0
 wheel>=0.41
 setuptools>=56.0.0

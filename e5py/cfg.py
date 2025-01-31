@@ -9,7 +9,7 @@ from plyer import gps
 
 from e5py.misc import locate_file
 from e5py.blockdata import blockdata
-from tinydb import TinyDB
+from tinydb import Query
 
 __DEFAULT_FIELDS__ = []
 __DEFAULT_FIELDS_NUMERIC__ = []
@@ -29,6 +29,7 @@ class field:
         self.increment = False
         self.carry = False
         self.unique = False
+        self.case = ''
         self.info = ''
         self.infofile = ''
         self.data = ''
@@ -40,7 +41,7 @@ class field:
         self.invalid = []
         self.invalidfile = ''
         self.lookupfile = ''
-        self.lookupdb = None
+        self.lookupdb = None        # not used
         self.link_fields = None     # Compatibility with E5
 
     def __str__(self):
@@ -196,6 +197,7 @@ class cfg(blockdata):
             f.required = self.get_value(field_name, "REQUIRED").upper() == 'TRUE'
             f.sorted = self.get_value(field_name, "SORTED").upper() == 'TRUE'
             f.lookupfile = self.get_value(field_name, 'LOOKUP FILE')
+            f.case = self.get_value(field_name, 'CASE')
 
             f.menu = []
             if f.inputtype == 'MENU':
@@ -266,6 +268,7 @@ class cfg(blockdata):
         self.update_value(field_name, 'VALID FILE', f.invalidfile)
         self.update_value(field_name, 'INVALID FILE', f.validfile)
         self.update_value(field_name, 'LOOKUP FILE', f.lookupfile)
+        self.update_value(field_name, 'CASE', f.case)
         self.update_value(field_name, '__CONDITIONS_CLEAN', f.conditions_clean)
 
     def get_field_data(self, field_name=None):
@@ -287,11 +290,17 @@ class cfg(blockdata):
         if self.current_field.unique:
             if self.current_record[self.current_field.name] == '':
                 return '\nError: This field is marked as unique.  Empty entries are not allowed in unique fields.'
-            if db is not None:
-                for data_row in db:
-                    if self.current_field.name in data_row:
-                        if data_row[self.current_field.name] == self.current_record[self.current_field.name]:
-                            return '\nError: This field is marked as unique and you are trying to add a duplicate entry.'
+            if self.current_field.name in self.unique_together:
+                if self.current_field.name == self.unique_together[-1]:
+                    if db is not None:
+                        search = {}
+                        for field in self.unique_together:
+                            if search.current_record[field]:
+                                search[field] = self.current_record[field]
+                        if search:
+                            result = db.search(Query().field.fragment(search))
+                            if result:
+                                return f"\nError: The field(s) {','.join(self.unique_together)} are marked as unique but the value {self.current_record[self.current_field.name]} results in a duplicate record."
         if self.current_field.valid:
             if not any(s.upper() == self.current_record[self.current_field.name].upper() for s in self.current_field.valid):
                 return ("\nError: The entry '%s' does not appear in the list of valid entries found in '%s'." %
@@ -326,6 +335,7 @@ class cfg(blockdata):
                 self.convert_space_to_comma_delimited()     # E4 allowed space delimited lists.
 
             prior_fieldnames = []
+            unique_together = []
             for field_name in self.fields():
 
                 # This change makes an E4 file compatible with E5
@@ -361,6 +371,15 @@ class cfg(blockdata):
                             self.update_value(field_name, field_option, 'TRUE')
 
                 f = self.get(field_name)
+
+                if f.unique:
+                    unique_together.append(field_name)
+
+                if f.case:
+                    f.case = f.case.upper()
+                    if f.case not in ['UPPER', 'LOWER', 'TITLE', 'SENTENCE']:
+                        self.errors.append(f'Error: Problem with case option for field {field_name}.  Valid options are Upper, Lower, Title and Sentence.')
+                        self.has_errors = True
 
                 if self.get_value(field_name, "LENGTH"):
                     test = False
@@ -455,7 +474,7 @@ class cfg(blockdata):
                                 f.conditions_clean = conditions
                 self.put(field_name, f)
                 prior_fieldnames.append(field_name.upper())
-
+            self.update_value('E5', 'UNIQUE_TOGETHER', ','.join(unique_together))
         return (self.has_errors, self.errors)
 
     # Pull the conditions appart into a list of objects
