@@ -5,9 +5,11 @@ This file, __main__.py, was added to make the command line python e5py work afte
 '''
 
 import e5py.e5 as e5
+from kivy.lang.builder import Builder
 
 if __name__ == '__main__':
     e5.resources.resource_add_path(e5.resourcePath())
     e5.Config.set('input', 'mouse', 'mouse,multitouch_on_demand')      # Removes red dot
     e5.Config.set('kivy', 'exit_on_escape', '0')                       # Changes what escape does 
+    Builder.load_file('main.kv')
     e5.E5App().run()
