@@ -531,7 +531,7 @@ class cfg(blockdata):
             self.filename = filename
         self.path = ntpath.split(self.filename)[0]
 
-        self.blocks = []
+        self.blocks = {}
         if path.isfile(self.filename):
             self.blocks = self.read_blocks()
         else:

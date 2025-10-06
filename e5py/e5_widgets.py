@@ -2247,17 +2247,17 @@ class DataUploadScreen(Screen):
         self.scroll_grid.add_widget(e5_label_wrapped(text=instructions, colors=self.colors))
         self.url = DataGridLabelAndField(col='URL', colors=self.colors)
         if url:
-            self.url.txt.text = url
+            self.url.txt.textbox.text = url
         self.scroll_grid.add_widget(self.url)
         self.username = DataGridLabelAndField(col='Username', colors=self.colors)
         if username:
-            self.username.txt.text = username
+            self.username.txt.textbox.text = username
         self.scroll_grid.add_widget(self.username)
         self.password = DataGridLabelAndField(col='Password', colors=self.colors)
         password = ''
         if password:
-            self.password.txt.text = password
-        self.password.txt.password = True
+            self.password.txt.textbox.text = password
+        self.password.txt.textbox.password = True
         self.scroll_grid.add_widget(self.password)
         self.dbname = DataGridLabelAndField(col='Database name', colors=self.colors)
         self.scroll_grid.add_widget(self.dbname)
@@ -2284,19 +2284,19 @@ class DataUploadScreen(Screen):
     def on_pre_enter(self):
         database = self.cfg.get_value(APP_NAME, 'ONLINE_DATABASE')
         if database:
-            self.dbname.txt.text = database
+            self.dbname.txt.textbox.text = database
 
         table = self.cfg.get_value(APP_NAME, 'ONLINE_TABLE')
         if table:
-            self.tablename.txt.text = table
+            self.tablename.txt.textbox.text = table
 
         username = self.cfg.get_value(APP_NAME, 'ONLINE_USERNAME')
         if username:
-            self.username.txt.text = username
+            self.username.txt.textbox.text = username
 
         url = self.cfg.get_value(APP_NAME, 'ONLINE_URL')
         if url:
-            self.url.txt.text = url
+            self.url.txt.textbox.text = url
 
     def on_enter(self):
         if not self.cfg.filename or not self.data.filename:
@@ -2314,16 +2314,16 @@ class DataUploadScreen(Screen):
 
     def back(self, instance):
         if self.dbname.txt.textbox.text:
-            self.cfg.update_value(APP_NAME, 'ONLINE_DATABASE', self.dbname.txt.text)
+            self.cfg.update_value(APP_NAME, 'ONLINE_DATABASE', self.dbname.txt.textbox.text)
 
         if self.tablename.txt.textbox.text:
-            self.cfg.update_value(APP_NAME, 'ONLINE_TABLE', self.tablename.txt.text)
+            self.cfg.update_value(APP_NAME, 'ONLINE_TABLE', self.tablename.txt.textbox.text)
 
         if self.username.txt.textbox.text:
-            self.cfg.update_value(APP_NAME, 'ONLINE_USERNAME', self.username.txt.text)
+            self.cfg.update_value(APP_NAME, 'ONLINE_USERNAME', self.username.txt.textbox.text)
 
         if self.url.txt.textbox.text:
-            self.cfg.update_value(APP_NAME, 'ONLINE_URL', self.url.txt.text)
+            self.cfg.update_value(APP_NAME, 'ONLINE_URL', self.url.txt.textbox.text)
 
         self.cfg.save()
         self.parent.current = 'MainScreen'
@@ -2381,25 +2381,30 @@ class DataUploadScreen(Screen):
         else:
             response = requests.get(f"{route['url']}{route['database']}/{route['table']}/detail{detail_keys}/",
                                     headers={'Authorization': f"Token {route['api']}"})
-        return json.loads(response.text)
+        if response.status_code == 404:
+            return {}
+        else:
+            return json.loads(response.text)
 
     def replace_keyfields(self, route, record, unique_together, structure):
         new_record = record.copy()
         for field in record.keys():
-            if structure[field]['type'] == 'ForeignKey' and field != 'squid':
-                second_route = route.copy()
-                second_route['table'] = field
-                detail = '/' + record[field]
-                response = self.get_details(second_route, detail)
-                if 'id' in response:
-                    new_record[field] = response['id']
+            if field in structure:
+                if structure[field]['type'] == 'ForeignKey' and field != 'squid':
+                    second_route = route.copy()
+                    second_route['table'] = field
+                    detail = '/' + record[field]
+                    response = self.get_details(second_route, detail)
+                    if 'id' in response:
+                        new_record[field] = response['id']
         return new_record
 
     def fix_numeric_fields(self, record, structure):
         new_record = record.copy()
         for field in record.keys():
-            if structure[field]['type'] in ['IntegerField', 'FloatField'] and record[field] == "":
-                new_record[field] = None
+            if field in structure:
+                if structure[field]['type'] in ['IntegerField', 'FloatField'] and record[field] == "":
+                    new_record[field] = None
         return new_record
 
     def remove_non_e5_cfg_fields(self, record, cfg_fields):
@@ -2485,7 +2490,7 @@ class DataUploadScreen(Screen):
             return ("Could not connect to the URL provided above with those credentials.  "
                         "This URL should look something like https://www.oldstoneage.com/api/ but modified for your database.  "
                         f"The exact error message was '{status}'.", route)
-        if not self.dbname.txt.text or not self.tablename.txt.text:
+        if not self.dbname.txt.textbox.text or not self.tablename.txt.textbox.text:
             return ('Provide a database and table name.', route)
         route['type'] = status['type']
         return ('', route)

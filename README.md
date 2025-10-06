@@ -1,4 +1,4 @@
-# E5 (Beta Version)
+# E5
 
 E5 is a generalized data entry program intended for archaeologists but likely useful for others as well.  It works with a configuration file where the data entry fields are defined.  Importantly, E5 makes it simple to make entry in one field conditional on values previously entered for other fields.  The goal is to make data entry fast, efficient and error free.
 
@@ -27,7 +27,7 @@ E5 is a complete, from scratch re-write of E4.  It is backwards compatible with 
 
 #### A Word about the Technology
 
-E5 is written with Python 3.8.1 (but is compatible with 3.6 for now) using as few dependencies as possible for portability and maintainability.  The graphical user interface is built on Kivy 2.0.  Kivy is specifically designed for touch screens and cross-platform support; however, I made every effort to retain the efficiency of keyboard data entry for Windows and Mac OS.  The database is built on TinyDB, which is written in pure Python.  E3 (the DOS version) lasted a good 15 years (and still works actually).  E4 lasted 10-15 years as well.  My hope is that E5 will have at least this same use life, and I am cautiously optimistic that the switch to Python will give it a longer use life (though I expect that I will have to change the graphical user interface technology more frequently).
+E5 is written with Python 3.10.11 using as few dependencies as possible for portability and maintainability.  The graphical user interface is built on Kivy 2.3.  Kivy is specifically designed for touch screens and cross-platform support; however, I made every effort to retain the efficiency of keyboard data entry for Windows and Mac OS.  The database is built on TinyDB, which is written in pure Python.  E3 (the DOS version) lasted a good 15 years (and still works actually).  E4 lasted 10-15 years as well.  My hope is that E5 will have at least this same use life, and I am cautiously optimistic that the switch to Python will give it a longer use life (though I expect that I will have to change the graphical user interface technology more frequently).
 
 #### Data Security and Bugs
 
@@ -100,11 +100,18 @@ pip install --upgrade e5
 
 ##### Bug Fixes/Feature Additions 
 
-Version 1.3.24
-1.    Bug fix on lookup files when multiple hits are possible
+Version 1.3.26
+1.    Upgraded Python to 3.13 (Warning - this may break installations with older versions of Python)
+2.    Upgraded all libraries including especially Kivy (to 2.3)
+3.    Added feature to change case on a field
+4.    Added feature to find (and stop) duplicates on multiple fields (set unique on multiple fields)
+5.    Really bad crash on startup bug related to making block data a dict instead of a list
 
 Version 1.3.25
-1.    Fixed installation bug (when using PyPi)
+1.    Fixed installation bug when using PyPi
+
+Version 1.3.24
+1.    Bug fix on lookup files when multiple hits are possible
 
 Version 1.3.23
 1.    Refactored blockdata.py to by more Pythonic

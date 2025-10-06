@@ -83,7 +83,7 @@ class blockdata:
         blockname = blockname.upper()
         old_key = old_key.upper()
         new_key = new_key.upper()
-        
+
         if blockname in self.blocks:
             block = self.blocks[blockname]
             if old_key in block:

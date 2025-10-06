@@ -91,15 +91,19 @@
 
 # Version 1.3.25
 # 1.    Fixed installation bug when using PyPi
-# 2.    Upgraded Python to 3.13 (Warning - this may break installations with older versions of Python)
-# 3.    Upgraded all libraries including especially Kivy (to 2.3)
-# 4.    Added feature to change case on a field
-# 5.    Added feature to find (and stop) duplicates on multiple fields (set unique on multiple fields)
+
+# Version 1.3.26
+# 1.    Upgraded Python to 3.13 (Warning - this may break installations with older versions of Python)
+# 2.    Upgraded all libraries including especially Kivy (to 2.3)
+# 3.    Added feature to change case on a field
+# 4.    Added feature to find (and stop) duplicates on multiple fields (set unique on multiple fields)
+# 5.    Really bad crash on startup bug related to making block data a dict instead of a list
+
 
 # TODO 
 
-__version__ = '1.3.25'
-__date__ = 'January, 2025'
+__version__ = '1.3.26'
+__date__ = 'October, 2025'
 __program__ = 'E5'
 
 # The next two are not sure here but needed when called by main.py
