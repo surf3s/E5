@@ -100,6 +100,9 @@ pip install --upgrade e5
 
 ##### Bug Fixes/Feature Additions 
 
+Version 1.3.27
+1.    Fixed an odd bug where the number 3 could not be entered on Macs
+
 Version 1.3.26
 1.    Upgraded Python to 3.13 (Warning - this may break installations with older versions of Python)
 2.    Upgraded all libraries including especially Kivy (to 2.3)

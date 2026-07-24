@@ -99,11 +99,13 @@
 # 4.    Added feature to find (and stop) duplicates on multiple fields (set unique on multiple fields)
 # 5.    Really bad crash on startup bug related to making block data a dict instead of a list
 
+# Version 1.3.27
+# 1.    Fixed an odd bug where the number 3 would not enter on Macs.
 
 # TODO 
 
-__version__ = '1.3.26'
-__date__ = 'October, 2025'
+__version__ = '1.3.27'
+__date__ = 'July, 2026'
 __program__ = 'E5'
 
 # The next two are not sure here but needed when called by main.py
@@ -583,8 +585,8 @@ class MainScreen(e5_MainScreen):
                             return True
                         elif self.cfg_files:
                             self.cfg_selected(self.scroll_menu.scroll_menu_get_selected())
-                    if ascii_code == 51:
-                        return True
+                    # if ascii_code == 51:
+                    #     return True
                     if ascii_code in [273, 274, 275, 276, 278, 279] and self.scroll_menu:
                         self.scroll_menu.move_scroll_menu_item(ascii_code)
                         return False
@@ -1082,7 +1084,7 @@ class StatusScreen(e5_InfoScreen):
 
 class AboutScreen(e5_InfoScreen):
     def on_pre_enter(self):
-        self.content.text = f'\n\nE5 by Shannon P. McPherron\n\nVersion ' + __version__ + '\nDonut Pie\n\n'
+        self.content.text = f'\n\nE5 by Shannon P. McPherron\n\nVersion {__version__}\n\n'
         self.content.text += f'Built on Python {python_version()}, Kivy {__kivy_version__}, TinyDB {__tinydb_version__} and Plyer {__plyer_version__}\n\n'
         self.content.text += 'An OldStoneAge.Com Production\n\n' + __date__
         self.content.text += '\n\nSpecial thanks to Marcel Weiss,\n Jonathan Reeves and Li Li.\n'
